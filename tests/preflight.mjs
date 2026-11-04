@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { checkArtifact } from "../src/lib/artifact-checks.ts";
 import { chartFromTable } from "../src/lib/table-chart.ts";
+import { cloudInstructions } from "../src/lib/cloud-prompt.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
+
+assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
 
 const scenarios = JSON.parse(readFileSync(new URL("./scenarios.json", import.meta.url)));
 for (const id of ["pong", "flappy", "slingshot", "space-invaders"]) {

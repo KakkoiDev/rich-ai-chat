@@ -2,17 +2,16 @@ import { generateSystemPrompt, type LibrarySpec, type PromptOptions } from "@ope
 import { readFileSync } from "fs";
 import { join } from "path";
 
-/** Load the generated openuiLibrary spec and wrap it in Cloud's managed prompt block. */
+/** Assemble the generated library and classroom rules into the local model prompt. */
 export function cloudInstructions(extra?: string): string {
-  // The generated spec carries the library and its prompt options. generateSystemPrompt takes
-  // them separately: Cloud rejects promptOptions inside the library (chatLibrary).
   const { promptOptions, ...library } = JSON.parse(
     readFileSync(join(process.cwd(), "src/generated/spec.json"), "utf-8"),
   ) as LibrarySpec & { promptOptions?: PromptOptions };
   return generateSystemPrompt({
     cloud: false,
     library,
-    promptOptions,
-    ...(extra ? { instructions: extra } : {}),
+    promptOptions: extra
+      ? { ...promptOptions, additionalRules: [...(promptOptions?.additionalRules ?? []), extra] }
+      : promptOptions,
   });
 }

@@ -18,3 +18,9 @@ For another model, start an instance with its own `MODEL_ID` and `MODEL_BASE_URL
 Each case starts with fresh browser storage or an explicit message history. The runner prints a result and duration per case, returns a failing exit code if any case fails, and optionally writes JSON. A skipped search does not count as a pass. Runs are samples of model behavior; keep all results if repeating a run. The broader prompts in [scenarios.json](../scenarios.json) are for exploratory evaluation and are not automatically scored by this runner.
 
 The [first full GPT-OSS 20B baseline](baselines/gpt-oss-20b.json) passed 6 of 9 checks: 3 of 6 model tasks, both app checks, and live search. Native pie, classroom image, and tic-tac-toe did not meet the browser assertions. A preliminary run also called search successfully but omitted a returned source link, so the passing live search result should not be read as guaranteed citation behavior.
+
+To compare the requested Ollama MLX variants, run the suite once per model with the same app revision. Use `gemma4:12b-mlx`, `gemma4:e4b-mlx`, or `gemma4:e2b-mlx` for both the server's `MODEL_ID` and the runner's `EVAL_MODEL`. Give each run its own JSON report. Start with one server/model at a time to avoid model loading and memory contention affecting timeouts.
+
+The game case measures generation with the app's tic-tac-toe rules recipe enabled. The model still writes the playable HTML and JavaScript. Keep the app revision fixed for comparisons; the original GPT-OSS baseline used a stricter pie palette assertion that rejected some correctly colored charts.
+
+The [GPT-OSS 20B retest](baselines/gpt-oss-20b-retest.json) passed all nine checks with the local classroom rules, corrected pie assertion, and board-game recipe. Treat this as one passing run; model replies and live search results can vary.

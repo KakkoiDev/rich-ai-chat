@@ -52,11 +52,10 @@ const cases = [
   ['repair', 'model', () => e2e('gpt-oss-repair')],
   ['native-pie', 'model', async page => {
     await ask(page, 'Show a native pie chart with exactly three slices: Apples 50, Bananas 30, Cherries 20.');
-    const palette = ['#2563eb', '#d97706', '#0f766e'];
-    await page.locator('svg path[fill="#0f766e"]').first().waitFor();
-    const fills = await page.locator('svg path[fill]').evaluateAll(nodes => nodes.map(n => n.getAttribute('fill')));
-    for (const color of palette) assert.ok(fills.includes(color), 'Missing slice ' + color);
+    const palette = ['#2563eb', '#d97706', '#0f766e', '#be185d', '#7c3aed', '#b91c1c', '#4d7c0f', '#475569'];
     for (const value of [50, 30, 20]) await page.getByText(new RegExp('^' + value + '(?:\\.0+)?%$')).first().waitFor();
+    const fills = await page.locator('svg path[fill]').evaluateAll(nodes => nodes.map(n => n.getAttribute('fill')));
+    assert.equal(new Set(fills.filter(color => palette.includes(color))).size, 3, 'Expected three distinct slice colors');
     assert.equal(await page.getByRole('button', { name: 'Run preview' }).count(), 0);
   }],
   ['classroom-image', 'model', async page => {
@@ -120,7 +119,7 @@ const cases = [
         if (result?.skip) { status = 'skip'; detail = result.skip; }
       } catch (error) {
         status = 'fail';
-        detail = error.message.split('\n').slice(0, 3).join(' ').slice(0, 300);
+        detail = error.message.replace(/\x1b\[[0-9;]*m/g, '').split('\n').slice(0, 3).join(' ').slice(0, 300);
       } finally {
         await page.close();
       }

@@ -1,0 +1,60 @@
+{
+  "model": "gpt-oss:20b",
+  "startedAt": "2026-11-04T08:40:52.170Z",
+  "cases": [
+    {
+      "id": "context",
+      "category": "model",
+      "status": "pass",
+      "seconds": 4.155
+    },
+    {
+      "id": "calculator",
+      "category": "model",
+      "status": "pass",
+      "seconds": 22.384
+    },
+    {
+      "id": "repair",
+      "category": "model",
+      "status": "pass",
+      "seconds": 4.802
+    },
+    {
+      "id": "native-pie",
+      "category": "model",
+      "status": "pass",
+      "seconds": 2.726
+    },
+    {
+      "id": "classroom-image",
+      "category": "model",
+      "status": "pass",
+      "seconds": 1.996
+    },
+    {
+      "id": "tic-tac-toe",
+      "category": "model",
+      "status": "pass",
+      "seconds": 16.684
+    },
+    {
+      "id": "table-to-chart",
+      "category": "app",
+      "status": "pass",
+      "seconds": 0.277
+    },
+    {
+      "id": "slingshot",
+      "category": "app",
+      "status": "pass",
+      "seconds": 2.982
+    },
+    {
+      "id": "weather-search",
+      "category": "live",
+      "status": "pass",
+      "seconds": 6.254
+    }
+  ]
+}
