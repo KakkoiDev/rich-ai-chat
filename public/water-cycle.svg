@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 160" role="img" aria-label="Water cycle: evaporation, condensation, precipitation">
+<rect width="480" height="160" rx="16" fill="#ecf7ff"/>
+<path d="M68 114 Q125 24 225 43 M250 47 Q351 35 407 107 M384 123 Q236 160 97 129" fill="none" stroke="#236c99" stroke-width="4"/>
+<g fill="#123d59" font-family="sans-serif" text-anchor="middle" font-size="16"><text x="86" y="108">Evaporation</text><text x="239" y="34">Condensation</text><text x="391" y="120">Precipitation</text></g>
+</svg>
