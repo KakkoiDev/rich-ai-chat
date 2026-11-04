@@ -4,7 +4,9 @@ Standalone classroom prototype adapted from the OpenUI Vercel AI SDK example (MI
 
 ## Video walkthrough
 
-[Watch or download the Playwright walkthrough](docs/walkthrough.webm?raw=true). The visible cursor follows the Izumo weather question, a Japanese follow-up, and an inline illustration. The weather shown is from a sample conversation.
+[![Rich AI Chat walkthrough — click to watch](docs/walkthrough-preview.png)](https://raw.githubusercontent.com/KakkoiDev/rich-ai-chat/main/docs/walkthrough.webm)
+
+[Watch or download the Playwright walkthrough](https://raw.githubusercontent.com/KakkoiDev/rich-ai-chat/main/docs/walkthrough.webm). The visible cursor follows the Izumo weather question, a Japanese follow-up, and an inline illustration. The weather shown is from a sample conversation.
 
 ## Run locally
 
