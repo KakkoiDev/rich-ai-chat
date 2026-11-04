@@ -37,7 +37,10 @@ async function ask(page, prompt) {
   await box.press('Enter');
   const result = await response;
   assert.ok(result.ok(), 'Chat request failed: ' + result.status());
-  assert.ok(parseEvents(await result.text()).some(e => e.type === 'finish'), 'No completed reply');
+  const events = parseEvents(await result.text());
+  assert.ok(events.some(e => e.type === 'finish'), 'No completed reply');
+  const text = events.filter(e => e.type === 'text-delta').map(e => e.delta).join('');
+  assert.ok(text.trim() && !/model (?:stopped before finishing|could not finish)/i.test(text), text.slice(0, 240) || 'Empty reply');
 }
 
 const cases = [
