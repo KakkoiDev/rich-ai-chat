@@ -12,3 +12,11 @@ body {
   position: relative;
   width: 100vw;
 }
+
+.html-artifact { padding: 1rem; border: 1px solid #8885; border-radius: 12px; width: 100%; box-sizing: border-box; }
+.artifact-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 10px; }
+.artifact-controls button { font: inherit; color: inherit; background: transparent; border: 1px solid #8888; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.html-artifact iframe { display: block; width: 100%; height: min(660px, 72vh); background: white; border: 1px solid #8885; border-radius: 8px; }
+.html-artifact pre { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.artifact-feedback { display: grid; gap: 6px; margin-top: 12px; }
+.artifact-feedback textarea { font: inherit; color: inherit; background: transparent; border: 1px solid #8888; border-radius: 8px; padding: 8px; resize: vertical; }

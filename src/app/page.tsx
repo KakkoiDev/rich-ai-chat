@@ -8,7 +8,7 @@ import {
   vercelAIAdapter,
   vercelAIMessageFormat,
 } from "@openuidev/react-ui";
-import { openuiLibrary } from "@openuidev/react-ui/genui-lib";
+import { library } from "@/library";
 
 const { llm, storage } = localStorageChat(
   fetchLLM({
@@ -29,7 +29,7 @@ export default function Page() {
       <AgentInterface
         llm={llm}
         storage={storage}
-        componentLibrary={openuiLibrary}
+        componentLibrary={library}
         agentName="KakkoiSchool Rich Chat"
         theme={{ mode }}
         starterVariant="short"
@@ -40,7 +40,8 @@ export default function Page() {
           },
           { displayText: "Try web search", prompt: "Search the web for a recent NASA astronomy discovery and cite your sources." },
           { displayText: "Water cycle image", prompt: "Show the classroom water cycle illustration and explain what it shows." },
-          { displayText: "Draw a process", prompt: "Show photosynthesis as a simple diagram with labeled steps." },
+          { displayText: "Build a calculator", prompt: "Build a working calculator I can use right here." },
+          { displayText: "Make a game", prompt: "Make a playable two-player tic-tac-toe game." },
         ]}
       />
     </div>

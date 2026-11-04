@@ -2,7 +2,7 @@
   "root": "Stack",
   "components": {
     "Card": {
-      "signature": "Card(children: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | IconButton | Steps | InlineHeader | EntityList | EditableTable | SnippetCardBlock | OverviewCardBlock | ContextCardBlock | CompositeCardBlock | VisualCardBlock | Tabs | Carousel | Stack)[], variant?: \"card\" | \"sunk\" | \"clear\", direction?: \"row\" | \"column\", gap?: \"none\" | \"xs\" | \"s\" | \"m\" | \"l\" | \"xl\" | \"2xl\", align?: \"start\" | \"center\" | \"end\" | \"stretch\" | \"baseline\", justify?: \"start\" | \"center\" | \"end\" | \"between\" | \"around\" | \"evenly\", wrap?: boolean)",
+      "signature": "Card(children: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | IconButton | Steps | InlineHeader | EntityList | EditableTable | SnippetCardBlock | OverviewCardBlock | ContextCardBlock | CompositeCardBlock | VisualCardBlock | Tabs | Carousel | Stack | HtmlArtifact)[], variant?: \"card\" | \"sunk\" | \"clear\", direction?: \"row\" | \"column\", gap?: \"none\" | \"xs\" | \"s\" | \"m\" | \"l\" | \"xl\" | \"2xl\", align?: \"start\" | \"center\" | \"end\" | \"stretch\" | \"baseline\", justify?: \"start\" | \"center\" | \"end\" | \"between\" | \"around\" | \"evenly\", wrap?: boolean)",
       "description": "Styled container. variant: \"card\" (default, elevated) | \"sunk\" (recessed) | \"clear\" (transparent). Always full width. Accepts all Stack flex params (default: direction \"column\"). Cards flex to share space in row/wrap layouts."
     },
     "CardHeader": {
@@ -328,6 +328,10 @@
     "Modal": {
       "signature": "Modal(title: string, open?: $binding<boolean>, children: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | IconButton | Steps | InlineHeader | EntityList | EditableTable | SnippetCardBlock | OverviewCardBlock | ContextCardBlock | CompositeCardBlock | VisualCardBlock)[], size?: \"sm\" | \"md\" | \"lg\")",
       "description": "Modal dialog. open is a reactive $boolean binding — set to true to open, X/Escape/backdrop auto-closes. Put Form with buttons inside children."
+    },
+    "HtmlArtifact": {
+      "signature": "HtmlArtifact(title: string, document: string, javascript?: string)",
+      "description": "Build a runnable mini-app or game using self-contained HTML, inline CSS and inline JavaScript. No libraries, remote resources, or chat actions."
     }
   },
   "componentGroups": [
@@ -780,6 +784,9 @@
       },
       "Modal": {
         "$ref": "#/$defs/Modal"
+      },
+      "HtmlArtifact": {
+        "$ref": "#/$defs/HtmlArtifact"
       }
     },
     "required": [
@@ -864,7 +871,8 @@
       "CompositeCardBlock",
       "VisualCardItem",
       "VisualCardBlock",
-      "Modal"
+      "Modal",
+      "HtmlArtifact"
     ],
     "additionalProperties": false,
     "$defs": {
@@ -982,6 +990,9 @@
                 },
                 {
                   "$ref": "#/$defs/Stack"
+                },
+                {
+                  "$ref": "#/$defs/HtmlArtifact"
                 }
               ]
             }
@@ -3995,6 +4006,26 @@
         "additionalProperties": false,
         "description": "Flex container. direction: \"row\"|\"column\" (default \"column\"). gap: \"none\"|\"xs\"|\"s\"|\"m\"|\"l\"|\"xl\"|\"2xl\" (default \"m\"). align: \"start\"|\"center\"|\"end\"|\"stretch\"|\"baseline\". justify: \"start\"|\"center\"|\"end\"|\"between\"|\"around\"|\"evenly\"."
       },
+      "HtmlArtifact": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "document": {
+            "type": "string"
+          },
+          "javascript": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "document"
+        ],
+        "additionalProperties": false,
+        "description": "Build a runnable mini-app or game using self-contained HTML, inline CSS and inline JavaScript. No libraries, remote resources, or chat actions."
+      },
       "Slice": {
         "type": "object",
         "properties": {
@@ -4382,6 +4413,7 @@
       "Image URLs must be real (from a tool result or the user) — never invent or template an image URL.",
       "Always pass a category to Icon — it enables a topical fallback when the exact icon name is unavailable.",
       "EditableTable requires the consuming app to persist edits — use it only when the user or app explicitly asks for an editable table; default to Table for read-only data.",
+      "When asked to build or revise an interactive app or game, emit one HtmlArtifact inside Card. Example: root = Card([HtmlArtifact(\"Counter\", \"<button id='b'>0</button><script>document.getElementById('b').onclick=e=>e.target.textContent=+e.target.textContent+1</script>\")]). Prefer exactly two arguments: title and one HTML string containing its CSS and JavaScript. If separating JavaScript, the optional third argument is JavaScript only; put CSS in a style tag in the HTML string. Use single quotes inside HTML attributes and JavaScript so the OpenUI string needs no escaped quotes. Keep it compact and self-contained. Implement controls and state locally, never with @ToAssistant. No external assets, fetch, storage, libraries, eval, or Function constructor. For calculators, implement operations with explicit arithmetic. For games, use the same geometry for rendering and collision detection, make pointer controls work before keyboard focus, and use elapsed time or a fixed timestep for animation.",
       "A Form's submit button must send the entries to you: its action must be @ToAssistant(...), e.g. Button(\"Plan my trip\", @ToAssistant(\"Plan my trip\"), \"primary\"), never @Set or another local-only action. Don't put what the form produces (a summary, plan or itinerary) in the same reply, hidden or not; write it in your next reply from the values the user submitted.",
       "When a field should only appear for a certain answer (e.g. a company name only for Business trips), bind the deciding field to a $variable with its value argument, e.g. RadioGroup(\"tripType\", items, \"Leisure\", { required: true }, $tripType), and show the field with $tripType == \"Business\" ? companyField : null."
     ]
