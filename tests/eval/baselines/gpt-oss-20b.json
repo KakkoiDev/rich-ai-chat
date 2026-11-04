@@ -1,0 +1,64 @@
+{
+  "model": "gpt-oss:20b",
+  "startedAt": "2026-11-04T08:24:59.137Z",
+  "cases": [
+    {
+      "id": "context",
+      "category": "model",
+      "status": "pass",
+      "seconds": 2.75
+    },
+    {
+      "id": "calculator",
+      "category": "model",
+      "status": "pass",
+      "seconds": 19.83
+    },
+    {
+      "id": "repair",
+      "category": "model",
+      "status": "pass",
+      "seconds": 10.336
+    },
+    {
+      "id": "native-pie",
+      "category": "model",
+      "status": "fail",
+      "seconds": 12.374,
+      "detail": "locator.waitFor: Timeout 10000ms exceeded. Call log:   - waiting for locator('svg path[fill=\"#0f766e\"]').first() to be visible"
+    },
+    {
+      "id": "classroom-image",
+      "category": "model",
+      "status": "fail",
+      "seconds": 12.328,
+      "detail": "locator.waitFor: Timeout 10000ms exceeded. Call log:   - waiting for locator('img[src=\"/water-cycle.svg\"], img[src*=\"url=%2Fwater-cycle.svg\"]').first() to be visible"
+    },
+    {
+      "id": "tic-tac-toe",
+      "category": "model",
+      "status": "fail",
+      "seconds": 27.155,
+      "detail": "locator.click: Timeout 10000ms exceeded. Call log:   - waiting for locator('.html-artifact iframe').contentFrame().getByRole('button', { name: '1', exact: true })"
+    },
+    {
+      "id": "table-to-chart",
+      "category": "app",
+      "status": "pass",
+      "seconds": 0.275
+    },
+    {
+      "id": "slingshot",
+      "category": "app",
+      "status": "pass",
+      "seconds": 2.969
+    },
+    {
+      "id": "weather-search",
+      "category": "live",
+      "status": "pass",
+      "seconds": 6.071
+    }
+  ],
+  "appRevision": "2b10686"
+}
