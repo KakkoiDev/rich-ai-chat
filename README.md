@@ -28,3 +28,24 @@ Previews use an iframe with an opaque origin and a restrictive content policy. T
 ### Play-test and revise
 
 Run the preview and try the controls. The preview reports script errors and blocked browser operations as they happen. A clean startup check does not verify game rules or layout. Describe what went wrong or what should change, then click **Request revision**. The chat sends the current source, your notes, and up to five diagnostics to the configured model in one request. The revision appears as a new artifact, so you can test it without losing the original. **Restart test** resets the preview and clears the previous diagnostics.
+
+### Try GPT-OSS 20B locally
+
+With Ollama running and `gpt-oss:20b` installed, launch a second instance alongside the DeepSeek demo:
+
+```sh
+RICH_CHAT_BUILD_DIR=.next-local/gpt-oss \
+MODEL_BASE_URL=http://127.0.0.1:11434/v1 \
+MODEL_ID=gpt-oss:20b MODEL_API_KEY=local \
+npm run dev -- --hostname 127.0.0.1 --port 3212
+```
+
+Open http://127.0.0.1:3212. Model inference stays local; web search still requires a Brave Search API key and sends the search query to Brave.
+
+Revision requests use only the selected artifact, notes, and diagnostics. If the model times out or returns an incomplete artifact, the app makes one more attempt with a request for a smaller replacement. Each attempt has a 55-second limit and revision attempts cannot call tools. If both fail, the chat reports that the original artifact is still available.
+
+For app and game build requests, the model receives a short guide for the requested kind of artifact, then returns a document for the app to check before rendering. The same checks run on revisions. They catch missing script closures, external scripts, common direct uses of dynamic evaluation, and syntax errors in classic inline JavaScript. A syntax diagnostic includes the script and line number when available; the retry gets that diagnostic. The checker does not run the code or prove game rules, accessibility, or layout. Use the preview to test those behaviors.
+
+### Regression scenarios
+
+See [scenario prompts](tests/scenarios.json) and [model evaluation notes](tests/MODEL-NOTES.md). Run the offline checks with `node tests/preflight.mjs` on Node 24+. With Playwright and Chromium available, run `CHAT_URL=http://127.0.0.1:3212/ node tests/e2e/slingshot.cjs` to verify the starter through chat. Omit CHAT_URL to test the standalone file. Plain slingshot build requests open the tested starter; use Request revision to customize it.

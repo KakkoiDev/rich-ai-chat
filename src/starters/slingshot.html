@@ -1,0 +1,67 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slingshot Garden</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#10263a;color:#eef9ff;font:16px system-ui}main{max-width:880px;margin:auto;padding:16px}header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font-size:clamp(20px,4vw,32px);margin:0}button{border:0;border-radius:8px;padding:8px 14px;background:#fcd46c;color:#173047;font:inherit;font-weight:700;cursor:pointer}canvas{display:block;width:100%;height:auto;border-radius:14px;touch-action:none;outline-offset:4px}p{margin:8px 0}
+body{background:#15152b;color:#f9edcc}button{background:#f9edcc;color:#15152b;border:2px solid #15152b;box-shadow:2px 2px #f0a741;border-radius:0;font-weight:700}canvas{border:2px solid #f9edcc;border-radius:0}</style>
+<main><header><h1>Slingshot Garden</h1><div>Score <output id="score">0</output> · Shots <output id="shots">5</output> <button id="reset">Restart</button></div></header>
+<p id="status" role="status">Drag the bird back and release. Keyboard: arrows to aim, Space to launch.</p>
+<canvas id="field" width="800" height="410" tabindex="0" aria-label="Slingshot game field"></canvas></main>
+<!-- rich-ai-chat:littlejs -->
+<script>
+(()=>{
+'use strict';
+const canvas=document.getElementById('field'), ctx=canvas.getContext('2d');
+const scoreEl=document.getElementById('score'), shotsEl=document.getElementById('shots'), statusEl=document.getElementById('status');
+const home={x:150,y:320}, ground=370, radius=15, gravity=530;
+let bird, targets, blocks, score, shots, mode, pull, clock, pointer;
+const intro='Drag the bird back and release. Keyboard: arrows to aim, Space to launch.';
+function ready(){bird={...home,vx:0,vy:0};pull={x:-65,y:28};mode='ready';clock=0;pointer=null}
+function reset(){score=0;shots=5;blocks=[{x:545,y:342,w:44,h:28},{x:650,y:342,w:50,h:28},{x:650,y:314,w:44,h:28},{x:719,y:342,w:44,h:28}].map(b=>({...b,vx:0,vy:0}));targets=[{x:545,y:318,r:24},{x:650,y:290,r:24},{x:719,y:318,r:24}].map(t=>({...t,vy:0}));ready();updateHUD(intro)}
+function updateHUD(message){scoreEl.value=score;shotsEl.value=shots;if(message)statusEl.textContent=message}
+function launch(){if(!['ready','aim'].includes(mode)||Math.hypot(pull.x,pull.y)<8)return;bird={x:home.x+pull.x,y:home.y+pull.y,vx:-pull.x*9,vy:-pull.y*9};mode='flight';clock=0;shots--;updateHUD('Bird in flight…')}
+function finish(){if(targets.every(t=>t.hit)){mode='won';updateHUD('Garden cleared! Press Restart to play again.');return}
+ if(shots===0){mode='lost';updateHUD('Out of shots. Press Restart to try again.');return}ready();updateHUD(intro)}
+function step(dt){if(mode!=='flight')return;clock+=dt;bird.vy+=gravity*dt;bird.x+=bird.vx*dt;bird.y+=bird.vy*dt;
+ for(const b of blocks){
+  if(Math.abs(bird.x-b.x)<b.w/2+radius&&bird.y+radius>b.y&&bird.y-radius<b.y+b.h&&Math.abs(bird.vx)>30){b.vx+=bird.vx*.45;bird.vx*=.56}
+ }
+ for(const b of [...blocks].sort((a,b)=>b.y-a.y)){
+  const bottom=b.y+b.h;b.x+=b.vx*dt;b.vx*=Math.pow(.20,dt);b.vy+=gravity*dt;b.y+=b.vy*dt;
+  let floor=ground;for(const other of blocks)if(other!==b&&Math.abs(other.x-b.x)<(other.w+b.w)/2-2&&bottom<=other.y+2)floor=Math.min(floor,other.y);
+  if(b.y+b.h>=floor){b.y=floor-b.h;b.vy=0}
+ }
+ for(const t of targets)if(!t.hit){
+  const oldBottom=t.y+t.r;t.vy+=gravity*dt;t.y+=t.vy*dt;
+  let floor=ground;for(const b of blocks)if(Math.abs(t.x-b.x)<b.w/2&&oldBottom<=b.y+2)floor=Math.min(floor,b.y);
+  const hardLanding=t.y+t.r>=floor&&t.vy>145;
+  if(t.y+t.r>=floor){t.y=floor-t.r;t.vy=0}
+  if(hardLanding||Math.hypot(t.x-bird.x,t.y-bird.y)<t.r+radius){t.hit=true;score+=100;updateHUD();if(targets.every(t=>t.hit)){finish();return}}
+ }
+ if(bird.y+radius>=ground){bird.y=ground-radius;bird.vy=0;bird.vx*=.86}
+ if(bird.x>830||bird.x< -35||clock>6||(bird.y+radius>=ground&&Math.abs(bird.vx)<8&&clock>2))finish()}
+function point(e){const b=canvas.getBoundingClientRect();return {x:(e.clientX-b.left)*800/b.width,y:(e.clientY-b.top)*410/b.height}}
+function aim(e){const p=point(e);let x=Math.min(0,p.x-home.x),y=p.y-home.y;const scale=Math.min(1,104/(Math.hypot(x,y)||1));pull={x:x*scale,y:y*scale}}
+canvas.addEventListener('pointerdown',e=>{if(mode!=='ready')return;const p=point(e);if(Math.hypot(p.x-home.x,p.y-home.y)>38)return;pointer=e.pointerId;canvas.setPointerCapture(pointer);mode='aim';aim(e)});
+canvas.addEventListener('pointermove',e=>{if(mode==='aim'&&pointer===e.pointerId)aim(e)});
+canvas.addEventListener('pointerup',e=>{if(mode==='aim'&&pointer===e.pointerId){aim(e);launch();if(mode==='aim')ready()}});
+canvas.addEventListener('pointercancel',()=>{if(mode==='aim')ready()});
+canvas.addEventListener('keydown',e=>{if(![' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();if(mode!=='ready')return;
+ if(e.key===' '){if(!e.repeat)launch();return}
+ pull.x=Math.max(-95,Math.min(-15,pull.x+(e.key==='ArrowLeft'?-4:e.key==='ArrowRight'?4:0)));
+ pull.y=Math.max(-30,Math.min(70,pull.y+(e.key==='ArrowDown'?4:e.key==='ArrowUp'?-4:0)));});
+document.getElementById('reset').onclick=reset;
+function circle(x,y,r,fill){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill()}
+function draw(){
+ const sky=ctx.createLinearGradient(0,0,0,410);sky.addColorStop(0,'#9ad9ff');sky.addColorStop(1,'#e4faf2');ctx.fillStyle=sky;ctx.fillRect(0,0,800,410);
+ circle(700,70,36,'#ffe18d');ctx.fillStyle='#68a353';ctx.fillRect(0,ground,800,40);
+ for(const b of blocks){ctx.fillStyle='#a86b38';ctx.fillRect(b.x-b.w/2,b.y,b.w,b.h);ctx.strokeStyle='#73472a';ctx.lineWidth=2;ctx.strokeRect(b.x-b.w/2,b.y,b.w,b.h)}
+ for(const t of targets)if(!t.hit){circle(t.x,t.y,t.r,'#447b43');circle(t.x-8,t.y-4,5,'white');circle(t.x+8,t.y-4,5,'white');circle(t.x-7,t.y-4,2,'#203c2c');circle(t.x+7,t.y-4,2,'#203c2c');circle(t.x,t.y+8,7,'#9ed07e')}
+ const x=mode==='aim'?home.x+pull.x:bird.x,y=mode==='aim'?home.y+pull.y:bird.y;
+ ctx.strokeStyle='#70452f';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(150,ground);ctx.lineTo(150,335);ctx.lineTo(136,311);ctx.moveTo(150,335);ctx.lineTo(164,311);ctx.stroke();
+ if(mode==='ready'||mode==='aim'){ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(136,311);ctx.lineTo(x,y);ctx.lineTo(164,311);ctx.stroke();
+ for(let t=.10;t<=1.3;t+=.1){const px=home.x+pull.x-pull.x*9*t,py=home.y+pull.y-pull.y*9*t+gravity*t*t/2;if(py>=ground||px>800)break;circle(px,py,2,'#4a607a')}}
+ if(mode!=='won'&&mode!=='lost'){circle(x,y,radius,'#cc4652');circle(x+5,y-4,5,'white');circle(x+7,y-4,2,'#142835');circle(x+12,y+3,4,'#ffce63')}
+}
+setHeadlessMode(true); engineInit(reset,()=>{step(1/120);step(1/120);draw()},()=>{},()=>{},()=>{});
+})();
+</script></html>

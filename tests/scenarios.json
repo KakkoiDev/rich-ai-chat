@@ -1,0 +1,15 @@
+[
+  {"id":"weather-now","prompt":"What's the weather like in Tokyo right now?","expect":"Search once; cite a source and state the observation time."},
+  {"id":"weather-chart","prompts":["What will the weather in Tokyo be this week? Show a table.","I want a chart","do the chart again"],"expect":"Use the existing values; plot temperature and rain on separate scales; no unresolved variables."},
+  {"id":"yen","prompts":["What is the USD/JPY rate today and how did it move over the past week?","Show the past five years.","Now show dollars per yen.","What about yen per euro?"],"expect":"Use dated sources, label quote direction, verify reciprocals, and never invent points when data is unavailable."},
+  {"id":"pong","prompt":"Make a Pong game against the computer with arrow keys and a visible score.","expect":"Both paddles fit the preview, keyboard moves the player, opponent moves, scoring and restart work."},
+  {"id":"flappy","prompt":"Make a compact Flappy Bird game.","expect":"First tap launches; the visible gap matches collision geometry; scoring and restart work."},
+  {"id":"slingshot","prompt":"Make an Angry Birds clone.","expect":"Load the playable slingshot starter. Bird waits for input; drag or Space launches; hit scores; restart resets."},
+  {"id":"space-invaders","prompt":"Make a compact Space Invaders game.","expect":"Arrow keys move, Space fires, an enemy hit scores, restart works, and the script is complete."},
+  {"id":"calculator","prompt":"Make a calculator with addition, equals, and clear.","expect":"2 + 3 displays 5 and clear resets it; no chat turn per click."},
+  {"id":"pie","prompts":["Show a pie chart for sample values A=4, B=3, C=2.","Use distinct colors."],"expect":"Native pie with three distinguishable slices, unchanged data, no HTML preview."},
+  {"id":"image","prompt":"Show the classroom water cycle illustration.","expect":"Inline image from /water-cycle.svg."},
+  {"id":"diagram","prompt":"Show photosynthesis as a labeled process diagram.","expect":"Readable labeled stages in order."},
+  {"id":"dashboard","prompt":"Show a sample team dashboard with weekly metrics and tabs for trend and contributors.","expect":"Tabs switch locally and sample data is identified."},
+  {"id":"form","prompt":"Make a contact form with name and message and summarize the fields on submit.","expect":"Labeled fields; submit sends only the intended form action."}
+]

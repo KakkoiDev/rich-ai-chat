@@ -22,6 +22,9 @@ const monitor = `<script>
 function Preview({ title, document }: { title: string; document: string }) {
   const [view, setView] = useState<"closed" | "preview" | "source">("closed");
   const [run, setRun] = useState(0);
+  const [engine, setEngine] = useState<string>();
+  const [engineError, setEngineError] = useState(false);
+  const needsEngine = document.includes("<!-- rich-ai-chat:littlejs -->");
   const [ready, setReady] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [diagnostics, setDiagnostics] = useState<string[]>([]);
@@ -31,7 +34,16 @@ function Preview({ title, document }: { title: string; document: string }) {
   const triggerAction = useTriggerAction();
 
   useEffect(() => {
-    if (view !== "preview") return;
+    if (!needsEngine || view !== "preview") return;
+    const controller = new AbortController();
+    fetch("/vendor/littlejs-1.27.0.min.js", { signal: controller.signal })
+      .then(response => { if (!response.ok) throw Error(); return response.text(); })
+      .then(setEngine).catch(() => { if (!controller.signal.aborted) setEngineError(true); });
+    return () => controller.abort();
+  }, [needsEngine, view]);
+
+  useEffect(() => {
+    if (view !== "preview" || (needsEngine && !engine)) return;
     const timer = window.setTimeout(() => setTimedOut(true), 4000);
     function receive(event: MessageEvent) {
       if (!frame.current || event.source !== frame.current.contentWindow || event.origin !== "null") return;
@@ -50,12 +62,16 @@ function Preview({ title, document }: { title: string; document: string }) {
       window.clearTimeout(timer);
       window.removeEventListener("message", receive);
     };
-  }, [view, run]);
+  }, [view, run, needsEngine, engine]);
 
   if (streaming) return <p role="status">Generating {title}…</p>;
   if (document.length > 32000) return <p>This artifact is too large to preview. Ask for a smaller version.</p>;
 
-  const incomplete = (document.match(/<script\b/gi)?.length ?? 0) > (document.match(/<\/script\s*>/gi)?.length ?? 0);
+  // Some models emit a line continuation or double-escape inline handler quotes.
+  const previewSource = document.replace(/\\\r?\n/g, "")
+    .replace(/(<[a-z][^<>]*?\s)(on[a-z]+\s*=\s*)\\+"([^"<>]*?)\\+"/gi, '$1$2"$3"');
+
+  const incomplete = (previewSource.match(/<script\b/gi)?.length ?? 0) > (previewSource.match(/<\/script\s*>/gi)?.length ?? 0);
   const findings = [
     ...(incomplete ? ["An opening script tag has no matching closing tag."] : []),
     ...(!ready && timedOut ? ["The preview did not report that it loaded."] : []),
@@ -64,6 +80,7 @@ function Preview({ title, document }: { title: string; document: string }) {
 
   function startTest() {
     setReady(false);
+    setEngineError(false);
     setTimedOut(false);
     setDiagnostics([]);
     setRun(current => current + 1);
@@ -96,7 +113,8 @@ function Preview({ title, document }: { title: string; document: string }) {
           {view === "source" ? "Hide source" : "View source"}
         </button>
       </div>
-      {view === "preview" && !incomplete && (
+      {engineError && <p role="status">Could not load the bundled LittleJS engine.</p>}
+      {view === "preview" && !incomplete && (!needsEngine || engine) && (
         <>
           <p className="artifact-hint">Play-test inside the preview. Click it before using keyboard controls.</p>
           <iframe
@@ -105,7 +123,7 @@ function Preview({ title, document }: { title: string; document: string }) {
             title={title}
             sandbox="allow-scripts"
             referrerPolicy="no-referrer"
-            srcDoc={`<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}">${monitor}${document}`}
+            srcDoc={`<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}">${monitor}${needsEngine && engine ? `<script>${engine.replace(/<\/script/gi, "<\\/script")}</script>` : ""}${previewSource}`}
           />
         </>
       )}
@@ -118,7 +136,7 @@ function Preview({ title, document }: { title: string; document: string }) {
       <label className="artifact-feedback">
         What should change?
         <textarea value={feedback} maxLength={1000} onChange={event => setFeedback(event.target.value)}
-          placeholder="Example: The bird hits an invisible obstacle in the pipe gap." />
+          placeholder="Example: Describe what looks wrong or what should change." />
       </label>
       <div className="artifact-controls">
         <button type="button" disabled={!feedback.trim() && !findings.length} onClick={requestRevision}>Request revision</button>
