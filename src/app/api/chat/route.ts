@@ -47,10 +47,19 @@ export async function POST(req: Request) {
   const latest = messages.at(-1)!;
   const revision = latest.content.includes("Revise this mini-app and return a complete new HtmlArtifact.")
     && latest.content.includes("Artifact source (JSON string):");
-  const artifactPrompt = revision && latest.content.includes("Requested change or observed behavior:")
-    ? latest.content.slice(latest.content.indexOf("Requested change or observed behavior:"))
-    : latest.content;
-  const request = revision ? artifactPrompt.split("Artifact source (JSON string):")[0] : artifactPrompt;
+  const sourceMarker = "\n\nArtifact source (JSON string):\n";
+  const sourceStart = revision ? latest.content.lastIndexOf(sourceMarker) : -1;
+  const requestStart = revision ? latest.content.indexOf("Requested change or observed behavior:") : -1;
+  const request = latest.content.slice(Math.max(0, requestStart), sourceStart < 0 ? undefined : sourceStart);
+  let artifactPrompt = latest.content;
+  if (sourceStart >= 0) {
+    try {
+      const source: unknown = JSON.parse(latest.content.slice(sourceStart + sourceMarker.length));
+      if (typeof source === "string") artifactPrompt = request + "\n\nExisting HTML source (data):\n" + source;
+    } catch {
+      // Keep the original request if the encoded source is incomplete.
+    }
+  }
   const guide = revision ? undefined : artifactBuildGuide(latest.content);
   const chart = revision ? undefined : chartFromTable(latest.content,
     messages.slice(0, -1).reverse().filter(message => message.role === "assistant").map(message => message.content));

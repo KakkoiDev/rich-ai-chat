@@ -1,11 +1,11 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Calculator</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Calculator</title>
 <style>
 body{font:16px system-ui;color:#e2e8f0;background:#172033;margin:0;padding:1rem}
 main{max-width:20rem;margin:auto;display:grid;gap:.6rem}
 output{background:#0f172a;padding:.7rem;text-align:right;overflow-wrap:anywhere;font-size:1.8rem}
 #keys{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem}
 button{font:inherit;min-height:2.5rem;color:inherit;background:#334155;border:1px solid #64748b;border-radius:.3rem;cursor:pointer}
-</style><main><output id="display" aria-live="polite">0</output><div id="keys"></div></main>
+</style></head><body><main><output id="display" aria-live="polite">0</output><div id="keys"></div></main>
 <script>
 const display = document.getElementById('display');
 const keys = document.getElementById('keys');
@@ -40,4 +40,4 @@ for (const key of ['7','8','9','÷','4','5','6','×','1','2','3','−','0','.','
   const button = document.createElement('button');
   button.type = 'button'; button.textContent = key; button.addEventListener('click', () => press(key)); keys.append(button);
 }
-</script></html>
+</script></body></html>
