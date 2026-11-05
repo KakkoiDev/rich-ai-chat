@@ -201,18 +201,31 @@ const cases = [
       const page = await browser.newPage();
       page.setDefaultTimeout(10000);
       const start = performance.now();
-      let status = 'pass', detail;
+      let status = 'pass', detail, observed;
       try {
         await page.goto(url);
         await run(page);
       } catch (e) {
         status = 'fail';
         detail = String(e.message).replace(/\x1b\[[0-9;]*m/g, '').slice(0, 450);
+        const frame = page.frames().findLast(f => f.url() === 'about:srcdoc');
+        if (frame) {
+          observed = await Promise.race([
+            frame.evaluate(() => ({
+              labels: Array.from(document.querySelectorAll('label')).slice(0, 10)
+                .map(label => ({ text: label.textContent.trim().slice(0, 80), associated: Boolean(label.control) })),
+              controls: Array.from(document.querySelectorAll('input,button,output')).slice(0, 20)
+                .map(el => ({ tag: el.localName, text: (el.getAttribute('aria-label') || el.textContent).trim().slice(0, 80) })),
+              visibleText: document.body?.innerText.slice(0, 320),
+            })).catch(() => undefined),
+            new Promise(resolve => { setTimeout(resolve, 1500).unref(); }),
+          ]);
+        }
       } finally {
         await page.close();
       }
       const seconds = (performance.now() - start) / 1000;
-      report.cases.push({ id, category, status, seconds, ...(detail ? { detail } : {}) });
+      report.cases.push({ id, category, status, seconds, ...(detail ? { detail } : {}), ...(observed ? { observed } : {}) });
       console.log(status.toUpperCase(), id, seconds.toFixed(2) + 's', detail || '');
     }
   } finally {
