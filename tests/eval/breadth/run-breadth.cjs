@@ -36,7 +36,7 @@ async function read(response) {
 }
 
 async function preview(page, reply) {
-  assert.match(reply.text, /HtmlArtifact\(/, 'No preview: ' + reply.text.slice(0, 160));
+  assert.match(reply.text, /HtmlArtifact\(/, 'No preview: ' + reply.text.slice(0, 360));
   await page.getByRole('button', { name: 'Run preview', exact: true }).last().click();
   return page.frameLocator('.html-artifact iframe').last();
 }
