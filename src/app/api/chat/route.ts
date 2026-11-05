@@ -4,12 +4,14 @@ import { basicRecipe } from "@/lib/basic-recipes";
 import { thoughtWatch } from "@/lib/thought-watch";
 import { checkArtifactRequest, readArtifact } from "@/lib/artifact-checks";
 import { artifactBuildGuide } from "@/lib/artifact-build";
+import { chatModelIds } from "@/lib/chat-models";
 import { cloudInstructions } from "@/lib/cloud-prompt";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createUIMessageStream, createUIMessageStreamResponse, stepCountIs, streamText, tool } from "ai";
 import { z } from "zod";
 
 const turn = z.object({
+  model: z.enum(chatModelIds).optional(),
   messages: z.array(z.object({
     role: z.enum(["user", "assistant"]),
     parts: z.array(z.object({ type: z.string(), text: z.string().max(68000).optional() })).max(40),
@@ -87,14 +89,26 @@ export async function POST(req: Request) {
       }),
     });
   }
-  const baseURL = process.env.MODEL_BASE_URL || "https://api.deepseek.com";
-  const modelId = process.env.MODEL_ID || "deepseek-flash";
+  const selected = parsed.data.model;
+  const defaultBaseURL = process.env.MODEL_BASE_URL || "https://api.deepseek.com";
+  const deepSeekBaseURL = "https://api.deepseek.com";
+  const baseURL = selected
+    ? selected === "deepseek-flash" ? deepSeekBaseURL : "http://127.0.0.1:11434/v1"
+    : defaultBaseURL;
+  const modelId = selected || process.env.MODEL_ID || "deepseek-flash";
   const localOllama = /^(?:localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(baseURL).hostname)
     && new URL(baseURL).port === "11434";
+  const deepSeek = new URL(baseURL).hostname === "api.deepseek.com";
+  const apiKey = deepSeek
+    ? process.env.DEEPSEEK_API_KEY || (new URL(defaultBaseURL).hostname === "api.deepseek.com" ? process.env.MODEL_API_KEY : undefined)
+    : selected ? "local" : process.env.MODEL_API_KEY;
+  if (selected === "deepseek-flash" && !apiKey) {
+    return new Response("DeepSeek is not configured on this server.", { status: 503 });
+  }
   const provider = createOpenAI({
     baseURL,
     fetch: async (input, init) => {
-      if (new URL(baseURL).hostname === "api.deepseek.com" && typeof init?.body === "string") {
+      if (deepSeek && typeof init?.body === "string") {
         const body = JSON.parse(init.body);
         delete body.parallel_tool_calls;
         return fetch(input, { ...init, body: JSON.stringify({ ...body, thinking: { type: "disabled" } }) });
@@ -109,7 +123,7 @@ export async function POST(req: Request) {
       }
       return fetch(input, init);
     },
-    apiKey: process.env.MODEL_API_KEY || process.env.DEEPSEEK_API_KEY || "local",
+    apiKey: apiKey || "local",
   });
   const model = provider.chat(modelId);
 

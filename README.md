@@ -29,6 +29,12 @@ Previews use an iframe with an opaque origin and a restrictive content policy. T
 
 Run the preview and try the controls. The preview reports script errors and blocked browser operations as they happen. A clean startup check does not verify game rules or layout. Describe what went wrong or what should change, then click **Request revision**. The chat sends the current source, your notes, and up to five diagnostics to the configured model in one request. The revision appears as a new artifact, so you can test it without losing the original. **Restart test** resets the preview and clears the previous diagnostics.
 
+### Switch models
+
+Use **Model** above the chat to select DeepSeek Flash, GPT-OSS 20B, or Gemma 4 12B, E4B, or E2B. The selection is saved in this browser and applies to the next message or artifact revision. Switching models keeps the current thread.
+
+Set `DEEPSEEK_API_KEY` on the server to enable DeepSeek even when the default model is local. DeepSeek receives the chat context for that turn. The local options use Ollama on port 11434 and need their corresponding model tags installed. **Server default** uses `MODEL_BASE_URL` and `MODEL_ID`.
+
 ### Try GPT-OSS 20B locally
 
 With Ollama running and `gpt-oss:20b` installed, launch a second instance alongside the DeepSeek demo:

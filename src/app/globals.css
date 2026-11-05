@@ -7,11 +7,29 @@ body {
 }
 
 .app-shell {
-  height: 100vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100dvh;
   overflow: hidden;
   position: relative;
   width: 100vw;
 }
+
+.app-shell .openui-agent-container { height: 100%; width: 100%; }
+.model-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem .75rem;
+  padding: .45rem .75rem;
+  background: #f8fafc;
+  color: #172033;
+  border-bottom: 1px solid #8885;
+  font-size: .875rem;
+}
+.app-shell[data-mode="dark"] .model-toolbar { background: #172033; color: #f8fafc; color-scheme: dark; }
+.model-toolbar select { font: inherit; color: inherit; background: inherit; padding: .25rem .4rem; border: 1px solid #888; border-radius: 6px; }
+.model-toolbar span { opacity: .8; }
 
 .html-artifact { padding: 1rem; border: 1px solid #8885; border-radius: 12px; width: 100%; box-sizing: border-box; }
 .artifact-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 10px; }
