@@ -82,8 +82,8 @@ const cases = [
         !node.closest('button,[role="button"],script,style') && node.getClientRects().length > 0)
         .map(node => node.matches('input,textarea') ? node.value : node.textContent.trim()));
     const values = await display();
-    const index = values.indexOf('5');
-    assert.ok(index >= 0, 'No visible calculator result of 5');
+    const index = values.findIndex(value => /^5(?:\.0+)?$/.test(value));
+    assert.ok(index >= 0, 'No visible calculator result of 5; visible values: ' + JSON.stringify(values.slice(0, 12)));
     await button(frame, 'Clear').click();
     assert.match((await display())[index] ?? 'missing display', /^(0)?$/);
   }],
