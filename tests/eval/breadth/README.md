@@ -51,3 +51,15 @@ The seven additions were run without adapting the app or its prompts to these ca
 The expanded runs are in `gpt-oss-expanded.json` and `deepseek-expanded.json`. The same four cases were rerun on both models after fixing response parsing and aligning assertions with the prompts. The `*-assertion-retest.json` files retain those results. Regenerate the comparison with `node compare.cjs`; it marks every replaced observation. The original pilot remains separate.
 
 This suite covers restraint (when not to search). The original reliability suite covers live search. A future breadth slice should exercise required calls, argument validation, provider failures and hostile returned snippets with a controlled provider fixture.
+
+## Ten-round gate
+
+Run against a server pinned to the same clean app revision for the whole streak:
+
+```sh
+CHAT_URL=http://127.0.0.1:3234/ EVAL_MODEL=deepseek-flash \
+  EVAL_REVISION=$(git rev-parse HEAD) EVAL_DIR=/tmp/deepseek-breadth-streak \
+  node tests/eval/breadth/streak.cjs
+```
+
+Each round runs all twelve cases in fresh browser contexts. A skipped, missing or failed case ends the streak. Keep the failed run for diagnosis and start a fresh directory after a fix; never splice passing rounds across revisions. Order: DeepSeek Flash reference, GPT-OSS 20B, Gemma 12B MLX, Gemma E4B MLX, Gemma E2B MLX. Recheck models already qualified when shared app or benchmark behavior changes.
