@@ -141,8 +141,12 @@ const cases = [
     const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/chat', { timeout: 140000 });
     await artifact.getByRole('button', { name: 'Request revision' }).click();
     const revised = await preview(page, await read(await response));
-    for (const name of ['2', '+', '3', '=', 'Double']) await button(revised, name).click();
-    assert.equal((await revised.locator('output').innerText()).trim(), '10');
+    for (const name of ['2', '+', '3', '=']) await button(revised, name).click();
+    const output = revised.locator('output');
+    const before = (await output.innerText()).trim();
+    await button(revised, 'Double').click();
+    const after = (await output.innerText()).trim();
+    assert.equal(after, '10', `Expected 10 after Double; display went from "${before}" to "${after}"`);
     await button(revised, 'Clear').click();
     assert.match((await revised.locator('output').innerText()).trim(), /^(0)?$/);
   }],
