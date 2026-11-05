@@ -29,6 +29,12 @@ Previews use an iframe with an opaque origin and a restrictive content policy. T
 
 Run the preview and try the controls. The preview reports script errors and blocked browser operations as they happen. A clean startup check does not verify game rules or layout. Describe what went wrong or what should change, then click **Request revision**. The chat sends the current source, your notes, and up to five diagnostics to the configured model in one request. The revision appears as a new artifact, so you can test it without losing the original. **Restart test** resets the preview and clears the previous diagnostics.
 
+### Dictate a message
+
+Use **Dictate** beside Send, allow microphone access, then click **Stop recording**. The Mac transcribes up to one minute and inserts the text into your draft for review. The audio is discarded after transcription and is not sent to the selected chat provider. The microphone works on localhost and on the private HTTPS link.
+
+Dictation uses the same multilingual `mlx-community/whisper-base-mlx` model as PLH. On an Apple Silicon Mac with `uv`, run `uv run --python 3.12 scripts/transcribe.py sample.wav wav` once with a short speech recording to cache the Python dependencies and model. If PLH already uses a shared cache, set `HF_HOME` to that directory. The chat route runs offline and uses the same cache.
+
 ### Switch models
 
 Use **Model** in the thread sidebar to select DeepSeek Flash, GPT-OSS 20B, or Gemma 4 12B, E4B, or E2B. The selection is saved in this browser and applies to the next message or artifact revision. Switching models keeps the current thread.

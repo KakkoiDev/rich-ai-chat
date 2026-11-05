@@ -12,6 +12,7 @@ import {
   vercelAIMessageFormat,
 } from "@openuidev/react-ui";
 import { library } from "@/library";
+import { VoiceComposer } from "@/voice-composer";
 
 const serverDefault = "server-default";
 const modelOptions = [
@@ -103,6 +104,9 @@ export default function Page() {
             {model === "deepseek-flash" ? "Sends chat to DeepSeek" : model ? "Runs on Ollama" : "Uses server settings"}
           </span>
         </AgentInterface.SidebarFooter>
+        <AgentInterface.Composer>
+          <VoiceComposer />
+        </AgentInterface.Composer>
       </AgentInterface>
     </div>
   );

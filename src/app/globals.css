@@ -36,3 +36,12 @@ body {
 .html-artifact pre { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .artifact-feedback { display: grid; gap: 6px; margin-top: 12px; }
 .artifact-feedback textarea { font: inherit; color: inherit; background: transparent; border: 1px solid #8888; border-radius: 8px; padding: 8px; resize: vertical; }
+
+.voice-control { display: flex; align-items: center; gap: var(--openui-space-xs); margin-right: var(--openui-space-xs); }
+.voice-control__status {
+  color: var(--openui-text-neutral-secondary);
+  font: var(--openui-text-body-sm);
+  max-width: min(15rem, 52vw);
+  text-align: right;
+}
+.voice-control button[aria-pressed="true"] { color: var(--openui-text-danger, #c33); }
