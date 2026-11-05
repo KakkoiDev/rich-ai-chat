@@ -5,12 +5,23 @@ import { chatModelIds, chatModelLabels, isChatModelId } from "@/lib/chat-models"
 import { localStorageChat } from "@/lib/local-storage";
 import {
   AgentInterface,
+  ModelSwitcher,
   fetchLLM,
   useSystemThemeMode,
   vercelAIAdapter,
   vercelAIMessageFormat,
 } from "@openuidev/react-ui";
 import { library } from "@/library";
+
+const serverDefault = "server-default";
+const modelOptions = [
+  { id: serverDefault, name: "Server default" },
+  ...chatModelIds.map(id => ({
+    id,
+    name: chatModelLabels[id],
+    group: id === "deepseek-flash" ? "Hosted" : "Local · Ollama",
+  })),
+];
 
 const modelKey = "rich-ai-chat:model";
 const modelChanged = "rich-ai-chat:model-changed";
@@ -66,15 +77,7 @@ export default function Page() {
   // The route returns the AI SDK's native UIMessage stream, so the browser
   // decodes it with the SDK's own adapter and message format.
   return (
-    <div className="app-shell" data-mode={mode}>
-      <div className="model-toolbar">
-        <label htmlFor="chat-model">Model</label>
-        <select id="chat-model" value={model} onChange={event => selectModel(event.target.value)} aria-describedby="model-location">
-          <option value="">Server default</option>
-          {chatModelIds.map(id => <option key={id} value={id}>{chatModelLabels[id]}</option>)}
-        </select>
-        <span id="model-location">{model === "deepseek-flash" ? "Sends chat to DeepSeek" : model ? "Runs on Ollama" : "Uses server settings"}</span>
-      </div>
+    <div className="app-shell">
       <AgentInterface
         llm={llm}
         storage={storage}
@@ -92,7 +95,15 @@ export default function Page() {
           { displayText: "Build a calculator", prompt: "Build a working calculator I can use right here." },
           { displayText: "Make a game", prompt: "Make a playable two-player tic-tac-toe game." },
         ]}
-      />
+      >
+        <AgentInterface.SidebarFooter className="chat-model-picker">
+          <span className="chat-model-picker__label">Model</span>
+          <ModelSwitcher models={modelOptions} value={model || serverDefault} onValueChange={selectModel} />
+          <span className="chat-model-picker__hint" aria-live="polite">
+            {model === "deepseek-flash" ? "Sends chat to DeepSeek" : model ? "Runs on Ollama" : "Uses server settings"}
+          </span>
+        </AgentInterface.SidebarFooter>
+      </AgentInterface>
     </div>
   );
 }

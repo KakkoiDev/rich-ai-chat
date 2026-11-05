@@ -7,29 +7,27 @@ body {
 }
 
 .app-shell {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
   height: 100dvh;
   overflow: hidden;
   position: relative;
   width: 100vw;
 }
 
-.app-shell .openui-agent-container { height: 100%; width: 100%; }
-.model-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: .5rem .75rem;
-  padding: .45rem .75rem;
-  background: #f8fafc;
-  color: #172033;
-  border-bottom: 1px solid #8885;
-  font-size: .875rem;
+.chat-model-picker.openui-agent-sidebar-footer {
+  margin-top: 0;
+  padding-top: var(--openui-space-s);
+  border-top: 1px solid var(--openui-border-default);
 }
-.app-shell[data-mode="dark"] .model-toolbar { background: #172033; color: #f8fafc; color-scheme: dark; }
-.model-toolbar select { font: inherit; color: inherit; background: inherit; padding: .25rem .4rem; border: 1px solid #888; border-radius: 6px; }
-.model-toolbar span { opacity: .8; }
+.openui-agent-container--mobile .chat-model-picker {
+  margin-bottom: calc(40px + var(--openui-space-s));
+}
+.openui-agent-sidebar-container--collapsed .chat-model-picker { display: none; }
+.chat-model-picker__label,
+.chat-model-picker__hint {
+  color: var(--openui-text-neutral-secondary);
+  font: var(--openui-text-body-sm);
+}
+.chat-model-picker .openui-model-switcher-trigger { width: 100%; }
 
 .html-artifact { padding: 1rem; border: 1px solid #8885; border-radius: 12px; width: 100%; box-sizing: border-box; }
 .artifact-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 10px; }
