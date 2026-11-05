@@ -12,6 +12,9 @@ const watch = thoughtWatch();
 assert.equal(watch("plan\nwrite\ncheck\nplan\n"), false);
 assert.equal(watch("write\ncheck\n"), true);
 
+assert.equal(artifactBuildGuide("Make a native OpenUI table. Do not use an HTML app."), undefined);
+assert.match(artifactBuildGuide("Build a take-away game."), /remaining token count/);
+
 const scenarios = JSON.parse(readFileSync(new URL("./scenarios.json", import.meta.url)));
 for (const id of ["pong", "flappy", "slingshot", "space-invaders"]) {
   assert.match(artifactBuildGuide(scenarios.find(s => s.id === id).prompt), /Game card/, id);

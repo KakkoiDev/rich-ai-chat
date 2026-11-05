@@ -4,8 +4,11 @@ const app = /\b(app|calculator|timer|dashboard|quiz|tracker|editor|tool|form|pla
 const build = /^\s*(?:(?:please|can you|could you)\s+)*(?:make|build|create|generate|implement|design|code|write)\b/i;
 
 export function artifactBuildGuide(request: string) {
-  if (!build.test(request)) return undefined;
+  if (!build.test(request) || /\bnative\s+openui\b/i.test(request)) return undefined;
+  // An explicit instruction against HTML must not itself trigger HTML generation.
+  request = request.replace(/\b(?:do not|don't|never)\s+(?:use|make|build|generate)\s+(?:an?\s+)?html(?:\s+(?:app|artifact))?\b/gi, "");
   if (game.test(request)) {
+    if (/\btake[ -]away\b/i.test(request)) return "Game card: use separate state and render functions. Reserve exactly one output element for the numeric remaining token count, including on initial load and after restart. Put turn and win messages in a separate paragraph. On a legal move subtract the chosen amount, announce the current player as winner if zero remains, otherwise switch turns. Disable moves larger than the remaining count and disable all moves after a win. Restart resets count, turn and all controls.";
     const base = "Game card: implement start, play and restart first. Use a fixed timestep or elapsed time, consistent rendering and collision geometry, and pointer controls where practical. For board games, put labeled controls in the initial HTML, attach event listeners after those controls exist, and reset all board and turn state on restart. Given a new game, when the player acts, then show an observable gameplay change.";
     if (!/\btic.tac.toe\b/i.test(request)) return base;
     return base + " Tic-tac-toe recipe: keep a nine-element board initialized to empty strings. Convert visible cell labels 1–9 to array indices 0–8. Ignore occupied cells and moves after game over. Place the current mark, then check these zero-based winning lines before switching turns: [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]. If any line is all the current mark, show that mark as the winner. Otherwise check for a draw, then switch turns. On reset restore labels, clear the board and result, and let X go first.";
