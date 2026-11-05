@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { thoughtWatch } from "../src/lib/thought-watch.ts";
-import { checkArtifact, readArtifact } from "../src/lib/artifact-checks.ts";
+import { checkArtifact, checkArtifactRequest, readArtifact } from "../src/lib/artifact-checks.ts";
 import { chartFromTable } from "../src/lib/table-chart.ts";
 import { cloudInstructions } from "../src/lib/cloud-prompt.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
@@ -27,6 +27,9 @@ assert.match(checkArtifact("<script>let x = 1"), /close every script/);
 const html = '<html><head><title>Counter</title></head><body><button>0</button><script>const label = "a\\nb";</script></body></html>';
 assert.deepEqual(readArtifact('```html\n' + html + '\n```'), { title: 'Counter', document: html });
 assert.match(readArtifact('<html><body><script>const n = 1</script>').error, /complete HTML/);
+assert.match(checkArtifactRequest("<p>3</p>", "Show the count in an output element."), /requires/);
+assert.equal(checkArtifactRequest("<output>3</output>", "Show the count in an output element."), undefined);
+assert.equal(checkArtifactRequest("<p>3</p>", "Show a visible count."), undefined);
 const table = 'root = Table([Col("Day", days), Col("High (°F)", highs), Col("Precip (%)", rain)])\ndays = ["Mon","Tue"]\nhighs = [67,70]\nrain = [20,15]';
 const chart = chartFromTable(scenarios.find(s => s.id === "weather-chart").prompts[2], [table]);
 assert.match(chart, /Series\("High \(°F\)", \[67,70\]\)/);

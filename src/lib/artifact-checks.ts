@@ -38,3 +38,12 @@ export function readArtifact(text: string) {
   const title = document.match(/<title>\s*([^<]{1,160})<\/title>/i)?.[1].trim() || "Interactive preview";
   return { title, document } as const;
 }
+
+/** Validate explicit element requests without prescribing markup for ordinary visual requests. */
+export function checkArtifactRequest(document: string, request: string): string | undefined {
+  if (/\b(?:an? |the )?output element\b|<output>/i.test(request)
+    && !/<output(?:\s|>)/i.test(document)
+    && !/createElement\(\s*["']output["']\s*\)/i.test(document)) {
+    return "The request explicitly requires an HTML <output> element. Use it for the requested visible value.";
+  }
+}

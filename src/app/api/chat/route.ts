@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { chartFromTable } from "@/lib/table-chart";
 import { basicRecipe } from "@/lib/basic-recipes";
 import { thoughtWatch } from "@/lib/thought-watch";
-import { readArtifact } from "@/lib/artifact-checks";
+import { checkArtifactRequest, readArtifact } from "@/lib/artifact-checks";
 import { artifactBuildGuide } from "@/lib/artifact-build";
 import { cloudInstructions } from "@/lib/cloud-prompt";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -148,7 +148,9 @@ export async function POST(req: Request) {
               }
               if (!finished) continue;
               const candidate = readArtifact(document);
-              failure = candidate.error ?? "";
+              failure = candidate.error ?? (candidate.document
+                ? checkArtifactRequest(candidate.document, revision ? latest.content.split("Artifact source (JSON string):")[0] : latest.content) ?? ""
+                : "No HTML document was produced.");
               if (!failure && candidate.document) {
                 output = artifactMarkup(candidate.title, candidate.document);
                 break;
