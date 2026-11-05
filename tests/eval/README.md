@@ -15,6 +15,16 @@ For another model, start an instance with its own `MODEL_ID` and `MODEL_BASE_URL
 - **App:** repeated table-to-chart request with separate units, and the Slingshot starter. These can pass even if the model cannot generate a chart or game.
 - **Live:** exactly one search for Tokyo weather and a citation to a returned source. A provider error or empty result is a skip. This checks tool use and citation wiring, not the accuracy or freshness of the forecast.
 
+The newer tool checks can run independently:
+
+```sh
+CHAT_URL=http://127.0.0.1:3212/ EVAL_MODEL=gpt-oss:20b \
+  node tests/eval/run.cjs local-clock named-zone-clock online-pictures online-videos uncertain-fact-search
+```
+
+- **App:** the local date follows the browser time zone. Pictures and videos must render real thumbnails and usable HTTPS links. These media checks hit the live provider, but direct prompts bypass the model, so they do not measure model capability.
+- **Model:** the named-zone clock case requires a real tool call. The obscure factual question requires the model to decide to search without being told and the reply to cite a returned source.
+
 Each case starts with fresh browser storage or an explicit message history. The runner prints a result and duration per case, returns a failing exit code if any case fails, and optionally writes JSON. A skipped search does not count as a pass. Runs are samples of model behavior; keep all results if repeating a run. The broader prompts in [scenarios.json](../scenarios.json) are for exploratory evaluation and are not automatically scored by this runner.
 
 The [first full GPT-OSS 20B baseline](baselines/gpt-oss-20b.json) passed 6 of 9 checks: 3 of 6 model tasks, both app checks, and live search. Native pie, classroom image, and tic-tac-toe did not meet the browser assertions. A preliminary run also called search successfully but omitted a returned source link, so the passing live search result should not be read as guaranteed citation behavior.
@@ -24,3 +34,13 @@ To compare the requested Ollama MLX variants, run the suite once per model with 
 The game case measures generation with the app's tic-tac-toe rules recipe enabled. The model still writes the playable HTML and JavaScript. Keep the app revision fixed for comparisons; the original GPT-OSS baseline used a stricter pie palette assertion that rejected some correctly colored charts.
 
 The [GPT-OSS 20B retest](baselines/gpt-oss-20b-retest.json) passed all nine checks with the local classroom rules, corrected pie assertion, and board-game recipe. Treat this as one passing run; model replies and live search results can vary.
+
+To run the five-model stability matrix, build once, then run the matrix against that build. Use a fresh report directory and provide the configured Brave and DeepSeek keys via the environment. Keep the benchmark port separate from the live app.
+
+```sh
+RICH_CHAT_BUILD_DIR=.next-local/bench npm run build
+RICH_CHAT_BUILD_DIR=.next-local/bench EVAL_REVISION="$(git rev-parse HEAD)" \
+  EVAL_DIR=/path/to/new-report-directory node tests/eval/matrix.cjs
+```
+
+The matrix runs the basic and breadth suites serially for each model. A skipped, failed, or missing case ends the streak after the current round finishes. On a frozen build, ten perfect rounds across all models trigger one final regression round. The reports record duration per task and the matrix records the current round, model, and suite. After a fix, rebuild and use a fresh directory so prior failures remain available for comparison.

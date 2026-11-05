@@ -95,6 +95,59 @@ const cases = [
     assert.equal(await page.locator('svg[role="img"]').count(), 2, 'Different units need separate charts');
   }],
   ['slingshot', 'app', () => e2e('slingshot')],
+  ['local-clock', 'app', async page => {
+    const context = await page.context().browser().newContext({ timezoneId: 'Asia/Tokyo' });
+    try {
+      const localPage = await context.newPage();
+      await localPage.goto(url);
+      const text = await ask(localPage, "What's today's date?");
+      const date = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format();
+      assert.ok(text.includes(date), 'Expected today in the browser time zone');
+      await localPage.getByText('Asia/Tokyo', { exact: true }).waitFor();
+    } finally {
+      await context.close();
+    }
+  }],
+  ['named-zone-clock', 'model', async () => {
+    const result = await turn(part('user', 'What time is it in New York right now?'));
+    assert.equal(result.calls.length, 1);
+    const [call] = result.calls;
+    assert.equal(call.toolName, 'current_datetime');
+    const output = result.events.find(e => e.type === 'tool-output-available' && e.toolCallId === call.toolCallId)?.output;
+    assert.ok(['America/New_York', 'US/Eastern'].includes(output?.timeZone), 'Expected a valid New York time zone');
+    assert.match(output.time, /^\d{2}:\d{2}:\d{2}$/);
+  }],
+  ['online-pictures', 'app-live', async page => {
+    const reply = await ask(page, 'Show me pictures of Mount Fuji');
+    assert.match(reply, /ImageGallery\(/, 'Missing image gallery');
+    const image = page.locator('img[src^="https://imgs.search.brave.com/"]').first();
+    await image.waitFor();
+    await image.evaluate(node => node.decode());
+    await page.getByRole('link', { name: 'Source 1', exact: true }).waitFor();
+  }],
+  ['online-videos', 'app-live', async page => {
+    const reply = await ask(page, 'show video of shibuya');
+    assert.match(reply, /Shibuya/i, 'Expected a Shibuya video result');
+    const link = page.getByRole('link', { name: 'Watch video', exact: true }).first();
+    await link.waitFor();
+    assert.match(await link.getAttribute('href'), /^https:\/\//);
+    const image = page.locator('img[src^="https://imgs.search.brave.com/"]').first();
+    await image.waitFor();
+    await image.evaluate(node => node.decode());
+  }],
+  ['uncertain-fact-search', 'model-live', async () => {
+    const result = await turn(part('user', 'What is the IAU observatory code of Kiso Observatory, and in what year did its 105 cm Schmidt telescope begin observations?'));
+    assert.equal(result.calls.length, 1, 'Expected the model to look up the obscure fact');
+    const [call] = result.calls;
+    assert.equal(call.toolName, 'web_search');
+    assert.match(call.input.query, /Kiso/i);
+    const output = result.events.find(e => e.type === 'tool-output-available' && e.toolCallId === call.toolCallId)?.output;
+    assert.ok(output, 'Missing search tool result');
+    const sources = output.untrustedSources ?? [];
+    if (!sources.length) return { skip: output.error || 'Provider returned no sources' };
+    assert.ok(sources.some(source => result.text.includes(source.url)), 'Reply did not cite a returned source');
+    assert.doesNotMatch(result.text, /couldn’t finish the answer/, 'The model retrieved sources but did not answer');
+  }],
   ['weather-search', 'live', async () => {
     const result = await turn(part('user', 'Search the web for current weather in Tokyo. Include a source link, or say if the search did not return usable data.'));
     assert.equal(result.calls.length, 1, 'Expected exactly one search');
@@ -115,7 +168,7 @@ const cases = [
   const selected = process.argv.slice(2);
   for (const id of selected) assert.ok(cases.some(([name]) => name === id), 'Unknown case: ' + id);
   const browser = await chromium.launch();
-  const report = { model, startedAt: new Date().toISOString(), cases: [] };
+  const report = { model, appRevision: process.env.EVAL_REVISION, startedAt: new Date().toISOString(), cases: [] };
   try {
     for (const [id, category, run] of cases) {
       if (selected.length && !selected.includes(id)) continue;

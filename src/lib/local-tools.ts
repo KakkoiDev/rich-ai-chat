@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { Temporal } from "@js-temporal/polyfill";
 import { z } from "zod";
 
@@ -21,12 +22,11 @@ export function currentDateTime(timeZone: string, daysFromToday = 0, now = Tempo
   }
 }
 
-const imageResponse = z.object({
-  results: z.array(z.object({
-    title: z.string().nullish(),
-    url: z.string().nullish(),
-    thumbnail: z.object({ src: z.string().nullish() }).nullish(),
-  })).default([]),
+const mediaResult = z.object({
+  title: z.string().nullish(),
+  url: z.string().nullish(),
+  thumbnail: z.object({ src: z.string().nullish() }).nullish(),
+  video: z.object({ duration: z.string().nullish() }).nullish(),
 });
 
 export function safeSearchQuery(query: string) {
@@ -43,27 +43,68 @@ function httpsUrl(value: string | null | undefined) {
   }
 }
 
-export async function findImages(query: string, signal: AbortSignal) {
+export async function braveSearch(kind: "web" | "images" | "videos", query: string, key: string, signal: AbortSignal) {
+  const url = new URL(`https://api.search.brave.com/res/v1/${kind}/search`);
+  url.search = new URLSearchParams({ q: query, count: "4", safesearch: "strict" }).toString();
+  const options = {
+    headers: { "X-Subscription-Token": key }, redirect: "error" as const,
+    signal: AbortSignal.any([signal, AbortSignal.timeout(7000)]),
+  };
+  const response = await fetch(url, options);
+  if (response.status !== 429 && response.status !== 503) return response;
+  await response.body?.cancel();
+  const retryAfter = Number(response.headers.get("Retry-After"));
+  if (retryAfter > 5) return response;
+  await delay(Math.max(1100, retryAfter * 1000 || 0), undefined, { signal: options.signal });
+  return fetch(url, options);
+}
+
+async function searchMedia(kind: "images" | "videos", query: string, signal: AbortSignal) {
+  const label = kind === "images" ? "Image" : "Video";
   if (!safeSearchQuery(query)) return { error: "Use a short public topic without links or personal information." } as const;
   const key = process.env.BRAVE_SEARCH_API_KEY;
-  if (!key) return { error: "Image search is not configured." } as const;
+  if (!key) return { error: `${label} search is not configured.` } as const;
   try {
-    const url = new URL("https://api.search.brave.com/res/v1/images/search");
-    url.search = new URLSearchParams({ q: query, count: "4", safesearch: "strict" }).toString();
-    const response = await fetch(url, {
-      headers: { "X-Subscription-Token": key }, redirect: "error",
-      signal: AbortSignal.any([signal, AbortSignal.timeout(7000)]),
-    });
-    if (!response.ok) return { error: "The image search provider is unavailable." } as const;
-    const parsed = imageResponse.safeParse(await response.json());
-    const images = (parsed.success ? parsed.data.results : []).flatMap(result => {
-      const source = httpsUrl(result.url);
-      const thumbnail = httpsUrl(result.thumbnail?.src);
-      if (!source || thumbnail?.origin !== "https://imgs.search.brave.com") return [];
-      return [{ src: thumbnail.href, alt: result.title?.trim().slice(0, 120) || "Search result", source: source.href }];
-    }).slice(0, 4);
-    return images.length ? { images } : { error: "No pictures found. Try a more specific topic." } as const;
+    const response = await braveSearch(kind, query, key, signal);
+    if (!response.ok) return { error: `${label} search is unavailable right now.` } as const;
+    const parsed = z.object({ results: z.array(z.unknown()).default([]) }).safeParse(await response.json());
+    return { results: (parsed.success ? parsed.data.results : []).flatMap(result => {
+      const item = mediaResult.safeParse(result);
+      if (!item.success) return [];
+      const source = httpsUrl(item.data.url);
+      if (!source) return [];
+      const thumbnail = httpsUrl(item.data.thumbnail?.src);
+      return [{
+        source: source.href,
+        title: item.data.title?.trim().slice(0, 120),
+        thumbnail: thumbnail?.origin === "https://imgs.search.brave.com" ? thumbnail.href : undefined,
+        duration: item.data.video?.duration,
+      }];
+    }) };
   } catch {
-    return { error: "Image search failed or timed out." } as const;
+    return { error: `${label} search failed or timed out.` } as const;
   }
+}
+
+export async function findImages(query: string, signal: AbortSignal) {
+  const result = await searchMedia("images", query, signal);
+  if (!result.results) return { error: result.error } as const;
+  const images = result.results.flatMap(({ source, thumbnail, title }) =>
+    thumbnail ? [{ source, src: thumbnail, alt: title || "Search result" }] : []).slice(0, 4);
+  return images.length ? { images } : { error: "No pictures found. Try a more specific topic." } as const;
+}
+
+export async function findVideos(query: string, signal: AbortSignal) {
+  const result = await searchMedia("videos", query, signal);
+  if (!result.results) return { error: result.error } as const;
+  const seen = new Set<string>();
+  const videos = result.results.flatMap(({ source, thumbnail, title, duration }) => {
+    if (seen.has(source)) return [];
+    seen.add(source);
+    return [{
+      source, thumbnail, title: title || new URL(source).hostname,
+      duration: duration && /^(?:\d{1,2}:)?\d{1,2}:\d{2}$/.test(duration) ? duration : undefined,
+    }];
+  }).slice(0, 3);
+  return videos.length ? { videos } : { error: "No videos found. Try a more specific topic." } as const;
 }
