@@ -31,13 +31,17 @@ Run the preview and try the controls. The preview reports script errors and bloc
 
 ### Dictate a message
 
-Use **Dictate** beside Send, allow microphone access, then click **Stop recording**. The Mac transcribes up to one minute and inserts the text into your draft for review. The audio is discarded after transcription and is not sent to the selected chat provider. The microphone works on localhost and on the private HTTPS link.
+Use **Dictate** beside Send, allow microphone access, and speak. Recording stops after a short pause; you can also click the stop icon. The Mac transcribes up to one minute and inserts the text into your draft for review. The audio is discarded after transcription and is not sent to the selected chat provider. The microphone works on localhost and on the private HTTPS link.
 
 Dictation uses the same multilingual `mlx-community/whisper-base-mlx` model as PLH. On an Apple Silicon Mac with `uv`, run `uv run --python 3.12 scripts/transcribe.py sample.wav wav` once with a short speech recording to cache the Python dependencies and model. If PLH already uses a shared cache, set `HF_HOME` to that directory. The chat route runs offline and uses the same cache.
 
+### Attach files
+
+Click **+** to attach up to three UTF-8 text files (12 KB each), including TXT, Markdown, CSV, JSON, and source code. Remove any file before sending with **×**. The selected chat model reads the text after you send, and the most recent files remain available for follow-up questions. File text is saved with the conversation in the browser. Web search is disabled while attached text is in context.
+
 ### Switch models
 
-Use **Model** in the thread sidebar to select DeepSeek Flash, GPT-OSS 20B, or Gemma 4 12B, E4B, or E2B. The selection is saved in this browser and applies to the next message or artifact revision. Switching models keeps the current thread.
+Use the model picker beside the microphone to select DeepSeek Flash, GPT-OSS 20B, or Gemma 4 12B, E4B, or E2B. The selection is saved in this browser and applies to the next message or artifact revision. Switching models keeps the current thread.
 
 Set `DEEPSEEK_API_KEY` on the server to enable DeepSeek even when the default model is local. DeepSeek receives the chat context for that turn. The local options use Ollama on port 11434 and need their corresponding model tags installed. **Server default** uses `MODEL_BASE_URL` and `MODEL_ID`.
 

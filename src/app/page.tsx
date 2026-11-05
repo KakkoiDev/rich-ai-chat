@@ -5,14 +5,13 @@ import { chatModelIds, chatModelLabels, isChatModelId } from "@/lib/chat-models"
 import { localStorageChat } from "@/lib/local-storage";
 import {
   AgentInterface,
-  ModelSwitcher,
   fetchLLM,
   useSystemThemeMode,
   vercelAIAdapter,
   vercelAIMessageFormat,
 } from "@openuidev/react-ui";
 import { library } from "@/library";
-import { VoiceComposer } from "@/voice-composer";
+import { ChatComposer, ChatUserMessage } from "@/chat-composer";
 
 const serverDefault = "server-default";
 const modelOptions = [
@@ -56,7 +55,19 @@ function chatTransport(model?: string) {
   return fetchLLM({
     url: "/api/chat",
     streamAdapter: vercelAIAdapter(),
-    messageFormat: vercelAIMessageFormat,
+    messageFormat: {
+      ...vercelAIMessageFormat,
+      toApi(messages) {
+        // Retain the most recent set of attachments for follow-ups without
+        // repeatedly shipping every file stored in this browser.
+        const withFiles = messages.findLastIndex(message => message.role === "user"
+          && Array.isArray(message.content) && message.content.some(part => part.type === "binary"));
+        return vercelAIMessageFormat.toApi(messages.map((message, index) => {
+          if (index === withFiles || message.role !== "user" || !Array.isArray(message.content)) return message;
+          return { ...message, content: message.content.filter(part => part.type !== "binary") };
+        }));
+      },
+    },
     body: model ? { model } : undefined,
   });
 }
@@ -85,27 +96,16 @@ export default function Page() {
         componentLibrary={library}
         agentName="KakkoiSchool Rich Chat"
         theme={{ mode }}
-        starterVariant="short"
-        starters={[
-          {
-            displayText: "Weather in Tokyo",
-            prompt: "What's the weather like in Tokyo right now?",
-          },
-          { displayText: "Try web search", prompt: "Search the web for a recent NASA astronomy discovery and cite your sources." },
-          { displayText: "Water cycle image", prompt: "Show the classroom water cycle illustration and explain what it shows." },
-          { displayText: "Build a calculator", prompt: "Build a working calculator I can use right here." },
-          { displayText: "Make a game", prompt: "Make a playable two-player tic-tac-toe game." },
-        ]}
+        components={{ UserMessage: ChatUserMessage }}
       >
-        <AgentInterface.SidebarFooter className="chat-model-picker">
-          <span className="chat-model-picker__label">Model</span>
-          <ModelSwitcher models={modelOptions} value={model || serverDefault} onValueChange={selectModel} />
-          <span className="chat-model-picker__hint" aria-live="polite">
-            {model === "deepseek-flash" ? "Sends chat to DeepSeek" : model ? "Runs on Ollama" : "Uses server settings"}
-          </span>
-        </AgentInterface.SidebarFooter>
         <AgentInterface.Composer>
-          <VoiceComposer />
+          <ChatComposer model={model || serverDefault} models={modelOptions} selectModel={selectModel} starters={[
+            { displayText: "Weather in Tokyo", prompt: "What's the weather like in Tokyo right now?" },
+            { displayText: "Try web search", prompt: "Search the web for a recent NASA astronomy discovery and cite your sources." },
+            { displayText: "Water cycle image", prompt: "Show the classroom water cycle illustration and explain what it shows." },
+            { displayText: "Build a calculator", prompt: "Build a working calculator I can use right here." },
+            { displayText: "Make a game", prompt: "Make a playable two-player tic-tac-toe game." },
+          ]} />
         </AgentInterface.Composer>
       </AgentInterface>
     </div>

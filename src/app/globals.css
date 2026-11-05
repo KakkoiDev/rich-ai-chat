@@ -13,22 +13,6 @@ body {
   width: 100vw;
 }
 
-.chat-model-picker.openui-agent-sidebar-footer {
-  margin-top: 0;
-  padding-top: var(--openui-space-s);
-  border-top: 1px solid var(--openui-border-default);
-}
-.openui-agent-container--mobile .chat-model-picker {
-  margin-bottom: calc(40px + var(--openui-space-s));
-}
-.openui-agent-sidebar-container--collapsed .chat-model-picker { display: none; }
-.chat-model-picker__label,
-.chat-model-picker__hint {
-  color: var(--openui-text-neutral-secondary);
-  font: var(--openui-text-body-sm);
-}
-.chat-model-picker .openui-model-switcher-trigger { width: 100%; }
-
 .html-artifact { padding: 1rem; border: 1px solid #8885; border-radius: 12px; width: 100%; box-sizing: border-box; }
 .artifact-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 10px; }
 .artifact-controls button { font: inherit; color: inherit; background: transparent; border: 1px solid #8888; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
@@ -37,11 +21,73 @@ body {
 .artifact-feedback { display: grid; gap: 6px; margin-top: 12px; }
 .artifact-feedback textarea { font: inherit; color: inherit; background: transparent; border: 1px solid #8888; border-radius: 8px; padding: 8px; resize: vertical; }
 
-.voice-control { display: flex; align-items: center; gap: var(--openui-space-xs); margin-right: var(--openui-space-xs); }
-.voice-control__status {
+.voice-control { display: flex; }
+.rich-chat-composer .voice-control__button.openui-icon-button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--openui-radius-full);
+  background: transparent;
+  color: var(--openui-text-neutral-secondary);
+  box-shadow: none;
+}
+.rich-chat-composer .voice-control__button.openui-icon-button:not(:disabled):hover,
+.rich-chat-composer .voice-control__button.openui-icon-button:focus-visible {
+  background: var(--openui-highlight);
+  color: var(--openui-text-neutral-primary);
+}
+.voice-control[data-state="recording"] .voice-control__button.openui-icon-button,
+.voice-control[data-state="recording"] .voice-control__button.openui-icon-button:not(:disabled):hover {
+  color: var(--openui-inverted-text, var(--openui-foreground));
+  background: var(--openui-inverted-background);
+}
+.voice-control__status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.voice-control__error {
+  max-width: 728px;
+  margin: var(--openui-space-xs) auto 0;
+  padding-inline: var(--openui-space-m-l);
   color: var(--openui-text-neutral-secondary);
   font: var(--openui-text-body-sm);
-  max-width: min(15rem, 52vw);
-  text-align: right;
 }
-.voice-control button[aria-pressed="true"] { color: var(--openui-text-danger, #c33); }
+.voice-control__spinner { transform-origin: center; animation: voice-spin .8s linear infinite; }
+@keyframes voice-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .voice-control__spinner { animation: none; } }
+
+.rich-chat-composer .rich-chat-composer__box {
+  display: grid;
+  gap: var(--openui-space-xs);
+  padding: var(--openui-space-s) var(--openui-space-m);
+  border-radius: var(--openui-radius-xl);
+}
+.rich-chat-composer__box textarea { width: 100%; box-sizing: border-box; }
+.rich-chat-composer__actions { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.rich-chat-composer__spacer { flex: 1; }
+.rich-chat-composer__actions > .openui-model-switcher { min-width: 0; max-width: min(48vw, 15rem); }
+.rich-chat-composer__actions .openui-model-switcher-trigger { max-width: 100%; }
+.rich-chat-composer__actions .openui-agent-thread-composer__submit-button { flex-shrink: 0; }
+.chat-starters {
+  display: flex;
+  gap: var(--openui-space-xs);
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 728px;
+  margin: 0 auto var(--openui-space-xs);
+  padding-inline: var(--openui-space-m-l);
+}
+.chat-starters > button { flex-shrink: 0; }
+.chat-files { display: flex; flex-wrap: wrap; gap: 5px; padding: 0; margin: 0; list-style: none; }
+.chat-files li {
+  color: var(--openui-text-neutral-primary);
+  background: var(--openui-highlight-subtle);
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--openui-border-default);
+  border-radius: var(--openui-radius-s);
+  font: var(--openui-text-body-sm);
+  overflow-wrap: anywhere;
+}
+.chat-files li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-files li button { border: 0; background: none; color: inherit; cursor: pointer; font: inherit; }

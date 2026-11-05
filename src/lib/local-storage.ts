@@ -57,7 +57,9 @@ export function localStorageChat(
           return { threads: threads() };
         },
         async createThread(firstMessage: UserMessage) {
-          const text = typeof firstMessage.content === "string" ? firstMessage.content.trim() : "";
+          const content = firstMessage.content;
+          const text = (typeof content === "string" ? content
+            : content.filter(part => part.type === "text").map(part => part.text).join(" ")).trim();
           const thread: Thread = {
             id: crypto.randomUUID(),
             title: text.slice(0, 60) || "New chat",
