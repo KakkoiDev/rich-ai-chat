@@ -21,7 +21,14 @@ body {
 .artifact-feedback { display: grid; gap: 6px; margin-top: 12px; }
 .artifact-feedback textarea { font: inherit; color: inherit; background: transparent; border: 1px solid #8888; border-radius: 8px; padding: 8px; resize: vertical; }
 
-.voice-control { display: flex; }
+.voice-control { display: flex; flex-shrink: 0; }
+.rich-chat-composer .voice-control .voice-control__button.openui-icon-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--openui-text-neutral-primary);
+}
+.voice-control .voice-control__button svg { width: 26px; height: 26px; flex: none; }
 .rich-chat-composer .voice-control__button.openui-icon-button {
   width: 32px;
   height: 32px;

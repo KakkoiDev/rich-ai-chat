@@ -155,7 +155,7 @@ export function VoiceControl({ insert, reportError }: {
         onClick={toggle}
         variant="tertiary"
         size="small"
-        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+        icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           {status === "transcribing" || status === "opening" ? <path className="voice-control__spinner" d="M20 12a8 8 0 1 0-8 8" />
             : status === "recording" ? <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" /> : <>
             <rect x="9" y="2" width="6" height="12" rx="3" />
