@@ -1,0 +1,40 @@
+{
+  "model": "gpt-oss:20b",
+  "appRevision": "ec31eb0aaa8e19c029511f1fef07c1349c7d86fb",
+  "startedAt": "2026-11-05T00:20:21.979Z",
+  "cases": [
+    {
+      "id": "budget-composition",
+      "category": "build",
+      "status": "fail",
+      "seconds": 27.646419209,
+      "detail": "locator.fill: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().getByLabel('Item', { exact: true })\n"
+    },
+    {
+      "id": "turn-based-game",
+      "category": "build",
+      "status": "fail",
+      "seconds": 22.525113665999996,
+      "detail": "locator.innerText: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().locator('output')\n"
+    },
+    {
+      "id": "adapt-calculator",
+      "category": "adapt",
+      "status": "fail",
+      "seconds": 26.835651042000006,
+      "detail": "locator.innerText: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().locator('output')\n"
+    },
+    {
+      "id": "repair-preserves-reset",
+      "category": "repair",
+      "status": "pass",
+      "seconds": 7.480226792000002
+    },
+    {
+      "id": "quoted-tool-instruction",
+      "category": "tool-restraint",
+      "status": "pass",
+      "seconds": 12.180693125000005
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "model": "gpt-oss:20b",
+  "appRevision": "ec31eb0aaa8e19c029511f1fef07c1349c7d86fb",
+  "startedAt": "2026-11-05T00:55:46.847Z",
+  "cases": [
+    {
+      "id": "turn-based-game",
+      "category": "build",
+      "status": "fail",
+      "seconds": 22.062662791999998,
+      "detail": "locator.innerText: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().locator('output')\n"
+    },
+    {
+      "id": "adapt-calculator",
+      "category": "adapt",
+      "status": "pass",
+      "seconds": 19.249135166
+    },
+    {
+      "id": "unit-converter",
+      "category": "build",
+      "status": "fail",
+      "seconds": 20.740661917000004,
+      "detail": "locator.fill: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().getByLabel('Celsius', { exact: true })\n"
+    },
+    {
+      "id": "correction-and-language",
+      "category": "multi-turn",
+      "status": "pass",
+      "seconds": 3.5330413329999937
+    }
+  ]
+}
