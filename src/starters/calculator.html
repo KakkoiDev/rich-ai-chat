@@ -1,0 +1,43 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Calculator</title>
+<style>
+body{font:16px system-ui;color:#e2e8f0;background:#172033;margin:0;padding:1rem}
+main{max-width:20rem;margin:auto;display:grid;gap:.6rem}
+output{background:#0f172a;padding:.7rem;text-align:right;overflow-wrap:anywhere;font-size:1.8rem}
+#keys{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem}
+button{font:inherit;min-height:2.5rem;color:inherit;background:#334155;border:1px solid #64748b;border-radius:.3rem;cursor:pointer}
+</style><main><output id="display" aria-live="polite">0</output><div id="keys"></div></main>
+<script>
+const display = document.getElementById('display');
+const keys = document.getElementById('keys');
+let typed = '', left = null, operation = '', evaluated = false;
+const arithmetic = {
+  '+': (a,b) => a+b, '−': (a,b) => a-b,
+  '×': (a,b) => a*b, '÷': (a,b) => b === 0 ? NaN : a/b
+};
+function show(value) { display.textContent = value || '0'; }
+function calculate() {
+  if (!operation || !typed) return;
+  const result = arithmetic[operation](left, Number(typed));
+  typed = Number.isFinite(result) ? String(Number(result.toPrecision(12))) : 'Error';
+  show(typed);
+  left = null; operation = ''; evaluated = true;
+}
+function press(key) {
+  if (key === 'Clear') { typed = ''; left = null; operation = ''; evaluated = false; show('0'); return; }
+  if (key === '=') { calculate(); return; }
+  if (key in arithmetic) {
+    if (operation && typed) calculate();
+    if (typed === 'Error') return;
+    if (typed || left === null) left = Number(typed || display.textContent);
+    typed = ''; operation = key; evaluated = false; return;
+  }
+  if (evaluated || typed === 'Error') { typed = ''; evaluated = false; }
+  if (key === '.' && typed.includes('.')) return;
+  if (typed.length < 14) typed = (key === '.' && !typed ? '0' : typed === '0' && key !== '.' ? '' : typed) + key;
+  show(typed);
+}
+for (const key of ['7','8','9','÷','4','5','6','×','1','2','3','−','0','.','=','+','Clear']) {
+  const button = document.createElement('button');
+  button.type = 'button'; button.textContent = key; button.addEventListener('click', () => press(key)); keys.append(button);
+}
+</script></html>

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { chartFromTable } from "@/lib/table-chart";
+import { basicRecipe } from "@/lib/basic-recipes";
 import { thoughtWatch } from "@/lib/thought-watch";
 import { readArtifact } from "@/lib/artifact-checks";
 import { artifactBuildGuide } from "@/lib/artifact-build";
@@ -19,13 +20,16 @@ function artifactMarkup(title: string, document: string) {
   return `root = Card([HtmlArtifact(${JSON.stringify(title)}, ${JSON.stringify(document)})])`;
 }
 
-function writeReply(writer: import("ai").UIMessageStreamWriter, delta: string) {
-  const id = "artifact-reply";
+function writeTextStep(writer: import("ai").UIMessageStreamWriter, id: string, delta: string) {
   writer.write({ type: "start-step" });
   writer.write({ type: "text-start", id });
   writer.write({ type: "text-delta", id, delta });
   writer.write({ type: "text-end", id });
   writer.write({ type: "finish-step" });
+}
+
+function writeReply(writer: import("ai").UIMessageStreamWriter, delta: string) {
+  writeTextStep(writer, "artifact-reply", delta);
   writer.write({ type: "finish", finishReason: "stop" });
 }
 
@@ -57,13 +61,15 @@ export async function POST(req: Request) {
     });
   }
 
-  if (!revision && /^\s*(?:(?:please|can you)\s+)*(?:make|build|create|generate)\s+(?:me\s+)?(?:an?\s+)?(?:angry birds?(?:[ -]style)?(?:\s+(?:clone|game))?|slingshot(?:\s+game)?)[.!?]*\s*$/i.test(latest.content)) {
-    const document = await readFile(process.cwd() + "/src/starters/slingshot.html", "utf8");
+  const starter = !revision && (basicRecipe(latest.content) ||
+    (/^\s*(?:(?:please|can you)\s+)*(?:make|build|create|generate)\s+(?:me\s+)?(?:an?\s+)?(?:angry birds?(?:[ -]style)?(?:\s+(?:clone|game))?|slingshot(?:\s+game)?)[.!?]*\s*$/i.test(latest.content) ? { title: "Slingshot Garden starter", file: "slingshot.html" } : undefined));
+  if (starter) {
+    const document = await readFile(process.cwd() + "/src/starters/" + starter.file, "utf8");
     return createUIMessageStreamResponse({
       stream: createUIMessageStream({
         execute({ writer }) {
           writer.write({ type: "start" });
-          writeReply(writer, artifactMarkup("Slingshot Garden starter", document));
+          writeReply(writer, artifactMarkup(starter.title, document));
         },
       }),
     });
@@ -176,6 +182,13 @@ export async function POST(req: Request) {
     && !/\b(?:search|find|compare|online|web)\b/i.test(latest.content);
   const explicitSearch = /^\s*(?:(?:please|can you|could you)\s+)*(?:search(?: the web| online)|look up)\b/i.test(latest.content);
   let searched = false;
+  let sourceUrls: string[] = [];
+  function writeSources(writer: import("ai").UIMessageStreamWriter, answer: string) {
+    if (!sourceUrls.length || sourceUrls.some(url => answer.includes(url))) return;
+    const links = sourceUrls.map((url, i) => `- [Source ${i + 1}](<${url}>)`).join("\n");
+    const markdown = JSON.stringify("**Search results**\n\n" + links);
+    writeTextStep(writer, "search-sources", `root = Card([MarkDownRenderer(${markdown})])`);
+  }
   const startChat = (history: typeof recent) => streamText({
     temperature: 0.15,
     model,
@@ -200,7 +213,11 @@ export async function POST(req: Request) {
             if (!r.ok) return { error: "Search provider unavailable." };
             const data = await r.json();
             const results = z.array(z.object({ title: z.string(), url: z.string(), description: z.string().optional() })).safeParse(data.web?.results ?? []);
-            return { untrustedSources: results.success ? results.data.filter(x => /^https:\/\//i.test(x.url)).slice(0, 4).map(x => ({ title: x.title.slice(0, 160), url: x.url.slice(0, 2048), snippet: x.description?.slice(0, 300) })) : [] };
+            const untrustedSources = results.success ? results.data
+              .filter(x => x.url.length <= 2048 && /^https:\/\/[^\s<>]+$/i.test(x.url))
+              .slice(0, 4).map(x => ({ title: x.title.slice(0, 160), url: x.url, snippet: x.description?.slice(0, 300) })) : [];
+            sourceUrls = untrustedSources.map(source => source.url);
+            return { untrustedSources };
           } catch { return { error: "Search failed or timed out." }; }
         },
       }),
@@ -218,6 +235,7 @@ export async function POST(req: Request) {
         writer.write({ type: "start" });
         for (let attempt = 0; attempt < 2 && !req.signal.aborted; attempt++) {
           let visible = false;
+          let answer = "";
           let toolStarted = false;
           let completed = false;
           const pending: import("ai").UIMessageChunk[] = [];
@@ -234,13 +252,17 @@ export async function POST(req: Request) {
               if (value.type === "error" || value.type === "abort") break;
               if (value.type === "finish") {
                 if (visible && value.finishReason !== "length" && value.finishReason !== "error") {
+                  writeSources(writer, answer);
                   writer.write(value);
                   completed = true;
                 }
                 break;
               }
               if (value.type.startsWith("tool-")) toolStarted = true;
-              if (value.type === "text-delta" && value.delta.trim()) visible = true;
+              if (value.type === "text-delta") {
+                answer += value.delta;
+                if (value.delta.trim()) visible = true;
+              }
               if (visible || toolStarted) {
                 for (const chunk of pending.splice(0)) writer.write(chunk);
                 writer.write(value);

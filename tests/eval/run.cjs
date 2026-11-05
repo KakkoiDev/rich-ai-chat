@@ -41,6 +41,7 @@ async function ask(page, prompt) {
   assert.ok(events.some(e => e.type === 'finish'), 'No completed reply');
   const text = events.filter(e => e.type === 'text-delta').map(e => e.delta).join('');
   assert.ok(text.trim() && !/model (?:stopped before finishing|could not finish)/i.test(text), text.slice(0, 240) || 'Empty reply');
+  return text;
 }
 
 const cases = [
@@ -51,7 +52,10 @@ const cases = [
     assert.match(b.text, /\bKumo\b/i);
     assert.equal(a.calls.length + b.calls.length, 0, 'Class context must not need search');
   }],
-  ['calculator', 'model', () => e2e('gpt-oss')],
+  ['calculator', 'model', async () => {
+    const { stdout } = await e2e('gpt-oss');
+    return stdout.includes('APP_PATH: starter') ? { category: 'app', note: 'Tested calculator starter' } : undefined;
+  }],
   ['repair', 'model', () => e2e('gpt-oss-repair')],
   ['native-pie', 'model', async page => {
     await ask(page, 'Show a native pie chart with exactly three slices: Apples 50, Bananas 30, Cherries 20.');
@@ -68,7 +72,7 @@ const cases = [
     await image.evaluate(node => node.decode());
   }],
   ['tic-tac-toe', 'model', async page => {
-    await ask(page, 'Make a compact two-player tic-tac-toe game. Use a 3 by 3 grid of buttons labeled 1 to 9 in row-major order when empty. X goes first. Announce the winner as "X wins" or "O wins". Include a Restart button.');
+    const reply = await ask(page, 'Make a compact two-player tic-tac-toe game. Use a 3 by 3 grid of buttons labeled 1 to 9 in row-major order when empty. X goes first. Announce the winner as "X wins" or "O wins". Include a Restart button.');
     await page.getByRole('button', { name: 'Run preview' }).click();
     const frame = page.frameLocator('.html-artifact iframe');
     for (const name of ['1', '4', '2', '5', '3']) {
@@ -79,6 +83,7 @@ const cases = [
     for (const name of ['1', '4', '2', '5', '3']) {
       await frame.getByRole('button', { name, exact: true }).waitFor();
     }
+    return reply.includes('HtmlArtifact("Tic-tac-toe starter"') ? { category: 'app', note: 'Tested tic-tac-toe starter' } : undefined;
   }],
   ['table-to-chart', 'app', async page => {
     const table = '| Day | High (°F) | Rain (%) |\n| --- | --- | --- |\n| Mon | 67 | 20 |\n| Tue | 70 | 15 |';
@@ -101,6 +106,8 @@ const cases = [
     const sources = output.untrustedSources || [];
     if (!sources.length) return { skip: output.error || 'Provider returned no sources' };
     assert.ok(sources.some(source => result.text.includes(source.url)), 'Reply did not cite a returned source');
+    return result.events.some(event => event.type === 'text-delta' && event.id === 'search-sources')
+      ? { note: 'Model called search; app displayed returned source links' } : undefined;
   }],
 ];
 
@@ -115,10 +122,12 @@ const cases = [
       const page = await browser.newPage();
       page.setDefaultTimeout(10000);
       const start = Date.now();
-      let status = 'pass', detail;
+      let status = 'pass', detail, pathCategory = category;
       try {
         await page.goto(url);
         const result = await run(page);
+        if (result?.category) pathCategory = result.category;
+        if (result?.note) detail = result.note;
         if (result?.skip) { status = 'skip'; detail = result.skip; }
       } catch (error) {
         status = 'fail';
@@ -127,7 +136,7 @@ const cases = [
         await page.close();
       }
       const seconds = (Date.now() - start) / 1000;
-      report.cases.push({ id, category, status, seconds, ...(detail ? { detail } : {}) });
+      report.cases.push({ id, category: pathCategory, status, seconds, ...(detail ? { detail } : {}) });
       console.log(`${status.toUpperCase()} ${id} (${seconds.toFixed(1)}s)${detail ? ': ' + detail : ''}`);
     }
   } finally {

@@ -37,7 +37,9 @@ const { chromium } = require('playwright');
     await frame.getByRole('button', { name: /^(clear|c|ac)$/i }).click();
     const cleared = await displayValues();
     assert.ok(cleared[display] === '' || cleared[display] === '0', 'Clear must reset the display');
-    console.log('PASS: generated calculator rendered, calculated and cleared');
+    const starter = text.includes('HtmlArtifact("Calculator starter"');
+    console.log('PASS: calculator rendered, calculated and cleared');
+    if (starter) console.log('APP_PATH: starter');
   } finally {
     await browser.close();
   }
