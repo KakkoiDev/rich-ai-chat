@@ -55,6 +55,11 @@ function chatTransport(model?: string) {
   return fetchLLM({
     url: "/api/chat",
     streamAdapter: vercelAIAdapter(),
+    fetch(input, init) {
+      const headers = new Headers(init?.headers);
+      headers.set("X-Chat-Time-Zone", Intl.DateTimeFormat().resolvedOptions().timeZone);
+      return fetch(input, { ...init, headers });
+    },
     messageFormat: {
       ...vercelAIMessageFormat,
       toApi(messages) {

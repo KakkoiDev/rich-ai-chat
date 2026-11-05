@@ -4,9 +4,25 @@ import { thoughtWatch } from "../src/lib/thought-watch.ts";
 import { checkArtifact, checkArtifactRequest, readArtifact } from "../src/lib/artifact-checks.ts";
 import { chartFromTable } from "../src/lib/table-chart.ts";
 import { cloudInstructions } from "../src/lib/cloud-prompt.ts";
+import { Temporal } from "@js-temporal/polyfill";
+import { currentDateTime, safeSearchQuery } from "../src/lib/local-tools.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 
 assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
+
+// The same instant crosses both a local date boundary and the US DST weekend.
+const instant = Temporal.Instant.from("2026-03-09T00:30:00Z");
+assert.deepEqual(currentDateTime("America/New_York", 0, instant), {
+  timeZone: "America/New_York", date: "2026-03-08", weekday: "Sunday", time: "20:30:00", utcOffset: "-04:00",
+});
+assert.equal(currentDateTime("Asia/Tokyo", 0, instant).date, "2026-03-09");
+assert.deepEqual(currentDateTime("America/New_York", 1, instant), {
+  timeZone: "America/New_York", date: "2026-03-09", weekday: "Monday",
+});
+assert.equal(currentDateTime("Invalid/Zone", 0, instant), null);
+assert.equal(safeSearchQuery("Mount Fuji in spring"), true);
+assert.equal(safeSearchQuery("contact student@example.com"), false);
+assert.equal(safeSearchQuery("photos at https://example.com"), false);
 
 const watch = thoughtWatch();
 assert.equal(watch("plan\nwrite\ncheck\nplan\n"), false);

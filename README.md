@@ -15,7 +15,7 @@ Standalone classroom prototype adapted from the OpenUI Vercel AI SDK example (MI
 3. Run `npm run dev -- --hostname 127.0.0.1 --port 3210` and open http://127.0.0.1:3210.
 4. Try the search, water cycle image, and diagram prompts on the start screen.
 
-DeepSeek's hosted endpoint receives chat text. To keep inference local, set `MODEL_BASE_URL` and `MODEL_ID` to a running OpenAI-compatible server and its model ID. For Ollama use `http://127.0.0.1:11434/v1`. Search still sends the short query to Brave; Safe Search and obvious personal-data checks reduce risk but cannot guarantee anonymity. Images can only load from this app. For the prototype, the water-cycle illustration is the only bundled classroom image.
+DeepSeek's hosted endpoint receives chat text. To keep inference local, set `MODEL_BASE_URL` and `MODEL_ID` to a running OpenAI-compatible server and its model ID. For Ollama use `http://127.0.0.1:11434/v1`. Search still sends the short query to Brave; Safe Search and obvious personal-data checks reduce risk but cannot guarantee anonymity. Ask “Show me pictures of Mount Fuji” for a gallery with source links. Online thumbnails load through Brave’s image proxy; the bundled water-cycle illustration is still available. Ask “What time is it?” for the date or time in your browser’s time zone (UTC if unavailable), or name a city for another time zone. The app uses the Temporal API for calendar and clock values.
 
 See [STEP-2.md](STEP-2.md) for the reusable PLH work.
 
