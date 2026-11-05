@@ -146,7 +146,8 @@ const cases = [
     const before = (await output.innerText()).trim();
     await button(revised, 'Double').click();
     const after = (await output.innerText()).trim();
-    assert.equal(after, '10', `Expected 10 after Double; display went from "${before}" to "${after}"`);
+    assert.match(before, /^5(?:\.0+)?$/, "Expected addition to display 5 before Double");
+    assert.match(after, /^10(?:\.0+)?$/, `Expected 10 after Double; display went from "${before}" to "${after}"`);
     await button(revised, 'Clear').click();
     assert.match((await revised.locator('output').innerText()).trim(), /^(0)?$/);
   }],
