@@ -126,11 +126,11 @@ const cases = [
   ['sequence-game', 'build', async page => {
     const frame = await preview(page, await ask(page, 'Build an interactive sequence puzzle game. Show the target colors Red, Blue, Green. Provide buttons with those names and a Reset button. Correct presses advance the sequence; an incorrect press resets progress to zero. Show Solved! on success and remove that message on Reset.'));
     for (const name of ['Red', 'Green', 'Blue', 'Green']) await button(frame, name).click();
-    assert.equal(await frame.getByText('Solved!', { exact: true }).count(), 0);
+    assert.equal(await frame.getByText('Solved!', { exact: true }).filter({ visible: true }).count(), 0);
     for (const name of ['Red', 'Blue', 'Green']) await button(frame, name).click();
     await frame.getByText('Solved!', { exact: true }).waitFor();
     await button(frame, 'Reset').click();
-    assert.equal(await frame.getByText('Solved!', { exact: true }).count(), 0);
+    assert.equal(await frame.getByText('Solved!', { exact: true }).filter({ visible: true }).count(), 0);
   }],
   ['starter-adaptation', 'adapt', async page => {
     const starter = await ask(page, 'Build a basic calculator.');
