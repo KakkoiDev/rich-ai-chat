@@ -7,7 +7,7 @@ import { thoughtWatch } from "@/lib/thought-watch";
 import { artifactButtonLabels, artifactFieldLabels, checkArtifactRequest, readArtifact, requiresArtifactOutput } from "@/lib/artifact-checks";
 import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "@/lib/artifact-edits";
 import { artifactBuildGuide, isSequenceGame, wantsShuffleBag } from "@/lib/artifact-build";
-import { bindArtifactExpenseList, bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, expenseLayoutMarkup, installArtifactPrimitives, sequenceLayoutMarkup } from "@/lib/artifact-primitives";
+import { bindArtifactExpenseList, bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, expenseLayoutMarkup, installArtifactPrimitives, sequenceLayoutMarkup, takeAwayLayoutMarkup } from "@/lib/artifact-primitives";
 import { inlineSumTable } from "@/lib/inline-table";
 import { quotedTransform } from "@/lib/quoted-transform";
 import { chatFileMime, chatFilePrefix, decodeChatText, isChatFilename, maxChatFileBytes, maxChatFiles } from "@/lib/chat-files";
@@ -172,12 +172,12 @@ export async function POST(req: Request) {
   const smallestOllama = gemmaOllama && /^gemma4:e2b(?:-|$)/.test(modelId);
   const smallGemma = gemmaOllama && /^gemma4:e[24]b(?:-|$)/.test(modelId);
   const useShuffleHelper = smallGemma && !revision && wantsShuffleBag(request);
-  const useTakeAway = smallGemma && !revision && !fileContext && /\btake[ -]away\b/i.test(request)
+  const useTakeAway = (smallGemma || (localOllama && modelId.startsWith("gpt-oss:"))) && !revision && !fileContext && /\btake[ -]away\b/i.test(request)
     && /\blast\b[^.!?\n]{0,45}\bwins\b/i.test(request) && /\balternate\b/i.test(request);
   const takeAwayGuide = 'Return only HTML, no scripts or inline handlers. Put the requested initial count in <output data-rich-chat-count="N" data-players="A,B">N</output> (replace N with the number and A,B with the players in turn order). Add a <p data-rich-chat-turn></p> for status. Put the amount on each move button, e.g. <button data-rich-chat-take="2">Take 2</button>, and put data-rich-chat-restart on the restart button. The app wires all game rules. Use the requested labels.';
   const useSequenceLayout = smallGemma && !revision && !fileContext && isSequenceGame(request)
     && /\b(?:wrong|incorrect)\b[^.!?\n]{0,50}\breset/i.test(request);
-  const useExpenseLayout = smallestOllama && !revision && !fileContext && /\b(?:expense|budget) tracker\b/i.test(request)
+  const useExpenseLayout = smallGemma && !revision && !fileContext && /\b(?:expense|budget) tracker\b/i.test(request)
     && /\bremove\b/i.test(request) && /\b(?:reject|disallow) negative\b/i.test(request);
   const useKeypad = gemmaOllama && !revision && !fileContext && /\bcalculator\b/i.test(request)
     && /\bundo\b[^.!?\n]{0,80}\b(?:digit|character)\b/i.test(request);
@@ -267,17 +267,30 @@ export async function POST(req: Request) {
               // Unsupported changes and malformed plans fall through to source editing.
             }
           }
-          if (useSequenceLayout || useExpenseLayout) {
+          if (useSequenceLayout || useExpenseLayout || useTakeAway) {
             const label = z.string().trim().min(1).max(40);
             const title = z.string().trim().min(1).max(80);
             for (let attempt = 0; !output && attempt < 2 && !req.signal.aborted; attempt++) {
               try {
                 const options = {
                   model, prompt: request, temperature: 0,
-                  maxOutputTokens: 1000, maxRetries: 0, timeout: 8000, abortSignal: req.signal,
+                  maxOutputTokens: 1000, maxRetries: 0,
+                  timeout: modelId.startsWith("gpt-oss:") ? 16000 : 8000, abortSignal: req.signal,
                 };
                 let document: string | undefined;
-                if (useSequenceLayout) {
+                if (useTakeAway) {
+                  const { output: spec } = await generateText({
+                    ...options,
+                    system: "Configure a take-away game where the last move wins. Copy the starting token count, player names in turn order, the move button labels and their exact amounts, and the restart button label. The app shows the active player and the winner as '<player> wins'. Set supported false for extra rules such as an AI opponent or last move losing. No code.",
+                    output: Output.object({ schema: z.object({
+                      title, count: z.number().int().min(1).max(1000000),
+                      players: z.array(label).min(2).max(6),
+                      moves: z.array(z.object({ label, amount: z.number().int().min(1).max(1000000) })).min(1).max(10),
+                      restart: label, supported: z.boolean(),
+                    }) }),
+                  });
+                  if (spec.supported) document = takeAwayLayoutMarkup(spec);
+                } else if (useSequenceLayout) {
                   document = sequenceLayoutMarkup((await generateText({
                     ...options,
                     system: "Configure an ordered sequence game. Copy the ordered target, every move button label, success message and Reset button label exactly. Choices must include all target items, deduplicated, plus any separately requested choices. Do not include the reset label as a choice. No code.",

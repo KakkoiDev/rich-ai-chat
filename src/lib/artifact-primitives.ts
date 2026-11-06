@@ -170,6 +170,25 @@ ${sequence}
 const encode = (value: string) => value.replace(/[&<>"']/g, char =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 
+export function takeAwayLayoutMarkup(spec: {
+  title: string; count: number; players: string[];
+  moves: { label: string; amount: number }[]; restart: string;
+}) {
+  const canonical = (value: string) => value.trim().toLowerCase();
+  const unique = (values: string[]) => new Set(values.map(canonical)).size === values.length;
+  if (!Number.isSafeInteger(spec.count) || spec.count < 1 || spec.players.length < 2
+    || spec.players.some(player => !player.trim() || player.includes(",")) || !unique(spec.players)
+    || !spec.moves.length || spec.moves.some(move => !Number.isSafeInteger(move.amount) || move.amount < 1)
+    || !spec.moves.some(move => move.amount <= spec.count)
+    || !unique([...spec.moves.map(move => move.label), spec.restart])) return;
+  return bindArtifactTakeAway(`<!doctype html><html><head><title>${encode(spec.title)}</title></head><body>
+<main><h1>${encode(spec.title)}</h1>
+<output data-rich-chat-count="${spec.count}" data-players="${encode(spec.players.join(","))}">${spec.count}</output>
+<p role="status" data-rich-chat-turn></p>
+<div>${spec.moves.map(move => `<button type="button" data-rich-chat-take="${move.amount}">${encode(move.label)}</button>`).join("")}
+<button type="button" data-rich-chat-restart>${encode(spec.restart)}</button></div></main></body></html>`);
+}
+
 export function sequenceLayoutMarkup(spec: { title: string; target: string[]; choices: string[]; success: string; reset: string }) {
   const normalize = (label: string) => label.trim().toLowerCase();
   const choices = new Set(spec.choices.map(normalize));

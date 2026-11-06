@@ -12,7 +12,7 @@ import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
 import { addCalculatorAction } from "../src/lib/calculator-action.ts";
 import { quotedTransform } from "../src/lib/quoted-transform.ts";
-import { bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, expenseLayoutMarkup, installArtifactPrimitives, sequenceLayoutMarkup } from "../src/lib/artifact-primitives.ts";
+import { bindArtifactKeypad, bindArtifactSequence, expenseLayoutMarkup, installArtifactPrimitives, sequenceLayoutMarkup, takeAwayLayoutMarkup } from "../src/lib/artifact-primitives.ts";
 import { runInNewContext } from "node:vm";
 
 assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
@@ -129,7 +129,12 @@ const mockButton = amount => ({ dataset: { richChatTake: amount }, addEventListe
 const [one, two, restart] = [mockButton("1"), mockButton("2"), mockButton()];
 const count = { dataset: { richChatCount: "3", players: "Red,Blue" } };
 const turnStatus = { dataset: {} };
-const takeProgram = bindArtifactTakeAway('<output data-rich-chat-count="3"></output><p data-rich-chat-turn></p><button data-rich-chat-take="1">Take</button><button data-rich-chat-restart>Reset</button>');
+const takeProgram = takeAwayLayoutMarkup({ title: "Take counters", count: 3, players: ["Red", "Blue"],
+  moves: [{ label: "One", amount: 1 }, { label: "Two", amount: 2 }], restart: "Play again" });
+assert.equal(readArtifact(takeProgram).error, undefined);
+assert.match(takeProgram, /<p role="status" data-rich-chat-turn>/);
+assert.equal(takeAwayLayoutMarkup({ title: "Bad rules", count: 3, players: ["Red", "Blue"],
+  moves: [{ label: "Again", amount: 1 }], restart: "again" }), undefined);
 runInNewContext(takeProgram.match(/<script>([\s\S]*)<\/script>/)[1], { document: {
   querySelector: selector => selector.startsWith("output") ? count : selector.startsWith("button") ? restart : turnStatus,
   querySelectorAll: () => [one, two],
