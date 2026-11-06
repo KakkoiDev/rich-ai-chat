@@ -160,5 +160,6 @@ export function artifactButtonLabels(request: string) {
     if (/^[A-Z]/.test(label)) names.add(label);
   for (const [, label] of request.matchAll(/\b([A-Z][a-z]+) must (?:reset|clear)\b/g))
     if (/^(?:Clear|Reset|Restart)$/.test(label)) names.add(label);
+  if (/\bcalculator\b/i.test(request) && /[+,=]\s*,?\s*(?:and\s+)?Clear\b/.test(request)) names.add("Clear");
   return [...names];
 }

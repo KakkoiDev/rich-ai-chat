@@ -10,7 +10,7 @@ import { currentDateTime, safeSearchQuery } from "../src/lib/local-tools.ts";
 import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "../src/lib/artifact-edits.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
-import { installArtifactPrimitives } from "../src/lib/artifact-primitives.ts";
+import { bindArtifactKeypad, installArtifactPrimitives } from "../src/lib/artifact-primitives.ts";
 import { runInNewContext } from "node:vm";
 
 assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
@@ -71,6 +71,18 @@ const draws = runInNewContext(drawProgram.slice(8, -9), { Math: { random: () => 
 assert.equal(draws, "one,two,three,one,two,three");
 const sequenceProgram = installArtifactPrimitives('<script>const s = richChatCreateSequence(["a", "b"]); [s.press("a"), s.press("c"), s.press("a"), s.press("b"), s.reset(), s.press("b")].join(",")</script>', false, true);
 assert.equal(runInNewContext(sequenceProgram.slice(8, -9)), "1,0,1,2,,0");
+const display = { textContent: "0" };
+const keypadButtons = ["2", "+", "3", "4", "Undo", "=", "Clear", "8", "×"].map(textContent => ({
+  textContent, getAttribute: () => null, addEventListener(_name, handler) { this.click = handler; },
+}));
+const keypadProgram = bindArtifactKeypad("<output data-rich-chat-display>0</output><div data-rich-chat-keypad></div>");
+runInNewContext(keypadProgram.match(/<script>([\s\S]*)<\/script>/)[1], { document: {
+  querySelector: () => display, querySelectorAll: () => keypadButtons,
+} });
+assert.deepEqual(["2", "+", "3", "4", "Undo", "=", "Clear", "8", "×", "2", "="].map(key => {
+  keypadButtons.find(button => button.textContent === key).click();
+  return display.textContent;
+}), ["2", "2", "3", "34", "3", "5", "0", "8", "8", "2", "16"]);
 assert.match(readArtifact("Here is the app:\n```html\n<button>Go</button><script>let n = 0;</script>\n```\nDone.", true).document, /<button>Go/);
 assert.match(checkArtifactRequest("<button>Convert</button>", "Clear must reset both values."), /Clear/);
 const revisionContext = "Revise this mini-app and return a complete new HtmlArtifact.\n\nRequested change or observed behavior: Add one.\n\nArtifact source (JSON string):\n" + JSON.stringify(html);
