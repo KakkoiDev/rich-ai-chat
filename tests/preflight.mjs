@@ -99,6 +99,22 @@ assert.deepEqual(basicTakeAwaySpec(counterRequest), { title: "Take-away game", c
 assert.equal(basicTakeAwaySpec(counterRequest + " Add a computer opponent."), undefined);
 const expense = expenseLayoutMarkup({ title: "Office & supplies", name: "Purchase", amount: "Cost", add: "Record", remove: "Discard" });
 assert.equal(readArtifact(expense).error, undefined);
+const expenseNodes = [
+  { value: "Paper" }, { value: "12.50" }, { addEventListener(_event, handler) { this.click = () => handler({ preventDefault() {} }); } },
+  { dataset: {}, matches: () => true, replaceChildren() {}, append() {} }, { textContent: "" }, { textContent: "" },
+];
+let expenseNodeIndex = 0;
+runInNewContext(expense.match(/<script>([\s\S]*?)<\/script>/)[1], { document: {
+  querySelector: () => expenseNodes[expenseNodeIndex++], createElement: () => ({ append() {} }),
+} });
+const [expenseName, expenseAmount, expenseAdd, , expenseTotal, expenseError] = expenseNodes;
+expenseAdd.click();
+assert.equal(expenseTotal.textContent, "12.50");
+expenseName.value = "Invalid";
+expenseAmount.value = "-1";
+expenseAdd.click();
+assert.equal(expenseTotal.textContent, "12.50");
+assert.match(expenseError.textContent, /positive amount/);
 assert.equal(bindArtifactExpenseList(expense.replace(/<script>[\s\S]*?<\/script>/, "").replace("</main>", "<output>0</output></main>")), undefined);
 assert.match(expense, /aria-label="Purchase"/);
 assert.match(expense, /data-remove-label="Discard"/);

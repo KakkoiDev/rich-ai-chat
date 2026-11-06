@@ -230,6 +230,7 @@ export function bindArtifactExpenseList(markup: string) {
   const add = document.querySelector("button[data-expense-add]");
   const list = document.querySelector("[data-expense-list]");
   const total = document.querySelector("output[data-expense-total]");
+  const error = document.querySelector("[data-expense-error]");
   const entries = [];
   const money = cents => (cents / 100).toFixed(2);
   function render() {
@@ -254,7 +255,10 @@ export function bindArtifactExpenseList(markup: string) {
     const label = name.value.trim();
     const value = Number(amount.value);
     const cents = Math.round(value * 100);
-    if (!label || !amount.value.trim() || value < 0 || !Number.isSafeInteger(cents)) return;
+    const issue = !label ? "Enter an item name." : !amount.value.trim() || !Number.isSafeInteger(cents)
+      ? "Enter a valid amount." : value < 0 ? "Enter zero or a positive amount." : "";
+    if (error) error.textContent = issue;
+    if (issue) return;
     entries.push({ name: label, cents });
     name.value = ""; amount.value = "";
     render();
@@ -270,6 +274,7 @@ export function expenseLayoutMarkup(spec: { title: string; name: string; amount:
 <p><label>${encode(spec.name)} <input data-expense-name aria-label="${encode(spec.name)}"></label></p>
 <p><label>${encode(spec.amount)} <input data-expense-amount aria-label="${encode(spec.amount)}" type="number" min="0" step="any"></label></p>
 <button type="button" data-expense-add>${encode(spec.add)}</button>
+<p role="status" data-expense-error></p>
 <ul data-expense-list data-remove-label="${encode(spec.remove)}"></ul>
 <p>Total: <output aria-label="Total" data-expense-total>0.00</output></p></main></body></html>`);
 }

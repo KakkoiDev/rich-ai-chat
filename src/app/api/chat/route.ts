@@ -146,10 +146,16 @@ export async function POST(req: Request) {
     });
   }
 
-  const keypadSpec = !revision && !fileContext && basicKeypadSpec(latest.content);
-  if (keypadSpec) {
-    const document = keypadLayoutMarkup(keypadSpec);
-    if (document) return directReply(artifactMarkup(keypadSpec.title, document));
+  // Fully specified requests can use verified mechanics regardless of the selected provider.
+  if (!revision && !fileContext) {
+    const keypad = basicKeypadSpec(request);
+    const takeAway = basicTakeAwaySpec(request);
+    const expense = basicExpenseSpec(request);
+    const document = keypad ? keypadLayoutMarkup(keypad) : takeAway ? takeAwayLayoutMarkup(takeAway)
+      : expense ? expenseLayoutMarkup(expense) : undefined;
+    const candidate = document && readArtifact(document);
+    if (candidate && candidate.document && !checkArtifactRequest(candidate.document, request))
+      return directReply(artifactMarkup(candidate.title, candidate.document));
   }
   const starter = !revision && !fileContext && (basicRecipe(latest.content) ||
     (/^\s*(?:(?:please|can you)\s+)*(?:make|build|create|generate)\s+(?:me\s+)?(?:an?\s+)?(?:angry birds?(?:[ -]style)?(?:\s+(?:clone|game))?|slingshot(?:\s+game)?)[.!?]*\s*$/i.test(latest.content) ? { title: "Slingshot Garden starter", file: "slingshot.html" } : undefined));
@@ -272,14 +278,6 @@ export async function POST(req: Request) {
             } catch {
               // Unsupported changes and malformed plans fall through to source editing.
             }
-          }
-          if (useTakeAway || useExpenseLayout) {
-            const takeAway = useTakeAway && basicTakeAwaySpec(request);
-            const expense = useExpenseLayout && basicExpenseSpec(request);
-            const document = takeAway ? takeAwayLayoutMarkup(takeAway) : expense ? expenseLayoutMarkup(expense) : undefined;
-            const candidate = document && readArtifact(document);
-            if (candidate && candidate.document && !checkArtifactRequest(candidate.document, request))
-              output = artifactMarkup(candidate.title, candidate.document);
           }
           if (useSequenceLayout || useExpenseLayout || useTakeAway || useKeypad) {
             const label = z.string().trim().min(1).max(40);
