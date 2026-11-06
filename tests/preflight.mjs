@@ -9,6 +9,9 @@ import { Temporal } from "@js-temporal/polyfill";
 import { currentDateTime, safeSearchQuery } from "../src/lib/local-tools.ts";
 import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "../src/lib/artifact-edits.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
+import { inlineSumTable } from "../src/lib/inline-table.ts";
+import { installArtifactPrimitives } from "../src/lib/artifact-primitives.ts";
+import { runInNewContext } from "node:vm";
 
 assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
 
@@ -61,6 +64,11 @@ assert.equal(checkArtifactRequest('<label for="x">Celsius</label><input id="x">'
 assert.match(checkArtifact("<script>const row = document.createElement('div'); app.appendChild(row)</script>"), /"app" is not defined/);
 assert.equal(checkArtifact('<main id="app"></main><script>app.appendChild(document.createElement("span"))</script>'), undefined);
 assert.equal(checkArtifact('<script>const root = document.body</script><script>root.appendChild(document.createElement("span"))</script>'), undefined);
+assert.match(inlineSumTable("Make a native OpenUI table with headers Class and Hours. Sum entries for each class: Art 0.1, Music 2, Art 0.2, Music -3."), /Col\("Hours", \["0.3","-1"\]\)/);
+assert.equal(inlineSumTable("Make a native OpenUI table with headers Class and Hours. Compare: Art 1, Music 2."), undefined);
+const drawProgram = installArtifactPrimitives('<script>const draw = richChatCreateShuffleBag(["one", "two", "three"]); Array.from({length: 6}, draw).join(",")</script>', true);
+const draws = runInNewContext(drawProgram.slice(8, -9), { Math: { random: () => 0, floor: Math.floor } });
+assert.equal(draws, "one,two,three,one,two,three");
 const revisionContext = "Revise this mini-app and return a complete new HtmlArtifact.\n\nRequested change or observed behavior: Add one.\n\nArtifact source (JSON string):\n" + JSON.stringify(html);
 assert.deepEqual(artifactRevision(buildMessage({ content: "Revision: Add one.", context: ["User clicked", {}, revisionContext] })), {
   request: "Requested change or observed behavior: Add one.", source: html,

@@ -3,7 +3,11 @@ const game = /\b(game|pong|angry birds?|slingshot|space invaders?|shooter|flappy
 const app = /\b(app|calculator|timer|dashboard|quiz|tracker|editor|tool|form|planner|converter|notes|to.do|counter|simulator|calendar|website|kanban|interface|web page|drawing pad|flashcards)\b/i;
 const build = /^\s*(?:(?:please|can you|could you)\s+)*(?:make|build|create|generate|implement|design|code|write)\b/i;
 
-export function artifactBuildGuide(request: string) {
+export function wantsShuffleBag(request: string) {
+  return /\brandom(?:ly)?\b/i.test(request) && /\b(?:without repeats?|without replacement|(?:do not|never) repeat|no repeats?|until all)\b/i.test(request);
+}
+
+export function artifactBuildGuide(request: string, useShuffleHelper = false) {
   if (!build.test(request) || /\bnative\s+openui\b/i.test(request)) return undefined;
   // An explicit instruction against HTML must not itself trigger HTML generation.
   request = request.replace(/\b(?:do not|don't|never)\s+(?:use|make|build|generate)\s+(?:an?\s+)?html(?:\s+(?:app|artifact))?\b/gi, "");
@@ -18,9 +22,11 @@ export function artifactBuildGuide(request: string) {
   if (/\b(?:expense tracker|budget tracker)\b/i.test(request)) return "App card: use plain inputs with matching label for and input id. Use a button with type=button and a click listener; no form wrapper or submit handler is needed. On click, read the inputs, validate the amount, push the entry, and call render(). render() lists the current entries and sets output.textContent to their numeric sum. Removal also calls render(). Insert user text with textContent.";
   if (/\b(?:converter|conversion)\b/i.test(request)) return "App card: put the requested input label in a real label element linked by for/id; use exactly the requested wording with no added punctuation. Keep the input and converted result separate. Validate finite numbers, preserve negative and fractional inputs, and clear both the field and result when asked.";
   if (/\bbutton\s+(?:that|which|to)\s+(?:\w+\s+){0,2}(?:shows?|displays?|picks?|draws?|chooses?|generates?|reveals?|changes?|updates?|toggles?|adds?|removes?|copies?)\b/i.test(request)) {
-    const noRepeats = /\brandom(?:ly)?\b/i.test(request) && /\b(?:without repeats?|without replacement|(?:do not|never) repeat|no repeats?|until all)\b/i.test(request);
+    const noRepeats = wantsShuffleBag(request);
     return "Interactive card: put the requested button and result area in the HTML. Update the visible result on each click. Use the supplied data or label bundled examples as a sample." +
-      (noRepeats ? " Keep an array of remaining items. On every click, if empty copy the full list first; then pick a random index in the remaining array, remove one item with splice, and display only that item. There is no separate reset click or cycle message." : "");
+      (noRepeats ? (useShuffleHelper
+        ? " Built-in helper: set const draw = richChatCreateShuffleBag(items) once, outside the click handler. Each click sets the output text to draw(). It draws without replacement and starts the next cycle automatically. Do not implement or call a separate shuffle."
+        : " Keep an array of remaining items. On every click, if empty copy the full list first; then pick a random index in the remaining array, remove one item with splice, and display only that item. There is no separate reset click or cycle message.") : "");
   }
   if (app.test(request)) return "App card: separate state changes from rendering, label controls, and handle invalid input. Given the initial screen, when the user completes the main action, then show the result and let them clear or reset it if appropriate.";
   if (/\b(?:html|css|javascript|interactive|playable)\b/i.test(request)) return "Interactive card: implement the main user action and a visible result before adding polish.";
