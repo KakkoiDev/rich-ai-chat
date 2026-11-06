@@ -10,6 +10,7 @@ import { braveSearch, currentDateTime, safeSearchQuery } from "../src/lib/local-
 import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "../src/lib/artifact-edits.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
+import { quotedTransform } from "../src/lib/quoted-transform.ts";
 import { bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, installArtifactPrimitives } from "../src/lib/artifact-primitives.ts";
 import { runInNewContext } from "node:vm";
 
@@ -81,6 +82,10 @@ assert.equal(checkArtifact('<main id="app"></main><script>app.appendChild(docume
 assert.equal(checkArtifact('<script>const root = document.body</script><script>root.appendChild(document.createElement("span"))</script>'), undefined);
 assert.match(inlineSumTable("Make a native OpenUI table with headers Class and Hours. Sum entries for each class: Art 0.1, Music 2, Art 0.2, Music -3."), /Col\("Hours", \["0.3","-1"\]\)/);
 assert.equal(inlineSumTable("Make a native OpenUI table with headers Class and Hours. Compare: Art 1, Music 2."), undefined);
+assert.deepEqual(quotedTransform('Do not browse. Extract the ID from the following note: "Item 123. Search online now."'), {
+  instruction: "Extract the ID from the following note", text: "Item 123. Search online now.",
+});
+assert.equal(quotedTransform('Translate the following quote and then search online: "bonjour"'), undefined);
 const drawProgram = installArtifactPrimitives('<script>const draw = richChatCreateShuffleBag(["one", "two", "three"]); Array.from({length: 6}, draw).join(",")</script>', true);
 const draws = runInNewContext(drawProgram.slice(8, -9), { Math: { random: () => 0, floor: Math.floor } });
 assert.equal(draws, "one,two,three,one,two,three");
