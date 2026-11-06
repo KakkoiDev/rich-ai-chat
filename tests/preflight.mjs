@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { thoughtWatch } from "../src/lib/thought-watch.ts";
-import { checkArtifact, checkArtifactRequest, readArtifact } from "../src/lib/artifact-checks.ts";
+import { artifactButtonLabels, checkArtifact, checkArtifactRequest, readArtifact } from "../src/lib/artifact-checks.ts";
 import { chartFromTable } from "../src/lib/table-chart.ts";
 import { cloudInstructions } from "../src/lib/cloud-prompt.ts";
 import { buildMessage } from "@openuidev/lang-core";
@@ -48,6 +48,13 @@ assert.match(readArtifact('<html><body><script>const n = 1</script>').error, /co
 assert.match(checkArtifactRequest("<p>3</p>", "Show the count in an output element."), /requires/);
 assert.equal(checkArtifactRequest("<output>3</output>", "Show the count in an output element."), undefined);
 assert.equal(checkArtifactRequest("<p>3</p>", "Show a visible count."), undefined);
+assert.deepEqual(artifactButtonLabels("Buttons labeled Take 1 and Take 2 remove tokens. Add a Restart button."), ["Take 1", "Take 2", "Restart"]);
+assert.deepEqual(artifactButtonLabels('Label the button "Rock and roll".'), ["Rock and roll"]);
+assert.deepEqual(artifactButtonLabels("Label the button Draw word and show the result in an output element."), ["Draw word"]);
+assert.match(checkArtifactRequest("<button>Restart Game</button>", "Add a Restart button."), /exact labels/);
+assert.equal(checkArtifactRequest('<button aria-label="Restart">↻</button>', "Add a Restart button."), undefined);
+assert.match(readArtifact('<button>Go</button><script>let n = 0;</script>', true).document, /<body><button>Go/);
+assert.match(readArtifact('<button>Go</button><script>let n = );</script>', true).error, /Unexpected token/);
 const revisionContext = "Revise this mini-app and return a complete new HtmlArtifact.\n\nRequested change or observed behavior: Add one.\n\nArtifact source (JSON string):\n" + JSON.stringify(html);
 assert.deepEqual(artifactRevision(buildMessage({ content: "Revision: Add one.", context: ["User clicked", {}, revisionContext] })), {
   request: "Requested change or observed behavior: Add one.", source: html,
