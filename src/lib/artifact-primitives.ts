@@ -69,9 +69,8 @@ globalThis.richChatCreateKeypad = function () {
 };
 `;
 
-export function installArtifactPrimitives(document: string, shuffle: boolean, ordered = false) {
-  const code = (shuffle && /\brichChatCreateShuffleBag\s*\(/.test(document) ? shuffleBag : "") +
-    (ordered && /\brichChatCreateSequence\s*\(/.test(document) ? sequence : "");
+export function installArtifactPrimitives(document: string, shuffle: boolean) {
+  const code = shuffle && /\brichChatCreateShuffleBag\s*\(/.test(document) ? shuffleBag : "";
   if (!code) return document;
   return document.replace(/<script\s*>/i, opening => opening + code);
 }
@@ -137,5 +136,88 @@ export function bindArtifactTakeAway(markup: string) {
   }
   restart.addEventListener("click", reset);
   reset();
+`);
+}
+
+export function bindArtifactSequence(markup: string) {
+  if (!/\sdata-rich-chat-target\s*=/i.test(markup)
+    || !/<button\b[^>]*\sdata-choice\s*=/i.test(markup)
+    || !/<button\b[^>]*\sdata-sequence-reset(?=[\s=>])/i.test(markup)
+    || !/\sdata-sequence-status(?=[\s=>])/i.test(markup)) return;
+  return bindMarkup(markup, `
+${sequence}
+  const targetNode = document.querySelector("[data-rich-chat-target]");
+  const status = document.querySelector("[data-sequence-status]");
+  const reset = document.querySelector("button[data-sequence-reset]");
+  const target = targetNode.dataset.richChatTarget.split(",").map(value => value.trim()).filter(Boolean);
+  const choices = [...document.querySelectorAll("button[data-choice]")];
+  const canonical = value => value.trim().toLowerCase();
+  if (!target.length || !target.every(value => choices.some(button => canonical(button.dataset.choice) === canonical(value)))) return;
+  targetNode.textContent = target.join(", ");
+  const success = status.dataset.success || status.textContent.trim();
+  status.textContent = "";
+  const game = globalThis.richChatCreateSequence(target.map(canonical));
+  for (const button of choices) {
+    button.addEventListener("click", () => {
+      status.textContent = game.press(canonical(button.dataset.choice)) === target.length ? success : "";
+    });
+  }
+  reset.addEventListener("click", () => { game.reset(); status.textContent = ""; });
+`);
+}
+
+export function sequenceLayoutMarkup(spec: { title: string; target: string[]; choices: string[]; success: string; reset: string }) {
+  const encode = (value: string) => value.replace(/[&<>"']/g, char =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
+  if (spec.target.some(value => !spec.choices.includes(value)) || new Set(spec.choices).size !== spec.choices.length) return;
+  return bindArtifactSequence(`<!doctype html><html><head><title>${encode(spec.title)}</title></head><body>
+<main><h1>${encode(spec.title)}</h1><p data-rich-chat-target="${encode(spec.target.join(","))}"></p>
+<div>${spec.choices.map(choice => `<button type="button" data-choice="${encode(choice)}">${encode(choice)}</button>`).join("")}</div>
+<button type="button" data-sequence-reset>${encode(spec.reset)}</button>
+<p role="status" data-sequence-status data-success="${encode(spec.success)}"></p></main></body></html>`);
+}
+
+export function bindArtifactExpenseList(markup: string) {
+  if (!/<input\b[^>]*\sdata-expense-name(?=[\s=>])/i.test(markup)
+    || !/<input\b[^>]*\sdata-expense-amount(?=[\s=>])/i.test(markup)
+    || !/<button\b[^>]*\sdata-expense-add(?=[\s=>])/i.test(markup)
+    || !/\sdata-expense-list(?=[\s=>])/i.test(markup)
+    || !/<output\b[^>]*\sdata-expense-total(?=[\s=>])/i.test(markup)) return;
+  return bindMarkup(markup, `
+  const name = document.querySelector("input[data-expense-name]");
+  const amount = document.querySelector("input[data-expense-amount]");
+  const add = document.querySelector("button[data-expense-add]");
+  const list = document.querySelector("[data-expense-list]");
+  const total = document.querySelector("output[data-expense-total]");
+  const entries = [];
+  const money = cents => (cents / 100).toFixed(2);
+  function render() {
+    list.replaceChildren();
+    entries.forEach((entry, index) => {
+      const row = document.createElement(list.matches("ul,ol") ? "li" : "div");
+      const label = document.createElement("span");
+      label.textContent = entry.name;
+      const price = document.createElement("span");
+      price.textContent = " " + money(entry.cents) + " ";
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.textContent = list.dataset.removeLabel || "Remove";
+      remove.onclick = () => { entries.splice(index, 1); render(); };
+      row.append(label, price, remove);
+      list.append(row);
+    });
+    total.textContent = money(entries.reduce((sum, entry) => sum + entry.cents, 0));
+  }
+  add.addEventListener("click", event => {
+    event.preventDefault();
+    const label = name.value.trim();
+    const value = Number(amount.value);
+    const cents = Math.round(value * 100);
+    if (!label || !amount.value.trim() || value < 0 || !Number.isSafeInteger(cents)) return;
+    entries.push({ name: label, cents });
+    name.value = ""; amount.value = "";
+    render();
+  });
+  render();
 `);
 }

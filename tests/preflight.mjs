@@ -10,7 +10,7 @@ import { braveSearch, currentDateTime, safeSearchQuery } from "../src/lib/local-
 import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "../src/lib/artifact-edits.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
-import { bindArtifactKeypad, bindArtifactTakeAway, installArtifactPrimitives } from "../src/lib/artifact-primitives.ts";
+import { bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, installArtifactPrimitives } from "../src/lib/artifact-primitives.ts";
 import { runInNewContext } from "node:vm";
 
 assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
@@ -84,8 +84,21 @@ assert.equal(inlineSumTable("Make a native OpenUI table with headers Class and H
 const drawProgram = installArtifactPrimitives('<script>const draw = richChatCreateShuffleBag(["one", "two", "three"]); Array.from({length: 6}, draw).join(",")</script>', true);
 const draws = runInNewContext(drawProgram.slice(8, -9), { Math: { random: () => 0, floor: Math.floor } });
 assert.equal(draws, "one,two,three,one,two,three");
-const sequenceProgram = installArtifactPrimitives('<script>const s = richChatCreateSequence(["a", "b"]); [s.press("a"), s.press("c"), s.press("a"), s.press("b"), s.reset(), s.press("b")].join(",")</script>', false, true);
-assert.equal(runInNewContext(sequenceProgram.slice(8, -9)), "1,0,1,2,,0");
+const sequenceProgram = bindArtifactSequence('<p data-rich-chat-target="a,b"></p><p data-sequence-status></p><button data-choice="a">A</button><button data-sequence-reset>Reset</button>');
+const stepButton = choice => ({ dataset: { choice }, addEventListener(_name, click) { this.click = click; } });
+const [stepA, stepB, stepReset] = [stepButton("a"), stepButton("b"), stepButton()];
+const target = { dataset: { richChatTarget: "a,b" } };
+const sequenceStatus = { dataset: { success: "Done" } };
+runInNewContext(sequenceProgram.match(/<script>([\s\S]*)<\/script>/)[1], { document: {
+  querySelector: selector => selector.includes("target") ? target : selector.startsWith("button") ? stepReset : sequenceStatus,
+  querySelectorAll: () => [stepA, stepB],
+} });
+stepB.click();
+assert.equal(sequenceStatus.textContent, "");
+stepA.click(); stepB.click();
+assert.equal(sequenceStatus.textContent, "Done");
+stepReset.click();
+assert.equal(sequenceStatus.textContent, "");
 const display = { textContent: "0" };
 const keypadButtons = ["2", "+", "3", "4", "Undo", "=", "Clear", "8", "×"].map(textContent => ({
   textContent, getAttribute: () => null, addEventListener(_name, handler) { this.click = handler; },

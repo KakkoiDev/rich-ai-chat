@@ -9,14 +9,12 @@ export function wantsShuffleBag(request: string) {
 
 export const isSequenceGame = (request: string) => /\bsequence\s+(?:puzzle|game)\b/i.test(request);
 
-export function artifactBuildGuide(request: string, useShuffleHelper = false, useSequenceHelper = false) {
+export function artifactBuildGuide(request: string, useShuffleHelper = false) {
   if (!build.test(request) || /\bnative\s+openui\b/i.test(request)) return undefined;
   // An explicit instruction against HTML must not itself trigger HTML generation.
   request = request.replace(/\b(?:do not|don't|never)\s+(?:use|make|build|generate)\s+(?:an?\s+)?html(?:\s+(?:app|artifact))?\b/gi, "");
   if (game.test(request)) {
-    if (isSequenceGame(request)) return useSequenceHelper
-      ? "Game card: show the full target array. Initialize the built-in richChatCreateSequence(target) once. Its press(label) returns the new progress index, or zero after a wrong choice. Reset calls sequence.reset() and clears the status."
-      : "Game card: show the whole target array. Wire every choice button to the same choose(label) handler, passing its own label. Compare the clicked label (a string) to target[index] (a string), never the numeric index itself. If wrong, reset index and clear success; if right, increment index once and show success exactly when it reaches target.length. Reset clears the index and success.";
+    if (isSequenceGame(request)) return "Game card: show the whole target array. Wire every choice button to the same choose(label) handler, passing its own label. Compare the clicked label (a string) to target[index] (a string), never the numeric index itself. If wrong, reset index and clear success; if right, increment index once and show success exactly when it reaches target.length. Reset clears the index and success.";
     if (/\btake[ -]away\b/i.test(request)) return "Game card: use one move(amount) handler and one render() function. A legal move subtracts amount, sets winner to current player if count reaches zero, otherwise switches turns. Then call render() on EVERY legal move. render() writes the remaining token count to the output element, writes the current turn or winner to a separate status paragraph, and disables illegal moves. Restart restores count, player and winner, then calls render().";
     const base = "Game card: implement start, play and restart first. Use a fixed timestep or elapsed time, consistent rendering and collision geometry, and pointer controls where practical. For board games, put labeled controls in the initial HTML, attach event listeners after those controls exist, and reset all board and turn state on restart. Given a new game, when the player acts, then show an observable gameplay change.";
     if (!/\btic.tac.toe\b/i.test(request)) return base;
