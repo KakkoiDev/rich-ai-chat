@@ -5,6 +5,9 @@ export function checkArtifact(document: string): string | undefined {
   const scripts = [...document.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
   if (scripts.length !== (document.match(/<script\b/gi)?.length ?? 0))
     return "HTML: close every script tag.";
+  const markup = document.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, "");
+  if ((markup.match(/<style(?:\s|>)/gi)?.length ?? 0) !== (markup.match(/<\/style\s*>/gi)?.length ?? 0))
+    return "HTML: close every style tag; an open style tag hides the rest of the page.";
   for (const [i, [, attributes, source]] of scripts.entries()) {
     if (/\bsrc\s*=/i.test(attributes)) return `Script ${i + 1}: include JavaScript inline; the preview blocks external scripts.`;
     if (/\btype\s*=/i.test(attributes) && !/\btype\s*=\s*["']?(?:text|application)\/javascript/i.test(attributes)) continue;

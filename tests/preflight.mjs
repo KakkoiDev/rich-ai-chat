@@ -4,8 +4,10 @@ import { thoughtWatch } from "../src/lib/thought-watch.ts";
 import { checkArtifact, checkArtifactRequest, readArtifact } from "../src/lib/artifact-checks.ts";
 import { chartFromTable } from "../src/lib/table-chart.ts";
 import { cloudInstructions } from "../src/lib/cloud-prompt.ts";
+import { buildMessage } from "@openuidev/lang-core";
 import { Temporal } from "@js-temporal/polyfill";
 import { currentDateTime, safeSearchQuery } from "../src/lib/local-tools.ts";
+import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "../src/lib/artifact-edits.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 
 assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
@@ -46,6 +48,19 @@ assert.match(readArtifact('<html><body><script>const n = 1</script>').error, /co
 assert.match(checkArtifactRequest("<p>3</p>", "Show the count in an output element."), /requires/);
 assert.equal(checkArtifactRequest("<output>3</output>", "Show the count in an output element."), undefined);
 assert.equal(checkArtifactRequest("<p>3</p>", "Show a visible count."), undefined);
+const revisionContext = "Revise this mini-app and return a complete new HtmlArtifact.\n\nRequested change or observed behavior: Add one.\n\nArtifact source (JSON string):\n" + JSON.stringify(html);
+assert.deepEqual(artifactRevision(buildMessage({ content: "Revision: Add one.", context: ["User clicked", {}, revisionContext] })), {
+  request: "Requested change or observed behavior: Add one.", source: html,
+});
+assert.match(checkArtifact("<style>button {color:red}<body><button>Try</button>"), /close every style tag/);
+const edited = applyArtifactEdits(html, [{ find: "<button>0</button>", replace: "<button>1</button>" }]);
+assert.equal(edited, html.replace("<button>0</button>", "<button>1</button>"));
+assert.equal(applyArtifactEdits("<button>A</button><button>A</button>", [{ find: ">A<", replace: ">B<" }]), undefined);
+assert.equal(applyArtifactEdits(html, [{ find: "<button>0</button>", replace: "<button>1</button>" }, { find: ">0</button>", replace: ">2</button>" }]), undefined);
+const scriptRepair = replaceArtifactScript('<button id="a">Add</button><script>throw new Error()</script>', 'document.getElementById("a").onclick = () => {};');
+assert.match(scriptRepair, /<button id="a">Add<\/button>/);
+assert.equal(readArtifact(scriptRepair).error, undefined);
+assert.equal(replaceArtifactScript('<script src="external.js"></script>', 'x();'), undefined);
 const table = 'root = Table([Col("Day", days), Col("High (°F)", highs), Col("Precip (%)", rain)])\ndays = ["Mon","Tue"]\nhighs = [67,70]\nrain = [20,15]';
 const chart = chartFromTable(scenarios.find(s => s.id === "weather-chart").prompts[2], [table]);
 assert.match(chart, /Series\("High \(°F\)", \[67,70\]\)/);
