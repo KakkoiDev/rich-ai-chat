@@ -162,14 +162,19 @@ ${sequence}
       status.textContent = game.press(canonical(button.dataset.choice)) === target.length ? success : "";
     });
   }
+  reset.disabled = false;
   reset.addEventListener("click", () => { game.reset(); status.textContent = ""; });
 `);
 }
 
+const encode = (value: string) => value.replace(/[&<>"']/g, char =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
+
 export function sequenceLayoutMarkup(spec: { title: string; target: string[]; choices: string[]; success: string; reset: string }) {
-  const encode = (value: string) => value.replace(/[&<>"']/g, char =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
-  if (spec.target.some(value => !spec.choices.includes(value)) || new Set(spec.choices).size !== spec.choices.length) return;
+  const normalize = (label: string) => label.trim().toLowerCase();
+  const choices = new Set(spec.choices.map(normalize));
+  if (spec.target.some(value => !choices.has(normalize(value))) || choices.size !== spec.choices.length
+    || choices.has(normalize(spec.reset))) return;
   return bindArtifactSequence(`<!doctype html><html><head><title>${encode(spec.title)}</title></head><body>
 <main><h1>${encode(spec.title)}</h1><p data-rich-chat-target="${encode(spec.target.join(","))}"></p>
 <div>${spec.choices.map(choice => `<button type="button" data-choice="${encode(choice)}">${encode(choice)}</button>`).join("")}</div>
@@ -220,4 +225,15 @@ export function bindArtifactExpenseList(markup: string) {
   });
   render();
 `);
+}
+
+export function expenseLayoutMarkup(spec: { title: string; name: string; amount: string; add: string; remove: string }) {
+  if (spec.name.toLowerCase() === spec.amount.toLowerCase()) return;
+  return bindArtifactExpenseList(`<!doctype html><html><head><title>${encode(spec.title)}</title></head><body>
+<main><h1>${encode(spec.title)}</h1>
+<p><label>${encode(spec.name)} <input data-expense-name aria-label="${encode(spec.name)}"></label></p>
+<p><label>${encode(spec.amount)} <input data-expense-amount aria-label="${encode(spec.amount)}" type="number" min="0" step="any"></label></p>
+<button type="button" data-expense-add>${encode(spec.add)}</button>
+<ul data-expense-list data-remove-label="${encode(spec.remove)}"></ul>
+<p>Total: <output aria-label="Total" data-expense-total>0.00</output></p></main></body></html>`);
 }

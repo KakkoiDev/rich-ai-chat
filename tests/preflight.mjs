@@ -12,7 +12,7 @@ import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
 import { addCalculatorAction } from "../src/lib/calculator-action.ts";
 import { quotedTransform } from "../src/lib/quoted-transform.ts";
-import { bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, installArtifactPrimitives } from "../src/lib/artifact-primitives.ts";
+import { bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, expenseLayoutMarkup, installArtifactPrimitives, sequenceLayoutMarkup } from "../src/lib/artifact-primitives.ts";
 import { runInNewContext } from "node:vm";
 
 assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
@@ -90,6 +90,14 @@ assert.equal(quotedTransform('Translate the following quote and then search onli
 const drawProgram = installArtifactPrimitives('<script>const draw = richChatCreateShuffleBag(["one", "two", "three"]); Array.from({length: 6}, draw).join(",")</script>', true);
 const draws = runInNewContext(drawProgram.slice(8, -9), { Math: { random: () => 0, floor: Math.floor } });
 assert.equal(draws, "one,two,three,one,two,three");
+const expense = expenseLayoutMarkup({ title: "Office & supplies", name: "Purchase", amount: "Cost", add: "Record", remove: "Discard" });
+assert.equal(readArtifact(expense).error, undefined);
+assert.match(expense, /aria-label="Purchase"/);
+assert.match(expense, /data-remove-label="Discard"/);
+assert.match(expense, /Office &amp; supplies/);
+assert.equal(expenseLayoutMarkup({ title: "Ledger", name: "Input", amount: "input", add: "Add", remove: "Remove" }), undefined);
+assert.equal(sequenceLayoutMarkup({ title: "Directions", target: ["North", "West"], choices: ["North", "West", "reset"], success: "Done", reset: "Reset" }), undefined);
+
 const sequenceProgram = bindArtifactSequence('<p data-rich-chat-target="a,b"></p><p data-sequence-status></p><button data-choice="a">A</button><button data-sequence-reset>Reset</button>');
 const stepButton = choice => ({ dataset: { choice }, addEventListener(_name, click) { this.click = click; } });
 const [stepA, stepB, stepReset] = [stepButton("a"), stepButton("b"), stepButton()];

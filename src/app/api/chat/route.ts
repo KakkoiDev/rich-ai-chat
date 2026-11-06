@@ -7,7 +7,7 @@ import { thoughtWatch } from "@/lib/thought-watch";
 import { artifactButtonLabels, artifactFieldLabels, checkArtifactRequest, readArtifact, requiresArtifactOutput } from "@/lib/artifact-checks";
 import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "@/lib/artifact-edits";
 import { artifactBuildGuide, isSequenceGame, wantsShuffleBag } from "@/lib/artifact-build";
-import { bindArtifactExpenseList, bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, installArtifactPrimitives, sequenceLayoutMarkup } from "@/lib/artifact-primitives";
+import { bindArtifactExpenseList, bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, expenseLayoutMarkup, installArtifactPrimitives, sequenceLayoutMarkup } from "@/lib/artifact-primitives";
 import { inlineSumTable } from "@/lib/inline-table";
 import { quotedTransform } from "@/lib/quoted-transform";
 import { chatFileMime, chatFilePrefix, decodeChatText, isChatFilename, maxChatFileBytes, maxChatFiles } from "@/lib/chat-files";
@@ -175,7 +175,7 @@ export async function POST(req: Request) {
   const useTakeAway = smallGemma && !revision && !fileContext && /\btake[ -]away\b/i.test(request)
     && /\blast\b[^.!?\n]{0,45}\bwins\b/i.test(request) && /\balternate\b/i.test(request);
   const takeAwayGuide = 'Return only HTML, no scripts or inline handlers. Put the requested initial count in <output data-rich-chat-count="N" data-players="A,B">N</output> (replace N with the number and A,B with the players in turn order). Add a <p data-rich-chat-turn></p> for status. Put the amount on each move button, e.g. <button data-rich-chat-take="2">Take 2</button>, and put data-rich-chat-restart on the restart button. The app wires all game rules. Use the requested labels.';
-  const useSequenceLayout = smallestOllama && !revision && !fileContext && isSequenceGame(request)
+  const useSequenceLayout = smallGemma && !revision && !fileContext && isSequenceGame(request)
     && /\b(?:wrong|incorrect)\b[^.!?\n]{0,50}\breset/i.test(request);
   const useExpenseLayout = smallestOllama && !revision && !fileContext && /\b(?:expense|budget) tracker\b/i.test(request)
     && /\bremove\b/i.test(request) && /\b(?:reject|disallow) negative\b/i.test(request);
@@ -267,32 +267,46 @@ export async function POST(req: Request) {
               // Unsupported changes and malformed plans fall through to source editing.
             }
           }
-          if (useSequenceLayout) {
-            try {
-              const label = z.string().trim().min(1).max(40).regex(/^[^,]+$/);
-              const spec = (await generateText({
-                model,
-                system: "Extract the sequence game's configuration. Copy the ordered target, visible choice labels, success message and reset label exactly from the request. The choices array contains every distinct button label for game moves; do not include Reset there. If no separate choice list is given, use the distinct target items. No code.",
-                prompt: request,
-                output: Output.object({ schema: z.object({
-                  title: z.string().trim().min(1).max(80),
-                  target: z.array(label).min(2).max(20),
-                  choices: z.array(label).min(2).max(20),
-                  success: z.string().trim().min(1).max(80),
-                  reset: label,
-                }) }),
-                temperature: 0.05,
-                maxOutputTokens: 1000,
-                maxRetries: 0,
-                timeout: 12000,
-                abortSignal: req.signal,
-              })).output;
-              const bound = sequenceLayoutMarkup(spec);
-              const candidate = bound && readArtifact(bound);
-              if (candidate && candidate.document && !checkArtifactRequest(candidate.document, request))
-                output = artifactMarkup(candidate.title, candidate.document);
-            } catch {
-              // Fall back to the HTML layout path if the provider cannot return valid parameters.
+          if (useSequenceLayout || useExpenseLayout) {
+            const label = z.string().trim().min(1).max(40);
+            const title = z.string().trim().min(1).max(80);
+            for (let attempt = 0; !output && attempt < 2 && !req.signal.aborted; attempt++) {
+              try {
+                const options = {
+                  model, prompt: request, temperature: 0,
+                  maxOutputTokens: 1000, maxRetries: 0, timeout: 8000, abortSignal: req.signal,
+                };
+                let document: string | undefined;
+                if (useSequenceLayout) {
+                  document = sequenceLayoutMarkup((await generateText({
+                    ...options,
+                    system: "Configure an ordered sequence game. Copy the ordered target, every move button label, success message and Reset button label exactly. Choices must include all target items, deduplicated, plus any separately requested choices. Do not include the reset label as a choice. No code.",
+                    output: Output.object({ schema: z.object({
+                      title,
+                      target: z.array(label.regex(/^[^,]+$/)).min(2).max(20),
+                      choices: z.array(label.regex(/^[^,]+$/)).min(2).max(20),
+                      success: z.string().trim().min(1).max(80),
+                      reset: label,
+                    }) }),
+                  })).output);
+                } else {
+                  const { output: spec } = await generateText({
+                    ...options,
+                    system: "Configure a simple two-field expense tracker. Copy the exact requested accessible labels for the item name and numeric amount, and the add and per-row remove labels. Use Add and Remove as defaults. Set supported false if the request requires extra behavior beyond adding/removing entries, a running total and rejecting negative values. No code.",
+                    output: Output.object({ schema: z.object({
+                      title, name: label, amount: label, add: label, remove: label, supported: z.boolean(),
+                    }) }),
+                  });
+                  const required = artifactFieldLabels(request);
+                  if (spec.supported && required.every(value => value === spec.name || value === spec.amount))
+                    document = expenseLayoutMarkup(spec);
+                }
+                const candidate = document && readArtifact(document);
+                if (candidate && candidate.document && !checkArtifactRequest(candidate.document, request))
+                  output = artifactMarkup(candidate.title, candidate.document);
+              } catch {
+                // If a provider cannot return a valid configuration, try again, then fall back to HTML.
+              }
             }
           }
           // A small, exact edit preserves existing controls and avoids re-emitting the whole document.
