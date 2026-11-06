@@ -69,6 +69,10 @@ assert.equal(inlineSumTable("Make a native OpenUI table with headers Class and H
 const drawProgram = installArtifactPrimitives('<script>const draw = richChatCreateShuffleBag(["one", "two", "three"]); Array.from({length: 6}, draw).join(",")</script>', true);
 const draws = runInNewContext(drawProgram.slice(8, -9), { Math: { random: () => 0, floor: Math.floor } });
 assert.equal(draws, "one,two,three,one,two,three");
+const sequenceProgram = installArtifactPrimitives('<script>const s = richChatCreateSequence(["a", "b"]); [s.press("a"), s.press("c"), s.press("a"), s.press("b"), s.reset(), s.press("b")].join(",")</script>', false, true);
+assert.equal(runInNewContext(sequenceProgram.slice(8, -9)), "1,0,1,2,,0");
+assert.match(readArtifact("Here is the app:\n```html\n<button>Go</button><script>let n = 0;</script>\n```\nDone.", true).document, /<button>Go/);
+assert.match(checkArtifactRequest("<button>Convert</button>", "Clear must reset both values."), /Clear/);
 const revisionContext = "Revise this mini-app and return a complete new HtmlArtifact.\n\nRequested change or observed behavior: Add one.\n\nArtifact source (JSON string):\n" + JSON.stringify(html);
 assert.deepEqual(artifactRevision(buildMessage({ content: "Revision: Add one.", context: ["User clicked", {}, revisionContext] })), {
   request: "Requested change or observed behavior: Add one.", source: html,

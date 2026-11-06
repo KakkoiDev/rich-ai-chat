@@ -69,6 +69,11 @@ export function checkArtifact(document: string): string | undefined {
 /** Extract a single HTML document; serialization into OpenUI is the host's job. */
 export function readArtifact(text: string, allowFragment = false) {
   let document = text.trim().replace(/^```(?:html)?\s*([\s\S]*?)\s*```$/i, "$1").trim();
+  if (allowFragment) {
+    // Recover one unambiguous HTML code block even if the model added an explanation.
+    const blocks = [...document.matchAll(/^```html\s*\n([\s\S]*?)^```[ \t]*$/gim)];
+    if (blocks.length === 1) document = blocks[0][1].trim();
+  }
   if (allowFragment && /^<[a-z][\w-]*(?:\s|>)/i.test(document)
     && !/<\/?(?:html|head|body)\b|<!doctype/i.test(document)
     && /<\/script\s*>$/i.test(document)) {
@@ -153,5 +158,7 @@ export function artifactButtonLabels(request: string) {
   }
   for (const [, label] of request.matchAll(/\b(?:add|provide|include|use)\s+(?:a|an)\s+([A-Z][a-z]+) button\b/gi))
     if (/^[A-Z]/.test(label)) names.add(label);
+  for (const [, label] of request.matchAll(/\b([A-Z][a-z]+) must (?:reset|clear)\b/g))
+    if (/^(?:Clear|Reset|Restart)$/.test(label)) names.add(label);
   return [...names];
 }
