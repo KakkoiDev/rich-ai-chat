@@ -92,9 +92,15 @@ export function bindArtifactKeypad(markup: string) {
 ${keypad}
   const press = globalThis.richChatCreateKeypad();
   const display = document.querySelector("output[data-rich-chat-display]");
+  const valid = key => ["Clear", "Undo", "=", "+", "-", "*", "/", "−", "×", "÷", "."].includes(key)
+    || (key !== "" && "0123456789".includes(key) && key.length === 1);
   for (const button of document.querySelectorAll("[data-rich-chat-keypad] button")) {
+    const explicit = (button.getAttribute("data-key") || "").trim();
+    const label = button.textContent.trim();
+    const key = valid(explicit) ? explicit : label;
+    if (!valid(key)) continue;
     button.addEventListener("click", () => {
-      display.textContent = press(button.getAttribute("data-key") || button.textContent.trim());
+      display.textContent = press(key);
     });
   }
 `);
@@ -169,6 +175,16 @@ ${sequence}
 
 const encode = (value: string) => value.replace(/[&<>"']/g, char =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
+
+export function keypadLayoutMarkup(spec: { title: string; undo: string; clear: string }) {
+  const controls = ["7", "8", "9", "÷", "4", "5", "6", "×", "1", "2", "3", "−", "0", ".", "=", "+", "Undo", "Clear"];
+  const label = (key: string) => key === "Undo" ? spec.undo : key === "Clear" ? spec.clear : key;
+  if (new Set(controls.map(key => label(key).trim().toLowerCase())).size !== controls.length) return;
+  return bindArtifactKeypad(`<!doctype html><html><head><title>${encode(spec.title)}</title>
+<style>main{max-width:22rem;margin:auto}output{display:block;text-align:right;padding:1rem;font-size:1.5rem}[data-rich-chat-keypad]{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem}button{min-height:2.5rem}</style></head><body>
+<main><h1>${encode(spec.title)}</h1><output data-rich-chat-display aria-live="polite">0</output>
+<div data-rich-chat-keypad>${controls.map(key => `<button type="button" data-key="${key}">${encode(label(key))}</button>`).join("")}</div></main></body></html>`);
+}
 
 export function takeAwayLayoutMarkup(spec: {
   title: string; count: number; players: string[];

@@ -1,13 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { chartFromTable } from "@/lib/table-chart";
-import { basicRecipe } from "@/lib/basic-recipes";
+import { basicKeypadSpec, basicRecipe } from "@/lib/basic-recipes";
 import { addCalculatorAction, calculatorOperations } from "@/lib/calculator-action";
 import { readChatAttempt } from "@/lib/chat-attempt";
 import { thoughtWatch } from "@/lib/thought-watch";
 import { artifactButtonLabels, artifactFieldLabels, checkArtifactRequest, readArtifact, requiresArtifactOutput } from "@/lib/artifact-checks";
 import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "@/lib/artifact-edits";
 import { artifactBuildGuide, isSequenceGame, wantsShuffleBag } from "@/lib/artifact-build";
-import { bindArtifactExpenseList, bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, expenseLayoutMarkup, installArtifactPrimitives, sequenceLayoutMarkup, takeAwayLayoutMarkup } from "@/lib/artifact-primitives";
+import { bindArtifactExpenseList, bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, expenseLayoutMarkup, installArtifactPrimitives, keypadLayoutMarkup, sequenceLayoutMarkup, takeAwayLayoutMarkup } from "@/lib/artifact-primitives";
 import { inlineSumTable } from "@/lib/inline-table";
 import { quotedTransform } from "@/lib/quoted-transform";
 import { chatFileMime, chatFilePrefix, decodeChatText, isChatFilename, maxChatFileBytes, maxChatFiles } from "@/lib/chat-files";
@@ -146,6 +146,11 @@ export async function POST(req: Request) {
     });
   }
 
+  const keypadSpec = !revision && !fileContext && basicKeypadSpec(latest.content);
+  if (keypadSpec) {
+    const document = keypadLayoutMarkup(keypadSpec);
+    if (document) return directReply(artifactMarkup(keypadSpec.title, document));
+  }
   const starter = !revision && !fileContext && (basicRecipe(latest.content) ||
     (/^\s*(?:(?:please|can you)\s+)*(?:make|build|create|generate)\s+(?:me\s+)?(?:an?\s+)?(?:angry birds?(?:[ -]style)?(?:\s+(?:clone|game))?|slingshot(?:\s+game)?)[.!?]*\s*$/i.test(latest.content) ? { title: "Slingshot Garden starter", file: "slingshot.html" } : undefined));
   if (starter) {
@@ -171,17 +176,18 @@ export async function POST(req: Request) {
   const gemmaOllama = localOllama && modelId.startsWith("gemma4:");
   const smallestOllama = gemmaOllama && /^gemma4:e2b(?:-|$)/.test(modelId);
   const smallGemma = gemmaOllama && /^gemma4:e[24]b(?:-|$)/.test(modelId);
+  const gptOssOllama = localOllama && modelId.startsWith("gpt-oss:");
   const useShuffleHelper = smallGemma && !revision && wantsShuffleBag(request);
-  const useTakeAway = (smallGemma || (localOllama && modelId.startsWith("gpt-oss:"))) && !revision && !fileContext && /\btake[ -]away\b/i.test(request)
+  const useTakeAway = (smallGemma || gptOssOllama) && !revision && !fileContext && /\btake[ -]away\b/i.test(request)
     && /\blast\b[^.!?\n]{0,45}\bwins\b/i.test(request) && /\balternate\b/i.test(request);
   const takeAwayGuide = 'Return only HTML, no scripts or inline handlers. Put the requested initial count in <output data-rich-chat-count="N" data-players="A,B">N</output> (replace N with the number and A,B with the players in turn order). Add a <p data-rich-chat-turn></p> for status. Put the amount on each move button, e.g. <button data-rich-chat-take="2">Take 2</button>, and put data-rich-chat-restart on the restart button. The app wires all game rules. Use the requested labels.';
   const useSequenceLayout = smallGemma && !revision && !fileContext && isSequenceGame(request)
     && /\b(?:wrong|incorrect)\b[^.!?\n]{0,50}\breset/i.test(request);
   const useExpenseLayout = smallGemma && !revision && !fileContext && /\b(?:expense|budget) tracker\b/i.test(request)
     && /\bremove\b/i.test(request) && /\b(?:reject|disallow) negative\b/i.test(request);
-  const useKeypad = gemmaOllama && !revision && !fileContext && /\bcalculator\b/i.test(request)
+  const useKeypad = (gemmaOllama || gptOssOllama) && !revision && !fileContext && /\bcalculator\b/i.test(request)
     && /\bundo\b[^.!?\n]{0,80}\b(?:digit|character)\b/i.test(request);
-  const layout = useKeypad ? {
+  let layout = useKeypad ? {
     bind: bindArtifactKeypad,
     system: "Design the calculator layout using only HTML and optional inline CSS, no scripts or inline handlers. Use <output data-rich-chat-display>0</output> and put all keypad buttons inside <div data-rich-chat-keypad>. Give each button its actual key as text. For a custom label put the real key in data-key. The host supplies arithmetic, digit undo, and clear. Include all requested buttons. Output HTML only.",
     guide: "Start with <output data-rich-chat-display>0</output> and put buttons inside <div data-rich-chat-keypad>. Include digits 0 through 9 and requested keys.",
@@ -232,7 +238,7 @@ export async function POST(req: Request) {
           const labels = artifactButtonLabels(request);
           const fields = artifactFieldLabels(request);
           const controls = [
-            requiresArtifactOutput(request) && !layout ? (smallestOllama
+            requiresArtifactOutput(request) ? (smallestOllama
               ? 'Start the markup with <output id="result"></output>; use this one element and update its textContent.'
               : "Use a single HTML <output> element for the requested result. Update that same element on every relevant action.") : "",
             labels.length ? "Required exact button labels: " + labels.map(label => JSON.stringify(label)).join(", ") + "." : "",
@@ -267,7 +273,7 @@ export async function POST(req: Request) {
               // Unsupported changes and malformed plans fall through to source editing.
             }
           }
-          if (useSequenceLayout || useExpenseLayout || useTakeAway) {
+          if (useSequenceLayout || useExpenseLayout || useTakeAway || useKeypad) {
             const label = z.string().trim().min(1).max(40);
             const title = z.string().trim().min(1).max(80);
             for (let attempt = 0; !output && attempt < 2 && !req.signal.aborted; attempt++) {
@@ -278,7 +284,18 @@ export async function POST(req: Request) {
                   timeout: modelId.startsWith("gpt-oss:") ? 16000 : 8000, abortSignal: req.signal,
                 };
                 let document: string | undefined;
-                if (useTakeAway) {
+                if (useKeypad) {
+                  const { output: spec } = await generateText({
+                    ...options,
+                    system: "Configure a basic calculator with arithmetic, clear, and undo of the last digit without losing the pending operation. Use Undo and Clear as the button labels unless the user supplies alternatives. Set supported false for any extra features such as memory, history, scientific operations, or redo. Do not write code.",
+                    output: Output.object({ schema: z.object({ title, undo: label, clear: label, supported: z.boolean() }) }),
+                  });
+                  if (!spec.supported) {
+                    layout = undefined;
+                    break;
+                  }
+                  document = keypadLayoutMarkup(spec);
+                } else if (useTakeAway) {
                   const { output: spec } = await generateText({
                     ...options,
                     system: "Configure a take-away game where the last move wins. Copy the starting token count, player names in turn order, the move button labels and their exact amounts, and the restart button label. The app shows the active player and the winner as '<player> wins'. Set supported false for extra rules such as an AI opponent or last move losing. No code.",

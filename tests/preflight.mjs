@@ -11,8 +11,9 @@ import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "../
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
 import { addCalculatorAction } from "../src/lib/calculator-action.ts";
+import { basicKeypadSpec } from "../src/lib/basic-recipes.ts";
 import { quotedTransform } from "../src/lib/quoted-transform.ts";
-import { bindArtifactKeypad, bindArtifactSequence, expenseLayoutMarkup, installArtifactPrimitives, sequenceLayoutMarkup, takeAwayLayoutMarkup } from "../src/lib/artifact-primitives.ts";
+import { bindArtifactKeypad, bindArtifactSequence, expenseLayoutMarkup, installArtifactPrimitives, keypadLayoutMarkup, sequenceLayoutMarkup, takeAwayLayoutMarkup } from "../src/lib/artifact-primitives.ts";
 import { runInNewContext } from "node:vm";
 
 assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
@@ -115,8 +116,16 @@ stepReset.click();
 assert.equal(sequenceStatus.textContent, "");
 const display = { textContent: "0" };
 const keypadButtons = ["2", "+", "3", "4", "Undo", "=", "Clear", "8", "×"].map(textContent => ({
-  textContent, getAttribute: () => null, addEventListener(_name, handler) { this.click = handler; },
+  textContent, getAttribute: () => "invalid-category", addEventListener(_name, handler) { this.click = handler; },
 }));
+assert.deepEqual(basicKeypadSpec("Make a compact calculator with addition and undo."), { title: "Calculator", undo: "Undo", clear: "Clear" });
+assert.equal(basicKeypadSpec('Build a calculator with number keys. Add a button labeled "Back one" to remove the last digit while preserving the pending operation.').undo, "Back one");
+assert.equal(basicKeypadSpec("Make a calculator with undo and memory."), undefined);
+assert.equal(basicKeypadSpec("Make a calculator with undo. Add charts."), undefined);
+const customKeypad = keypadLayoutMarkup({ title: "Register", undo: "Back", clear: "Reset" });
+assert.equal(readArtifact(customKeypad).error, undefined);
+assert.match(customKeypad, /data-key="Undo">Back<\/button>/);
+assert.equal(keypadLayoutMarkup({ title: "Duplicate", undo: "Clear", clear: "clear" }), undefined);
 const keypadProgram = bindArtifactKeypad("<output data-rich-chat-display>0</output><div data-rich-chat-keypad></div>");
 runInNewContext(keypadProgram.match(/<script>([\s\S]*)<\/script>/)[1], { document: {
   querySelector: () => display, querySelectorAll: () => keypadButtons,
