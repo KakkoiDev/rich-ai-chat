@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { chartFromTable } from "@/lib/table-chart";
-import { basicKeypadSpec, basicRecipe } from "@/lib/basic-recipes";
+import { basicExpenseSpec, basicKeypadSpec, basicRecipe, basicTakeAwaySpec } from "@/lib/basic-recipes";
 import { addCalculatorAction, calculatorOperations } from "@/lib/calculator-action";
 import { readChatAttempt } from "@/lib/chat-attempt";
 import { thoughtWatch } from "@/lib/thought-watch";
@@ -238,7 +238,7 @@ export async function POST(req: Request) {
           const labels = artifactButtonLabels(request);
           const fields = artifactFieldLabels(request);
           const controls = [
-            requiresArtifactOutput(request) ? (smallestOllama
+            requiresArtifactOutput(request) && !layout ? (smallestOllama
               ? 'Start the markup with <output id="result"></output>; use this one element and update its textContent.'
               : "Use a single HTML <output> element for the requested result. Update that same element on every relevant action.") : "",
             labels.length ? "Required exact button labels: " + labels.map(label => JSON.stringify(label)).join(", ") + "." : "",
@@ -272,6 +272,14 @@ export async function POST(req: Request) {
             } catch {
               // Unsupported changes and malformed plans fall through to source editing.
             }
+          }
+          if (useTakeAway || useExpenseLayout) {
+            const takeAway = useTakeAway && basicTakeAwaySpec(request);
+            const expense = useExpenseLayout && basicExpenseSpec(request);
+            const document = takeAway ? takeAwayLayoutMarkup(takeAway) : expense ? expenseLayoutMarkup(expense) : undefined;
+            const candidate = document && readArtifact(document);
+            if (candidate && candidate.document && !checkArtifactRequest(candidate.document, request))
+              output = artifactMarkup(candidate.title, candidate.document);
           }
           if (useSequenceLayout || useExpenseLayout || useTakeAway || useKeypad) {
             const label = z.string().trim().min(1).max(40);

@@ -11,9 +11,9 @@ import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "../
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
 import { addCalculatorAction } from "../src/lib/calculator-action.ts";
-import { basicKeypadSpec } from "../src/lib/basic-recipes.ts";
+import { basicExpenseSpec, basicKeypadSpec, basicTakeAwaySpec } from "../src/lib/basic-recipes.ts";
 import { quotedTransform } from "../src/lib/quoted-transform.ts";
-import { bindArtifactKeypad, bindArtifactSequence, expenseLayoutMarkup, installArtifactPrimitives, keypadLayoutMarkup, sequenceLayoutMarkup, takeAwayLayoutMarkup } from "../src/lib/artifact-primitives.ts";
+import { bindArtifactExpenseList, bindArtifactKeypad, bindArtifactSequence, expenseLayoutMarkup, installArtifactPrimitives, keypadLayoutMarkup, sequenceLayoutMarkup, takeAwayLayoutMarkup } from "../src/lib/artifact-primitives.ts";
 import { runInNewContext } from "node:vm";
 
 assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
@@ -91,8 +91,15 @@ assert.equal(quotedTransform('Translate the following quote and then search onli
 const drawProgram = installArtifactPrimitives('<script>const draw = richChatCreateShuffleBag(["one", "two", "three"]); Array.from({length: 6}, draw).join(",")</script>', true);
 const draws = runInNewContext(drawProgram.slice(8, -9), { Math: { random: () => 0, floor: Math.floor } });
 assert.equal(draws, "one,two,three,one,two,three");
+const officeRequest = "Create a budget tracker. Use inputs labeled Purchase and Cost, and a button labeled Record. Show entries and display a running total. Each entry has its own Discard button. Disallow negative values.";
+assert.deepEqual(basicExpenseSpec(officeRequest), { title: "Expense tracker", name: "Purchase", amount: "Cost", add: "Record", remove: "Discard" });
+assert.equal(basicExpenseSpec(officeRequest + " Export CSV."), undefined);
+const counterRequest = 'Create a take-away game. Start with 19 stones; players Hana and Ren alternate, Ren first. Buttons labeled Pick 2 and Pick 3 remove that many stones. Whoever takes the last stone wins; show "Ren wins" or "Hana wins". Add a Play again button.';
+assert.deepEqual(basicTakeAwaySpec(counterRequest), { title: "Take-away game", count: 19, players: ["Ren", "Hana"], moves: [{ label: "Pick 2", amount: 2 }, { label: "Pick 3", amount: 3 }], restart: "Play again" });
+assert.equal(basicTakeAwaySpec(counterRequest + " Add a computer opponent."), undefined);
 const expense = expenseLayoutMarkup({ title: "Office & supplies", name: "Purchase", amount: "Cost", add: "Record", remove: "Discard" });
 assert.equal(readArtifact(expense).error, undefined);
+assert.equal(bindArtifactExpenseList(expense.replace(/<script>[\s\S]*?<\/script>/, "").replace("</main>", "<output>0</output></main>")), undefined);
 assert.match(expense, /aria-label="Purchase"/);
 assert.match(expense, /data-remove-label="Discard"/);
 assert.match(expense, /Office &amp; supplies/);

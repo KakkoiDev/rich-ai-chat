@@ -218,6 +218,7 @@ export function sequenceLayoutMarkup(spec: { title: string; target: string[]; ch
 }
 
 export function bindArtifactExpenseList(markup: string) {
+  if ([...markup.matchAll(/<output\b/gi)].length !== 1) return;
   if (!/<input\b[^>]*\sdata-expense-name(?=[\s=>])/i.test(markup)
     || !/<input\b[^>]*\sdata-expense-amount(?=[\s=>])/i.test(markup)
     || !/<button\b[^>]*\sdata-expense-add(?=[\s=>])/i.test(markup)
