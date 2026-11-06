@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { thoughtWatch } from "../src/lib/thought-watch.ts";
-import { artifactButtonLabels, checkArtifact, checkArtifactRequest, readArtifact } from "../src/lib/artifact-checks.ts";
+import { artifactButtonLabels, artifactFieldLabels, checkArtifact, checkArtifactRequest, readArtifact } from "../src/lib/artifact-checks.ts";
 import { chartFromTable } from "../src/lib/table-chart.ts";
 import { cloudInstructions } from "../src/lib/cloud-prompt.ts";
 import { buildMessage } from "@openuidev/lang-core";
@@ -55,6 +55,12 @@ assert.match(checkArtifactRequest("<button>Restart Game</button>", "Add a Restar
 assert.equal(checkArtifactRequest('<button aria-label="Restart">↻</button>', "Add a Restart button."), undefined);
 assert.match(readArtifact('<button>Go</button><script>let n = 0;</script>', true).document, /<body><button>Go/);
 assert.match(readArtifact('<button>Go</button><script>let n = );</script>', true).error, /Unexpected token/);
+assert.deepEqual(artifactFieldLabels("Provide fields labeled Item and Amount, and a button labeled Add."), ["Item", "Amount"]);
+assert.match(checkArtifactRequest('<label for="x">Celsius:</label><input id="x">', "Label the input Celsius."), /accessible field labels/);
+assert.equal(checkArtifactRequest('<label for="x">Celsius</label><input id="x">', "Label the input Celsius."), undefined);
+assert.match(checkArtifact("<script>const row = document.createElement('div'); app.appendChild(row)</script>"), /"app" is not defined/);
+assert.equal(checkArtifact('<main id="app"></main><script>app.appendChild(document.createElement("span"))</script>'), undefined);
+assert.equal(checkArtifact('<script>const root = document.body</script><script>root.appendChild(document.createElement("span"))</script>'), undefined);
 const revisionContext = "Revise this mini-app and return a complete new HtmlArtifact.\n\nRequested change or observed behavior: Add one.\n\nArtifact source (JSON string):\n" + JSON.stringify(html);
 assert.deepEqual(artifactRevision(buildMessage({ content: "Revision: Add one.", context: ["User clicked", {}, revisionContext] })), {
   request: "Requested change or observed behavior: Add one.", source: html,

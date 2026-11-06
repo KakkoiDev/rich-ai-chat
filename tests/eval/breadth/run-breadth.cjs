@@ -14,6 +14,7 @@ async function apiTurn(history) {
   }));
 }
 const button = (frame, name) => frame.getByRole('button', { name, exact: true });
+const syntheticReplies = new WeakMap();
 const events = body => body.split('\n').filter(line => line.startsWith('data: {'))
   .map(line => JSON.parse(line.slice(6)));
 
@@ -22,7 +23,9 @@ async function ask(page, prompt) {
   const input = page.getByRole('textbox').first();
   await input.fill(prompt);
   await input.press('Enter');
-  return read(await response);
+  const reply = await read(await response);
+  syntheticReplies.set(page, reply.text);
+  return reply;
 }
 
 async function read(response) {
@@ -36,6 +39,7 @@ async function read(response) {
 }
 
 async function preview(page, reply) {
+  syntheticReplies.set(page, reply.text);
   assert.match(reply.text, /HtmlArtifact\(/, 'No preview: ' + reply.text.slice(0, 360));
   await page.getByRole('button', { name: 'Run preview', exact: true }).last().click();
   return page.frameLocator('.html-artifact iframe').last();
@@ -254,7 +258,10 @@ const cases = [
         await page.close();
       }
       const seconds = (performance.now() - start) / 1000;
-      report.cases.push({ id, category, status, seconds, ...(detail ? { detail } : {}), ...(observed ? { observed } : {}) });
+      // Pages are isolated and driven by synthetic prompts; capture the failed response for diagnosis.
+      const response = status === 'fail' ? syntheticReplies.get(page)?.slice(0, 35000) : undefined;
+      report.cases.push({ id, category, status, seconds, ...(detail ? { detail } : {}),
+        ...(observed ? { observed } : {}), ...(response ? { response } : {}) });
       console.log(status.toUpperCase(), id, seconds.toFixed(2) + 's', detail || '');
     }
   } finally {
