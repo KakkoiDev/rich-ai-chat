@@ -62,4 +62,6 @@ CHAT_URL=http://127.0.0.1:3234/ EVAL_MODEL=deepseek-flash \
   node tests/eval/breadth/streak.cjs
 ```
 
-Each round runs all twelve cases in fresh browser contexts. A skipped, missing or failed case ends the streak. Keep the failed run for diagnosis and start a fresh directory after a fix; never splice passing rounds across revisions. Order: DeepSeek Flash reference, GPT-OSS 20B, Gemma 12B MLX, Gemma E4B MLX, Gemma E2B MLX. Recheck models already qualified when shared app or benchmark behavior changes.
+The random-word build adds a thirteenth case. The benchmark changes the supplied word bank across rounds and clicks through four complete cycles. It checks that the generated app uses the supplied words and draws each one once per cycle, with an order that varies. It does not claim to measure the statistical quality of the shuffle.
+
+Each round runs all thirteen cases in fresh browser contexts. A skipped, missing or failed case ends the streak. Keep the failed run for diagnosis and start a fresh directory after a fix; never splice passing rounds across revisions. Order: DeepSeek Flash reference, GPT-OSS 20B, Gemma 12B MLX, Gemma E4B MLX, Gemma E2B MLX. Recheck models already qualified when shared app or benchmark behavior changes.

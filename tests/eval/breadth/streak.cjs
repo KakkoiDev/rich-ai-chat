@@ -15,12 +15,12 @@ for (let round = 1; round <= summary.required; round++) {
   const report = path.join(directory, name);
   console.log(`=== ${EVAL_MODEL} round ${round}/${summary.required} ===`);
   const run = spawnSync(process.execPath, [path.join(__dirname, 'run-breadth.cjs')], {
-    env: { ...process.env, EVAL_REPORT: report }, stdio: 'inherit',
+    env: { ...process.env, EVAL_ROUND: String(round), EVAL_REPORT: report }, stdio: 'inherit',
   });
   const result = fs.existsSync(report) ? JSON.parse(fs.readFileSync(report, 'utf8')) : undefined;
   const passed = result?.cases.filter(c => c.status === 'pass').length ?? 0;
   const perfect = run.status === 0 && result?.model === EVAL_MODEL &&
-    result?.appRevision === EVAL_REVISION && result.cases.length === 12 && passed === 12;
+    result?.appRevision === EVAL_REVISION && result.cases.length === 13 && passed === 13;
   summary.rounds.push({ round, report: result ? name : null, passed, perfect, exitCode: run.status });
   fs.writeFileSync(path.join(directory, 'streak.json'), JSON.stringify(summary, null, 2) + '\n');
   if (!perfect) {
@@ -30,5 +30,5 @@ for (let round = 1; round <= summary.required; round++) {
   }
 }
 if (summary.rounds.length === summary.required && summary.rounds.every(r => r.perfect)) {
-  console.log(`STABLE: ${EVAL_MODEL} passed ${summary.required} consecutive 12/12 rounds.`);
+  console.log(`STABLE: ${EVAL_MODEL} passed ${summary.required} consecutive 13/13 rounds.`);
 }

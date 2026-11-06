@@ -19,7 +19,7 @@ assert.ok(!fs.existsSync(summaryPath), 'Use a fresh report directory for each re
 const summary = { revision: EVAL_REVISION, models, required: 10, regressionRounds: 1, state: 'running', rounds: [] };
 const suites = [
   ['basic', path.join(__dirname, 'run.cjs'), 14],
-  ['breadth', path.join(__dirname, 'breadth/run-breadth.cjs'), 12],
+  ['breadth', path.join(__dirname, 'breadth/run-breadth.cjs'), 13],
 ];
 
 function save() {
@@ -60,7 +60,7 @@ async function evaluate(model, roundDir, report) {
       summary.active = { ...summary.active, suite };
       save();
       const file = path.join(roundDir, suite + '.json');
-      runner = spawn(process.execPath, [script], { env: { ...env, EVAL_REPORT: file }, stdio: 'inherit' });
+      runner = spawn(process.execPath, [script], { env: { ...env, EVAL_ROUND: String(summary.active.round), EVAL_REPORT: file }, stdio: 'inherit' });
       const [code] = await once(runner, 'exit');
       runner = undefined;
       const result = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;

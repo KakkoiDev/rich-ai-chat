@@ -42,6 +42,30 @@ async function preview(page, reply) {
 }
 
 const cases = [
+  ['random-word-button', 'build', async page => {
+    const banks = [
+      ['lantern', 'orchard', 'quartz', 'ripple', 'velvet'],
+      ['anchor', 'cobalt', 'meadow', 'otter', 'thimble'],
+      ['birch', 'compass', 'hazel', 'marble', 'sparrow'],
+    ];
+    const round = Number(process.env.EVAL_ROUND) || 1;
+    const words = banks[(round - 1) % banks.length];
+    const frame = await preview(page, await ask(page,
+      `Make a button that displays a random word from this mini-dictionary: ${words.join(', ')}. Label the button Draw word and show the result in an output element. Do not repeat a word until all five have appeared. After that, start a new shuffled cycle.`));
+    const display = frame.locator('output');
+    const draws = [];
+    const orders = new Set();
+    for (let i = 0; i < words.length * 4; i++) {
+      await button(frame, 'Draw word').click();
+      draws.push((await display.innerText()).trim().toLowerCase());
+    }
+    for (let i = 0; i < draws.length; i += words.length) {
+      const cycle = draws.slice(i, i + words.length);
+      orders.add(cycle.join(' '));
+      assert.deepEqual(cycle.sort(), [...words].sort(), 'Each cycle must draw every supplied word exactly once');
+    }
+    assert.ok(orders.size > 1, 'The draw order never changed across four cycles');
+  }],
   ['budget-composition', 'build', async page => {
     const frame = await preview(page, await ask(page, 'Build an expense tracker. Provide fields labeled Item and Amount, and a button labeled Add. List the entries and keep a visible running total in an output element. Each entry has its own Remove button. Reject negative amounts.'));
     const add = async (name, amount) => {
