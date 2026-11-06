@@ -67,3 +67,5 @@ For app and game build requests, the model receives a short guide for the reques
 See [scenario prompts](tests/scenarios.json) and [model evaluation notes](tests/MODEL-NOTES.md). Run the offline checks with `node tests/preflight.mjs` on Node 24+. With Playwright and Chromium available, run `CHAT_URL=http://127.0.0.1:3212/ node tests/e2e/slingshot.cjs` to verify the starter through chat. Omit CHAT_URL to test the standalone file. Plain slingshot build requests open the tested starter; use Request revision to customize it.
 
 To compare GPT-OSS 20B with smaller models, run the [basic capability evaluation](tests/eval/README.md) against each model's chat server. It checks observable behavior and separates model performance from built-in app behavior.
+
+See the [agent handoff](docs/AI-HANDOFF.md) for the full model matrix, stall recovery, and the proposed persistent task workflow.

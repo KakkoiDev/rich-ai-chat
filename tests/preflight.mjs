@@ -10,6 +10,7 @@ import { braveSearch, currentDateTime, safeSearchQuery } from "../src/lib/local-
 import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "../src/lib/artifact-edits.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
+import { addCalculatorAction } from "../src/lib/calculator-action.ts";
 import { quotedTransform } from "../src/lib/quoted-transform.ts";
 import { bindArtifactKeypad, bindArtifactSequence, bindArtifactTakeAway, installArtifactPrimitives } from "../src/lib/artifact-primitives.ts";
 import { runInNewContext } from "node:vm";
@@ -153,3 +154,29 @@ const chart = chartFromTable(scenarios.find(s => s.id === "weather-chart").promp
 assert.match(chart, /Series\("High \(°F\)", \[67,70\]\)/);
 assert.equal((chart.match(/LineChart\(/g) ?? []).length, 2);
 console.log(`PASS: offline preflight; ${scenarios.length} evaluation scenarios available`);
+
+const calculatorSource = readFileSync(new URL("../src/starters/calculator.html", import.meta.url), "utf8");
+for (const [label, operation, operand, expected] of [
+  ["Triple", "multiply", 3, "15"],
+  ["Subtract seven", "subtract", 7, "-2"],
+  ["Square", "square", null, "25"],
+]) {
+  const doc = addCalculatorAction(calculatorSource, label, operation, operand);
+  assert.equal(checkArtifact(doc), undefined);
+  const buttons = new Map();
+  const display = { textContent: "0" };
+  runInNewContext(doc.match(/<script>([\s\S]*?)<\/script>/)[1], { document: {
+    getElementById: id => id === "display" ? display : {
+      append: button => buttons.set(button.textContent, button.click),
+    },
+    createElement: () => ({ addEventListener(_event, click) { this.click = click; } }),
+  } });
+  for (const key of ["2", "+", "3", "="]) buttons.get(key)();
+  assert.equal(display.textContent, "5");
+  buttons.get(label)();
+  assert.equal(display.textContent, expected);
+  buttons.get("Clear")();
+  assert.equal(display.textContent, "0");
+}
+assert.equal(addCalculatorAction(calculatorSource, "Bad divisor", "divide", 0), undefined);
+assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), undefined);
