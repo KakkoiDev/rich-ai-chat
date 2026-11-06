@@ -46,17 +46,27 @@ function httpsUrl(value: string | null | undefined) {
 export async function braveSearch(kind: "web" | "images" | "videos", query: string, key: string, signal: AbortSignal) {
   const url = new URL(`https://api.search.brave.com/res/v1/${kind}/search`);
   url.search = new URLSearchParams({ q: query, count: "4", safesearch: "strict" }).toString();
-  const options = {
-    headers: { "X-Subscription-Token": key }, redirect: "error" as const,
-    signal: AbortSignal.any([signal, AbortSignal.timeout(7000)]),
-  };
-  const response = await fetch(url, options);
-  if (response.status !== 429 && response.status !== 503) return response;
+  const budget = AbortSignal.any([signal, AbortSignal.timeout(15000)]);
+  const request = () => fetch(url, {
+    headers: { "X-Subscription-Token": key }, redirect: "error",
+    signal: AbortSignal.any([budget, AbortSignal.timeout(6500)]),
+  });
+  let response: Response;
+  try {
+    response = await request();
+  } catch (error) {
+    if (budget.aborted || !(error instanceof TypeError || (error instanceof DOMException && error.name === "TimeoutError"))) throw error;
+    await delay(250, undefined, { signal: budget });
+    return request();
+  }
+  if (![429, 500, 502, 503, 504].includes(response.status)) return response;
+  const retryHeader = response.headers.get("Retry-After");
+  const retryMs = retryHeader && /^\d+$/.test(retryHeader)
+    ? Number(retryHeader) * 1000 : retryHeader ? Date.parse(retryHeader) - Date.now() : 0;
+  if (retryMs > 5000) return response;
   await response.body?.cancel();
-  const retryAfter = Number(response.headers.get("Retry-After"));
-  if (retryAfter > 5) return response;
-  await delay(Math.max(1100, retryAfter * 1000 || 0), undefined, { signal: options.signal });
-  return fetch(url, options);
+  await delay(Math.max(response.status === 429 ? 1100 : 250, retryMs || 0), undefined, { signal: budget });
+  return request();
 }
 
 async function searchMedia(kind: "images" | "videos", query: string, signal: AbortSignal) {

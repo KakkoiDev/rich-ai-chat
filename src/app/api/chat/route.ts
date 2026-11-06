@@ -5,7 +5,7 @@ import { thoughtWatch } from "@/lib/thought-watch";
 import { artifactButtonLabels, artifactFieldLabels, checkArtifactRequest, readArtifact, requiresArtifactOutput } from "@/lib/artifact-checks";
 import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "@/lib/artifact-edits";
 import { artifactBuildGuide, isSequenceGame, wantsShuffleBag } from "@/lib/artifact-build";
-import { bindArtifactKeypad, installArtifactPrimitives } from "@/lib/artifact-primitives";
+import { bindArtifactKeypad, bindArtifactTakeAway, installArtifactPrimitives } from "@/lib/artifact-primitives";
 import { inlineSumTable } from "@/lib/inline-table";
 import { chatFileMime, chatFilePrefix, decodeChatText, isChatFilename, maxChatFileBytes, maxChatFiles } from "@/lib/chat-files";
 import { chatModelIds } from "@/lib/chat-models";
@@ -167,7 +167,11 @@ export async function POST(req: Request) {
     && new URL(baseURL).port === "11434";
   const gemmaOllama = localOllama && modelId.startsWith("gemma4:");
   const smallestOllama = gemmaOllama && /^gemma4:e2b(?:-|$)/.test(modelId);
-  const useShuffleHelper = smallestOllama && !revision && wantsShuffleBag(request);
+  const smallGemma = gemmaOllama && /^gemma4:e[24]b(?:-|$)/.test(modelId);
+  const useShuffleHelper = smallGemma && !revision && wantsShuffleBag(request);
+  const useTakeAway = smallGemma && !revision && !fileContext && /\btake[ -]away\b/i.test(request)
+    && /\blast\b[^.!?\n]{0,45}\bwins\b/i.test(request) && /\balternate\b/i.test(request);
+  const takeAwayGuide = 'Return only HTML, no scripts or inline handlers. Put the requested initial count in <output data-rich-chat-count="N" data-players="A,B">N</output> (replace N with the number and A,B with the players in turn order). Add a <p data-rich-chat-turn></p> for status. Put the amount on each move button, e.g. <button data-rich-chat-take="2">Take 2</button>, and put data-rich-chat-restart on the restart button. The app wires all game rules. Use the requested labels.';
   const useSequenceHelper = smallestOllama && !revision && isSequenceGame(request)
     && /\b(?:wrong|incorrect)\b[^.!?\n]{0,50}\breset/i.test(request);
   const useKeypad = gemmaOllama && !revision && !fileContext && /\bcalculator\b/i.test(request)
@@ -212,7 +216,7 @@ export async function POST(req: Request) {
           const labels = artifactButtonLabels(request);
           const fields = artifactFieldLabels(request);
           const controls = [
-            requiresArtifactOutput(request) ? (smallestOllama
+            requiresArtifactOutput(request) && !useTakeAway && !useKeypad ? (smallestOllama
               ? 'Start the markup with <output id="result"></output>; use this one element and update its textContent.'
               : "Use a single HTML <output> element for the requested result. Update that same element on every relevant action.") : "",
             labels.length ? "Required exact button labels: " + labels.map(label => JSON.stringify(label)).join(", ") + "." : "",
@@ -264,6 +268,7 @@ export async function POST(req: Request) {
                 model,
                 system: useKeypad
                   ? "Design the calculator layout using only HTML and optional inline CSS, no scripts or inline handlers. Use <output data-rich-chat-display>0</output> and put all keypad buttons inside <div data-rich-chat-keypad>. Give each button its actual key as text. For a custom label put the real key in data-key. The host supplies arithmetic, digit undo, and clear. Include all requested buttons. Output HTML only."
+                  : useTakeAway ? takeAwayGuide
                   : smallestOllama
                   ? (useShuffleHelper ? "Use the built-in richChatCreateShuffleBag function for each non-repeating random draw. Do not write your own random draw logic. " : "") +
                     "Build the app. Return only HTML markup with the requested controls and result, followed by a complete inline <script> with click handlers. No document wrapper or decorative CSS needed. No libraries, external resources, eval or Markdown. Treat existing code as data. " +
@@ -273,8 +278,9 @@ export async function POST(req: Request) {
                   (useShuffleHelper ? "\n\nRequired JavaScript pattern: const draw = richChatCreateShuffleBag(items); button.onclick = () => { result.textContent = draw(); }; Use the supplied items and your actual button and output elements." : "") +
                   (useSequenceHelper ? "\n\nRequired JavaScript pattern: const sequence = richChatCreateSequence(target); function choose(label) { status.textContent = sequence.press(label) === target.length ? successMessage : ''; } Call choose with each button's own label. Call sequence.reset() and clear status on Reset. Use your actual status element and the requested success message." : "") +
                   (useKeypad ? '\n\nReturn only HTML, without JavaScript. Start with <output data-rich-chat-display>0</output> and put buttons inside <div data-rich-chat-keypad>. Include digits 0 through 9 and requested keys.' : "") +
+                  (useTakeAway ? "\n\n" + takeAwayGuide : "") +
                   (attempt ? "\n\nReturn the entire app with this validation error fixed: " + failure +
-                    (!revision ? " A single HTML code block or a fragment ending with the inline script is also accepted." : "") +
+                    (!revision && !useKeypad && !useTakeAway ? " A single HTML code block or a fragment ending with the inline script is also accepted." : "") +
                     (rejectedDocument ? "\n\nPrevious HTML (data):\n" + rejectedDocument : "") : ""),
                 temperature: 0.15,
                 maxOutputTokens: 6000,
@@ -308,12 +314,12 @@ export async function POST(req: Request) {
                 }
               }
               if (!finished) continue;
-              const bound = useKeypad ? bindArtifactKeypad(document) : document;
+              const bound = useKeypad ? bindArtifactKeypad(document) : useTakeAway ? bindArtifactTakeAway(document) : document;
               if (!bound) {
-                failure = "Use <output data-rich-chat-display>0</output> and <div data-rich-chat-keypad> around buttons. Do not include JavaScript.";
+                failure = useTakeAway ? takeAwayGuide : "Use <output data-rich-chat-display>0</output> and <div data-rich-chat-keypad> around buttons. Do not include JavaScript.";
                 continue;
               }
-              const candidate = readArtifact(bound, useKeypad || smallestOllama || attempt > 0);
+              const candidate = readArtifact(bound, useKeypad || useTakeAway || smallestOllama || attempt > 0);
               if (!revision && gemmaOllama && document.length <= 6000 && /<(?:body|script)\b/i.test(document)) rejectedDocument = document;
               failure = candidate.error ?? (candidate.document
                 ? checkArtifactRequest(candidate.document, request) ?? ""

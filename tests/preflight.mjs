@@ -6,11 +6,11 @@ import { chartFromTable } from "../src/lib/table-chart.ts";
 import { cloudInstructions } from "../src/lib/cloud-prompt.ts";
 import { buildMessage } from "@openuidev/lang-core";
 import { Temporal } from "@js-temporal/polyfill";
-import { currentDateTime, safeSearchQuery } from "../src/lib/local-tools.ts";
+import { braveSearch, currentDateTime, safeSearchQuery } from "../src/lib/local-tools.ts";
 import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "../src/lib/artifact-edits.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
-import { bindArtifactKeypad, installArtifactPrimitives } from "../src/lib/artifact-primitives.ts";
+import { bindArtifactKeypad, bindArtifactTakeAway, installArtifactPrimitives } from "../src/lib/artifact-primitives.ts";
 import { runInNewContext } from "node:vm";
 
 assert.ok(cloudInstructions("Use the classroom asset.").includes("Use the classroom asset."), "Local prompt includes supplied rules");
@@ -28,6 +28,21 @@ assert.equal(currentDateTime("Invalid/Zone", 0, instant), null);
 assert.equal(safeSearchQuery("Mount Fuji in spring"), true);
 assert.equal(safeSearchQuery("contact student@example.com"), false);
 assert.equal(safeSearchQuery("photos at https://example.com"), false);
+const originalFetch = globalThis.fetch;
+try {
+  let requests = 0;
+  globalThis.fetch = async url => {
+    assert.equal(url.searchParams.get("q"), "public topic");
+    if (++requests === 1) throw new TypeError("transient connection failure");
+    return new Response("ok");
+  };
+  assert.equal(await (await braveSearch("web", "public topic", "unused", new AbortController().signal)).text(), "ok");
+  assert.equal(requests, 2);
+  globalThis.fetch = async () => new Response("limited", { status: 429, headers: { "Retry-After": "60" } });
+  assert.equal(await (await braveSearch("web", "public topic", "unused", new AbortController().signal)).text(), "limited");
+} finally {
+  globalThis.fetch = originalFetch;
+}
 
 const watch = thoughtWatch();
 assert.equal(watch("plan\nwrite\ncheck\nplan\n"), false);
@@ -83,6 +98,23 @@ assert.deepEqual(["2", "+", "3", "4", "Undo", "=", "Clear", "8", "×", "2", "="]
   keypadButtons.find(button => button.textContent === key).click();
   return display.textContent;
 }), ["2", "2", "3", "34", "3", "5", "0", "8", "8", "2", "16"]);
+const mockButton = amount => ({ dataset: { richChatTake: amount }, addEventListener(_name, click) { this.click = click; } });
+const [one, two, restart] = [mockButton("1"), mockButton("2"), mockButton()];
+const count = { dataset: { richChatCount: "3", players: "Red,Blue" } };
+const turnStatus = { dataset: {} };
+const takeProgram = bindArtifactTakeAway('<output data-rich-chat-count="3"></output><p data-rich-chat-turn></p><button data-rich-chat-take="1">Take</button><button data-rich-chat-restart>Reset</button>');
+runInNewContext(takeProgram.match(/<script>([\s\S]*)<\/script>/)[1], { document: {
+  querySelector: selector => selector.startsWith("output") ? count : selector.startsWith("button") ? restart : turnStatus,
+  querySelectorAll: () => [one, two],
+} });
+two.click();
+assert.equal(count.textContent, "1");
+assert.equal(two.disabled, true);
+one.click();
+assert.equal(turnStatus.textContent, "Blue wins");
+assert.equal(one.disabled, true);
+restart.click();
+assert.equal(count.textContent, "3");
 assert.match(readArtifact("Here is the app:\n```html\n<button>Go</button><script>let n = 0;</script>\n```\nDone.", true).document, /<button>Go/);
 assert.match(checkArtifactRequest("<button>Convert</button>", "Clear must reset both values."), /Clear/);
 const revisionContext = "Revise this mini-app and return a complete new HtmlArtifact.\n\nRequested change or observed behavior: Add one.\n\nArtifact source (JSON string):\n" + JSON.stringify(html);
