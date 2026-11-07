@@ -12,7 +12,10 @@ const { featurePrompt } = require('./prompts.cjs');
 
 const cases = [
   ['export-novel-app', 'export', async (page, spec, kit) => {
-    const frame = await kit.preview(page, await kit.ask(page, spec.prompt));
+    const reply = await kit.ask(page, spec.prompt);
+    const built = reply.activity.filter(e => e.type === 'check' && e.passed).map(e => e.reason);
+    assert.ok(built.some(reason => /^Built from the model's code/.test(reason)), `Built from the model's own code, not a tested part: ${JSON.stringify(built)}`);
+    const frame = await kit.preview(page, reply);
     const [first, , third] = spec.items;
     const play = async target => {
       await kit.button(target, first).click();
@@ -73,6 +76,28 @@ const cases = [
     assert.equal(await kit.button(exportedV1.page, spec.minus).count(), 0, 'The first export has no new button');
     await exportedV1.close();
   }],
+  ['activity-single-search', 'activity', async (page, spec, kit) => {
+    const reply = await kit.ask(page, spec.prompt);
+    kit.track(page, reply);
+    const tools = reply.activity.filter(e => e.type === 'tool-end');
+    assert.equal(tools.length, 1, `One search ran: ${JSON.stringify(tools)}`);
+    assert.equal(tools[0].tool, 'web_search');
+    assert.equal(tools[0].status, 'ok', `The search worked: ${tools[0].summary}`);
+    assert.match(tools[0].summary, /^[1-9]\d* sources? from [1-9]\d* sites?$/);
+    assert.equal(reply.toolOutputs, 1, 'Activity matches the one tool result in the stream');
+    assert.equal(reply.activity.at(-1)?.type, 'reply');
+    assert.equal(reply.activity.at(-1)?.status, 'done');
+    assert.match(reply.text, /https:\/\//, 'The answer cites a link');
+    await page.locator('.reply-activity summary').last().filter({ hasText: /^Activity · 1 search · / }).waitFor();
+  }],
+  ['activity-no-tool', 'activity', async (page, spec, kit) => {
+    const reply = await kit.ask(page, spec.prompt);
+    kit.track(page, reply);
+    assert.deepEqual(reply.activity.filter(e => e.type.startsWith('tool-')), [], 'No tool ran');
+    assert.equal(reply.toolOutputs, 0);
+    assert.equal(reply.activity.at(-1)?.status, 'done');
+    await page.locator('.reply-activity summary').last().filter({ hasText: /^Activity · no tools · / }).waitFor();
+  }],
 ];
 
 if (process.argv.includes('--list')) {
@@ -87,6 +112,7 @@ const round = Number(process.env.EVAL_ROUND || 1);
 assert.ok(url && model, 'Set CHAT_URL and EVAL_MODEL');
 const LOCAL = new Set(['127.0.0.1', 'localhost', '[::1]']);
 const replies = new WeakMap();
+const activity = new WeakMap(); // page -> Activity events of its replies (ids, timings, the app's own check texts)
 const events = body => body.split('\n').filter(line => line.startsWith('data: {')).map(line => JSON.parse(line.slice(6)));
 
 function kitFor(browser, downloads) {
@@ -98,7 +124,8 @@ function kitFor(browser, downloads) {
       const chunks = events(await response.text());
       const text = chunks.filter(e => e.type === 'text-delta').map(e => e.delta).join('');
       assert.ok(chunks.some(e => e.type === 'finish') && text.trim(), 'No completed reply');
-      return { text };
+      return { text, activity: chunks.filter(e => e.type === 'data-activity').map(e => e.data),
+        toolOutputs: chunks.filter(e => e.type === 'tool-output-available' || e.type === 'tool-output-error').length };
     },
     async ask(page, prompt) {
       const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/chat', { timeout: 140000 });
@@ -107,8 +134,14 @@ function kitFor(browser, downloads) {
       await input.press('Enter');
       return kit.read(await response);
     },
+    /** Keep a reply's text and Activity for the failure report. */
+    track(page, reply) {
+      replies.set(page, reply.text);
+      activity.set(page, [...(activity.get(page) ?? []), ...(reply.activity ?? [])]);
+    },
     async preview(page, reply) {
       replies.set(page, reply.text);
+      activity.set(page, [...(activity.get(page) ?? []), ...(reply.activity ?? [])]);
       assert.match(reply.text, /HtmlArtifact\(/, 'No preview: ' + reply.text.slice(0, 360));
       await page.getByRole('button', { name: 'Run preview', exact: true }).last().click();
       await page.locator('.html-artifact').last().getByText('Preview loaded. No runtime errors reported so far.').waitFor();
@@ -177,8 +210,10 @@ function kitFor(browser, downloads) {
       const seconds = (performance.now() - start) / 1000;
       // Synthetic prompts only: keep the prompt always and the reply on failure, for reproduction.
       const response = status === 'fail' ? replies.get(page)?.slice(0, 35000) : undefined;
+      const events = status === 'fail' ? activity.get(page) : undefined;
       report.cases.push({ id, category, status, seconds, prompt: spec.prompt, ...(spec.revision ? { revision: spec.revision } : {}),
-        ...(detail ? { detail } : {}), ...(observed ? { observed } : {}), ...(response ? { response } : {}) });
+        ...(detail ? { detail } : {}), ...(observed ? { observed } : {}), ...(response ? { response } : {}),
+        ...(events?.length ? { activity: events } : {}) });
       console.log(status.toUpperCase(), id, seconds.toFixed(2) + 's', detail || '');
     }
   } finally {

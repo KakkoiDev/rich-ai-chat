@@ -21,7 +21,7 @@ const regression = Number(process.env.EVAL_REGRESSION ?? 1);
 const suites = [
   ['basic', path.join(__dirname, 'run.cjs'), 14],
   ['breadth', path.join(__dirname, 'breadth/run-breadth.cjs'), 13],
-  ['features', path.join(__dirname, 'features/run-features.cjs'), 2],
+  ['features', path.join(__dirname, 'features/run-features.cjs'), 4],
 ];
 // A case added to the features suite must also raise its expected count here, or the run refuses to start.
 const listed = require('node:child_process').execFileSync(process.execPath, [suites[2][1], '--list'], { encoding: 'utf8' }).trim().split('\n');

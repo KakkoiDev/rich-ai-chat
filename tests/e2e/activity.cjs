@@ -1,0 +1,190 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- optional Playwright is resolved via NODE_PATH for this standalone check. */
+// M2 deterministic checks: Activity for each reply, driven by a stub model that speaks the OpenAI streaming format, so
+// retries, dropped connections and cancellation happen on cue. It starts the stub and the built app itself:
+//   RICH_CHAT_BUILD_DIR=.next-local/<build> node tests/e2e/activity.cjs   (Playwright via NODE_PATH)
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const { spawn } = require('node:child_process');
+const fs = require('node:fs');
+const http = require('node:http');
+const os = require('node:os');
+const path = require('node:path');
+const { once } = require('node:events');
+
+assert.ok(process.env.RICH_CHAT_BUILD_DIR, 'Set RICH_CHAT_BUILD_DIR to a built app');
+const MARKER = 'zebra-7731'; // in every prompt; must never reach the server log or the export
+const calls = new Map(); // scenario -> number of model requests
+
+function chunk(delta, finish = null) {
+  return 'data: ' + JSON.stringify({ id: 'stub', object: 'chat.completion.chunk', created: 0, model: 'stub-model',
+    choices: [{ index: 0, delta, finish_reason: finish }] }) + '\n\n';
+}
+
+/** The stub model. The scenario is named in the user's prompt; the request count picks the step. */
+function stubModel(req, res) {
+  let body = '';
+  req.on('data', data => { body += data; });
+  req.on('end', () => {
+    const request = JSON.parse(body || '{}');
+    const user = [...(request.messages ?? [])].reverse().find(m => m.role === 'user');
+    const prompt = typeof user?.content === 'string' ? user.content : JSON.stringify(user?.content ?? '');
+    const scenario = /scenario ([a-z-]+)/.exec(prompt)?.[1] ?? 'plain';
+    const n = (calls.get(scenario) ?? 0) + 1;
+    calls.set(scenario, n);
+    const afterTool = (request.messages ?? []).some(m => m.role === 'tool');
+    res.writeHead(200, { 'content-type': 'text/event-stream' });
+    const answer = text => {
+      res.write(chunk({ role: 'assistant', content: `root = Card([TextContent(${JSON.stringify(text)})])` }));
+      res.write(chunk({}, 'stop'));
+      res.end('data: [DONE]\n\n');
+    };
+    const callClock = () => {
+      res.write(chunk({ role: 'assistant', tool_calls: [{ index: 0, id: `call_${scenario}_${n}`, type: 'function',
+        function: { name: 'current_datetime', arguments: '{}' } }] }));
+      res.write(chunk({}, 'tool_calls'));
+      res.end('data: [DONE]\n\n');
+    };
+    const drop = () => { res.write(chunk({ role: 'assistant', content: 'root = Card([Tex' })); res.socket.destroy(); };
+    if (scenario === 'clock-ok') return afterTool ? answer('It is noon.') : callClock();
+    if (scenario === 'retry-no-tool') return n === 1 ? drop() : answer('Second try worked.');
+    if (scenario === 'tool-then-drop') return afterTool ? drop() : callClock();
+    if (scenario === 'hang') { res.write(chunk({ role: 'assistant', content: '' })); return; } // never finishes
+    return answer('Plain answer.');
+  });
+}
+
+async function startApp(port, modelPort, logDir) {
+  const app = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)], {
+    env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1', MODEL_BASE_URL: `http://127.0.0.1:${modelPort}/v1`, MODEL_ID: 'stub-model',
+      MODEL_API_KEY: 'stub', RICH_CHAT_LOG_DIR: logDir, BRAVE_SEARCH_API_KEY: '' },
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  for await (const data of app.stdout) if (String(data).includes('Ready')) break;
+  return app;
+}
+
+const checks = [];
+async function check(name, body) {
+  await body();
+  checks.push(name);
+  console.log('PASS: ' + name);
+}
+
+(async () => {
+  const model = http.createServer(stubModel);
+  model.listen(0, '127.0.0.1');
+  await once(model, 'listening');
+  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rich-chat-activity-log-'));
+  const downloads = fs.mkdtempSync(path.join(os.tmpdir(), 'rich-chat-activity-export-'));
+  const port = Number(process.env.ACTIVITY_PORT || 3251);
+  const app = await startApp(port, model.address().port, logDir);
+  const browser = await chromium.launch({ args: ['--use-mock-keychain', '--password-store=basic'] });
+  try {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(20000);
+    await page.goto(`http://127.0.0.1:${port}/`);
+    const ask = async scenario => {
+      const box = page.getByRole('textbox', { name: 'Message' });
+      await box.fill(`Please answer scenario ${scenario} (${MARKER}).`);
+      await box.press('Enter');
+    };
+    const activity = () => page.locator('.reply-activity').last();
+    const openActivity = async () => {
+      const panel = activity();
+      if (!(await panel.evaluate(element => element.open))) await panel.locator('summary').click();
+      return (await panel.locator('li').allInnerTexts()).join('\n');
+    };
+
+    await check('A tool that ran shows once, with its result and time', async () => {
+      await ask('clock-ok');
+      await activity().locator('summary').filter({ hasText: /1 clock reading · \d+\.\d s/ }).waitFor();
+      const lines = await openActivity();
+      assert.match(lines, /Answered in chat · model stub-model/);
+      assert.match(lines, /Read the clock · Time zone [\w/+-]+ · \d+\.\d s/);
+      assert.match(lines, /Finished in \d+\.\d s/);
+      assert.equal((lines.match(/Read the clock/g) ?? []).length, 1);
+      await page.getByText('Reasoning summary: not available for this model.').last().waitFor();
+    });
+
+    await check('A dropped connection before any tool retries once and says why', async () => {
+      await ask('retry-no-tool');
+      await activity().locator('summary').filter({ hasText: /no tools · 2 attempts · \d+\.\d s/ }).waitFor();
+      const lines = await openActivity();
+      assert.match(lines, /Attempt 1 stopped: the model's connection ended\. Trying again\./);
+      assert.match(lines, /Attempt 2 started/);
+      assert.equal(calls.get('retry-no-tool'), 2, 'The model was asked twice');
+    });
+
+    await check('A retry after a tool ran never shows a second execution', async () => {
+      await ask('tool-then-drop');
+      await activity().locator('summary').filter({ hasText: /1 clock reading · \d+\.\d s/ }).waitFor();
+      const lines = await openActivity();
+      assert.equal((lines.match(/Read the clock ·/g) ?? []).length, 1, 'One clock reading, not two');
+      assert.match(lines, /Answered with the clock reading already taken/);
+      assert.doesNotMatch(lines, /Attempt 2/);
+    });
+
+    await check('Cancelling shows Cancelled', async () => {
+      await ask('hang');
+      await activity().locator('summary').filter({ hasText: /working…/ }).waitFor();
+      await page.getByRole('button', { name: 'Cancel message' }).click();
+      await activity().locator('summary').filter({ hasText: /cancelled/ }).waitFor();
+    });
+
+    await check('Activity survives a reload and its export holds no prompt text', async () => {
+      await page.reload();
+      await page.getByRole('button', { name: 'Expand sidebar' }).click();
+      await page.getByRole('button', { name: /^Please answer scenario clock-ok/ }).click();
+      await page.locator('.reply-activity summary').filter({ hasText: /1 clock reading/ }).first().waitFor();
+      const panel = page.locator('.reply-activity').first();
+      if (!(await panel.evaluate(element => element.open))) await panel.locator('summary').click();
+      const [file] = await Promise.all([page.waitForEvent('download'), panel.getByRole('button', { name: "Export this chat's log" }).click()]);
+      const target = path.join(downloads, file.suggestedFilename());
+      await file.saveAs(target);
+      const lines = fs.readFileSync(target, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+      assert.ok(lines.length >= 4, 'One line per request');
+      assert.ok(lines.every(entry => entry.events.every(event => event.requestId)), 'Every event has its request id');
+      assert.ok(!fs.readFileSync(target, 'utf8').includes(MARKER), 'No prompt text in the export');
+    });
+
+    await check('The server log records every request without prompt text', async () => {
+      const log = fs.readdirSync(logDir).map(name => fs.readFileSync(path.join(logDir, name), 'utf8')).join('');
+      const events = log.trim().split('\n').map(line => JSON.parse(line));
+      assert.ok(events.filter(event => event.type === 'request').length >= 4);
+      assert.ok(events.some(event => event.type === 'tool-end' && event.tool === 'current_datetime'));
+      assert.ok(!log.includes(MARKER), 'No prompt text in the server log');
+    });
+
+    await check('Deleting the chat deletes its Activity', async () => {
+      const count = () => page.evaluate(() => new Promise(resolve => {
+        const open = indexedDB.open('rich-ai-chat-activity');
+        open.onsuccess = () => {
+          const request = open.result.transaction('entries').objectStore('entries').count();
+          request.onsuccess = () => { resolve(request.result); open.result.close(); };
+        };
+      }));
+      assert.ok(await count() >= 4);
+      await page.getByRole('button', { name: 'Chat actions' }).click();
+      await page.getByRole('menuitem', { name: 'Delete' }).click();
+      const confirm = page.getByRole('alertdialog').or(page.getByRole('dialog')).getByRole('button', { name: 'Delete' });
+      if (await confirm.count()) await confirm.click();
+      await page.waitForFunction(() => !JSON.parse(localStorage.getItem('rich-ai-chat:threads') || '[]').length);
+      await page.waitForFunction(() => new Promise(resolve => {
+        const open = indexedDB.open('rich-ai-chat-activity');
+        open.onsuccess = () => {
+          const request = open.result.transaction('entries').objectStore('entries').count();
+          request.onsuccess = () => { resolve(request.result === 0); open.result.close(); };
+        };
+      }));
+      assert.equal(await count(), 0);
+    });
+  } finally {
+    await browser.close();
+    app.kill();
+    model.close();
+    fs.rmSync(logDir, { recursive: true, force: true });
+    fs.rmSync(downloads, { recursive: true, force: true });
+  }
+  console.log(`PASS: ${checks.length} Activity checks`);
+})().catch(error => { console.error(error); process.exitCode = 1; });

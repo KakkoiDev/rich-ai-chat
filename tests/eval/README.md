@@ -58,3 +58,5 @@ The matrix runs on test-core's pinned benchmark runner (`test-core/bench`; the p
 - `matrix.json`: a short final summary
 
 Failed and interrupted reports are kept. `EVAL_RESUME=1` continues an interrupted run in the same directory without repeating finished tasks. It refuses if a frozen file, the plan or the revision changed. A run fails as `secret-leak` if a configured API key appears anywhere in its reports. `EVAL_REQUIRED` and `EVAL_REGRESSION` (default 10 and 1) shorten a run for parity and focused checks. Only the full 10 + 1 run counts toward a release, whatever its final state is called.
+
+The features runner saves each failing reply's Activity events (ids, timings, statuses and the app's own check messages) in the report. To read the drafts a model produced, start the benchmark server with `RICH_CHAT_DEBUG_CAPTURE=1` and a `RICH_CHAT_LOG_DIR`: rejected drafts are appended to `debug-drafts.jsonl` there. Use it only for synthetic benchmark runs, never on a server people use.

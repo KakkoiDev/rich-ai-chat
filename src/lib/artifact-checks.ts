@@ -95,12 +95,17 @@ export function checkArtifactRequest(document: string, request: string): string 
     && !/createElement\(\s*["']output["']\s*\)/i.test(document)) {
     return "The request explicitly requires an HTML <output> element. Use it for the requested visible value.";
   }
-  const buttons = [...document.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button\s*>/gi)]
-    .map(([, label]) => label.replace(/<[^>]*>/g, "").trim());
+  // A button's name is its aria-label when it has one, else its text.
+  const buttons = [...document.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button\s*>/gi)]
+    .map(([, attrs, label]) => /\baria-label\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs)?.slice(1).find(v => v !== undefined)?.trim()
+      ?? label.replace(/<[^>]*>/g, "").trim());
   const named = artifactButtonLabels(request);
   // Also accept labels present as string literals for controls created in JavaScript.
   const literal = (label: string) => ['"', "'", "`"].some(quote => document.includes(quote + label + quote));
-  const missing = named.filter(label => !buttons.includes(label) && !literal(label));
+  // A quoted label stands in for a button only when the script makes buttons; an id or variable named like the
+  // label is not a button.
+  const scriptButtons = /createElement\(\s*["'`]button["'`]\s*\)|innerHTML\s*[+]?=/i.test(document);
+  const missing = named.filter(label => !buttons.includes(label) && !(scriptButtons && literal(label)));
   if (missing.length) return "Add buttons with these exact labels: " + missing.map(label => JSON.stringify(label)).join(", ") + ".";
   if (/<(?:input|select|textarea)\b/i.test(document)) {
     const labels = [...document.matchAll(/<label\b([^>]*)>([\s\S]*?)<\/label\s*>/gi)];

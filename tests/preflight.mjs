@@ -274,9 +274,56 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
         assert.ok(!basicRecipe(request) && !basicKeypadSpec(request) && !basicTakeAwaySpec(request) && !basicExpenseSpec(request)
           && !isSequenceGame(request) && !wantsShuffleBag(request), `Outside the tested layouts: ${request}`);
       }
-      assert.ok(artifactBuildGuide(spec.prompt), `Takes the app build path: ${spec.prompt}`);
+      if (id.startsWith("export-")) assert.ok(artifactBuildGuide(spec.prompt), `Takes the app build path: ${spec.prompt}`);
+      else assert.ok(!artifactBuildGuide(spec.prompt) && !chartFromTable(spec.prompt, []) && !inlineSumTable(spec.prompt), `Takes the chat path: ${spec.prompt}`);
       prompts.add(spec.prompt);
     }
     assert.ok(prompts.size >= 40, `${id} varies its prompts (${prompts.size} distinct)`);
   }
+}
+
+// A revision that adds the requested button under another wording keeps its behavior and gets the requested label;
+// anything ambiguous is left for the normal rejection.
+{
+  const { relabelNewButton } = await import("../src/lib/artifact-edits.ts");
+  const original = '<output id="result"></output><button id="add">+2</button><button id="reset">Reset</button><script>/* app */</script>';
+  const draft = '<output id="result"></output><button id="add">+2</button><button id="minus" aria-label="-1">-1</button><button id="reset">Reset</button><script>/* app */</script>';
+  const fixed = relabelNewButton(original, draft, ["Minus 1"]);
+  assert.equal(fixed, draft.replace('<button id="minus" aria-label="-1">-1</button>', '<button id="minus">Minus 1</button>'), "The new button gets the requested label");
+  assert.equal(checkArtifactRequest(fixed, 'Add a button labeled "Minus 1" that subtracts 1 point.'), undefined);
+  assert.equal(relabelNewButton(original, draft.replace("</script>", "</script>").replace('<button id="reset">', '<button id="x">Undo</button><button id="reset">'), ["Minus 1"]), undefined,
+    "Two new buttons: no guess");
+  assert.equal(relabelNewButton(original, original, ["Minus 1"]), undefined, "No new button: nothing to relabel");
+  assert.equal(relabelNewButton(original, draft, ["Minus 1", "Plus 5"]), undefined, "Two missing labels: no guess");
+  assert.equal(relabelNewButton(original, draft.replace(">-1<", ">Minus 1<"), ["Minus 1"]), undefined, "Nothing missing: nothing to do");
+  assert.ok(!relabelNewButton(original, draft, ["<b>&"])?.includes("<b>&<"), "The label is escaped");
+}
+
+// Markup that stopped before its script is closed cleanly before the script is requested separately.
+{
+  const { closeMarkup } = await import("../src/lib/artifact-edits.ts");
+  const draft = '<output id="result"></output><button id="crowButton">Crow</button><button id="resetButton">Reset all</script>';
+  assert.equal(closeMarkup(draft), '<output id="result"></output><button id="crowButton">Crow</button><button id="resetButton">Reset all</button>');
+  assert.equal(closeMarkup('<div><p>A<br><input id="x"><button>Go'), '<div><p>A<br><input id="x"><button>Go</button></p></div>', "Innermost first; void elements stay open");
+  assert.equal(closeMarkup("<main><button>Ok</button></main>"), "<main><button>Ok</button></main>", "Complete markup is unchanged");
+}
+
+// Unclosed buttons are closed before the script; complete markup is untouched.
+{
+  const { closeButtons } = await import("../src/lib/artifact-edits.ts");
+  const draft = '<output id="r"></output><button id="a">Robin</button><button id="reset">Reset all</br><script>var x = 1;</script>';
+  assert.equal(closeButtons(draft), '<output id="r"></output><button id="a">Robin</button><button id="reset">Reset all</button><script>var x = 1;</script>');
+  assert.equal(checkArtifactRequest(closeButtons(draft), 'Add a button labeled "Reset all" that sets every count back to zero.'), undefined);
+  assert.equal(closeButtons('<button>One<button>Two</button>'), '<button>One</button><button>Two</button>');
+  const complete = '<div><button><span>Go</span></button></div><script>1</script>';
+  assert.equal(closeButtons(complete), complete, "Complete markup is unchanged");
+}
+
+// A requested label quoted as an id does not count as a button; a label on a button made in the script does.
+{
+  const request = 'Add a button labeled "Penalty" that subtracts 4 points.';
+  const markupOnly = "<button id='add'>+5</button><button id='minus'>-4</button><script>const penalty = document.getElementById('Penalty');</script>";
+  assert.match(checkArtifactRequest(markupOnly, request) ?? "", /exact labels: "Penalty"/);
+  const scripted = "<div id='row'></div><script>const b = document.createElement('button'); b.textContent = 'Penalty'; row.append(b);</script>";
+  assert.equal(checkArtifactRequest(scripted, request), undefined);
 }

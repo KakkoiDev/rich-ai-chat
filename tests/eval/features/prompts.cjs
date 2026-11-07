@@ -56,7 +56,26 @@ function pointsApp(next) {
   return { prompt, add, take, plus: `+${add}`, minus, revision };
 }
 
-const builders = { 'export-novel-app': tallyApp, 'export-after-revision': pointsApp };
+/** An explicit web search, so exactly one search should run and be shown once. */
+function searchQuestion(next) {
+  const place = pick(next, ['Tokyo Skytree', 'the Sydney Opera House', 'the Golden Gate Bridge', 'the Eiffel Tower',
+    'the Louvre Pyramid', 'the Akashi Kaikyo Bridge', 'the Burj Khalifa', 'the Shard in London']);
+  const fact = pick(next, ['first opened to the public', 'was completed', 'opened']);
+  const opener = pick(next, ['Search the web for', 'Look up', 'Search online for']);
+  return { prompt: `${opener} the year ${place} ${fact}, and cite your source.` };
+}
+
+/** A simple explanation that needs no tool, so Activity must show none. */
+function explainTopic(next) {
+  const topic = pick(next, ['why the sky looks blue', 'how a rainbow forms', 'why ice floats on water', 'how plants make food from sunlight',
+    'why we have seasons', 'how a magnet picks up a paper clip', 'why the moon has phases', 'how sound travels through air']);
+  const reader = pick(next, ['a ten-year-old', 'a younger student', 'a classmate']);
+  const length = pick(next, ['two short sentences', 'three sentences', 'one short paragraph']);
+  return { prompt: `Explain ${topic} to ${reader} in ${length}.` };
+}
+
+const builders = { 'export-novel-app': tallyApp, 'export-after-revision': pointsApp,
+  'activity-single-search': searchQuestion, 'activity-no-tool': explainTopic };
 
 function featurePrompt(caseId, round, model) {
   const build = builders[caseId];
