@@ -265,6 +265,8 @@ Differences from the plan:
 
 ### M9 — Persistent tasks
 
+**Status (2026-11-08):** built with M10, deterministic checks passing; not yet under a release streak, and the live planning and resuming cases across the five models are not written yet. coding-core's recipes are on its `feat/tasks-receipts-sqlite` branch and pinned in `coding-core/`. Tests: `tests/tasks.mjs`, `tests/e2e/worker-kill.mjs`, `tests/e2e/tasks.cjs`. How it runs: README, "Tasks and background jobs".
+
 - **coding-core first:** a guarded transition table (pure), idempotent operation receipts, and SQLite transaction and migration recipes in JS (`node:sqlite`).
 - **Rich AI Chat:**
   - SQLite store with an append-only change log and Markdown export.

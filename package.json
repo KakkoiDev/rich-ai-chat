@@ -12,7 +12,8 @@
     "preverify": "npm run generate",
     "verify": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "worker": "node scripts/task-worker.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.41",

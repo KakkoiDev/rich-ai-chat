@@ -62,6 +62,32 @@ Revision requests use only the selected artifact, notes, and diagnostics. If the
 
 For app and game build requests, the model receives a short guide for the requested kind of artifact, then returns a document for the app to check before rendering. The same checks run on revisions. They catch missing script closures, external scripts, common direct uses of dynamic evaluation, and syntax errors in classic inline JavaScript. A syntax diagnostic includes the script and line number when available; the retry gets that diagnostic. The checker does not run the code or prove game rules, accessibility, or layout. Use the preview to test those behaviors.
 
+## Tasks and background jobs
+
+Open **Tasks** (top right) to keep a plan for the current chat: an objective, todos, the latest checkpoint and any background jobs. Ask the assistant for a plan or todo list and it can propose the todos, record checkpoints and mark a todo done, but only with evidence (a test, an artifact or a receipt); the server refuses a verification without it, illegal moves (for example done before started, or starting a todo whose dependency is open) and edits based on a version someone else already changed. **Export Markdown** downloads the plan with its change log.
+
+Plans are stored on the server in SQLite (`tasks.sqlite` under `RICH_CHAT_DATA_DIR`, default `~/Library/Application Support/Rich AI Chat/data`), not in browser history. There are no accounts: each browser keeps a random profile id, and a plan is visible only to the profile that made it. The plan tools are offered to the model only when the chat already has a plan or the message asks for one, so other chats see no change.
+
+Background jobs run in a worker process beside the server, so closing the tab does not stop them; **Cancel job** does. Run the worker with the same `RICH_CHAT_DATA_DIR` and model settings as the server:
+
+```sh
+RICH_CHAT_DATA_DIR="$HOME/Library/Application Support/Rich AI Chat/data" npm run worker
+```
+
+Under a launcher that starts the server (such as the host launcher that runs `next-server` on port 3212), add the worker as a second long-running process with the same working directory and environment, restarted if it exits and stopped with SIGTERM, for example:
+
+```sh
+cd /path/to/rich-ai-chat
+export RICH_CHAT_DATA_DIR="$HOME/Library/Application Support/Rich AI Chat/data"
+node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3212 &
+node scripts/task-worker.mjs &
+wait
+```
+
+The worker takes a lease on each job and renews it with heartbeats. If it dies, the next worker reclaims the job when the lease expires (30 s by default) and continues from the last committed step; a step already committed is never generated or recorded again. Local models run one generation at a time; a job waiting for its model or for another job shows the reason in the panel. Several workers may share one database. Settings: `RICH_CHAT_WORKER_LEASE_MS`, `RICH_CHAT_WORKER_HEARTBEAT_MS`, `RICH_CHAT_WORKER_POLL_MS`, `RICH_CHAT_WORKER_CONCURRENCY` (default 2) and `RICH_CHAT_WORKER_ID`.
+
+Checks (no model involved): `node --test tests/tasks.mjs tests/e2e/worker-kill.mjs`, and with a build and Playwright, `RICH_CHAT_BUILD_DIR=.next-local/<build> node tests/e2e/tasks.cjs`. The transition table, SQLite transactions and migrations, and receipts are pinned from coding-core (`coding-core/MANIFEST.json`, checked by preflight).
+
 ### Regression scenarios
 
 See [scenario prompts](tests/scenarios.json) and [model evaluation notes](tests/MODEL-NOTES.md). Run the offline checks with `node tests/preflight.mjs` on Node 24+. With Playwright and Chromium available, run `CHAT_URL=http://127.0.0.1:3212/ node tests/e2e/slingshot.cjs` to verify the starter through chat. Omit CHAT_URL to test the standalone file. Plain slingshot build requests open the tested starter; use Request revision to customize it.

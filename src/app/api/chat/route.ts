@@ -19,12 +19,14 @@ import { layaGateEnabled, sharedLayaGate } from "@/lib/laya-gate";
 import { braveSearch, currentDateTime, explicitSearchQuery, findImages, findVideos, safeSearchQuery } from "@/lib/local-tools";
 import { createActivity, toolSummary, type ActivityPath, type ActivityTool } from "@/lib/activity";
 import { debugCapture, logActivity, logDetail } from "@/lib/activity-log";
+import { taskTools } from "@/lib/tasks/tools";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createUIMessageStream, createUIMessageStreamResponse, generateText, Output, stepCountIs, streamText, tool } from "ai";
 import { z } from "zod";
 
 const turn = z.object({
   model: z.enum(chatModelIds).optional(),
+  threadId: z.string().max(100).optional(),
   /** "Debug this chat": the request also records full text (see activity.ts `detail`). */
   debug: z.boolean().optional(),
   messages: z.array(z.object({
@@ -622,6 +624,8 @@ export async function POST(req: Request) {
   let clockResult: ReturnType<typeof currentDateTime> = null;
   let mediaReply: string | undefined;
   let searchSources: { title: string; url: string; snippet?: string }[] = [];
+  // The chat's task plan (M9): tools and a short context, only with a browser profile and when the chat has a plan or asks for one.
+  const tasks = taskTools({ req, chatId: parsed.data.threadId, model: selected || "server-default", latest: latest.content, executed });
   function writeSources(writer: import("ai").UIMessageStreamWriter, answer: string) {
     const sourceUrls = searchSources.map(({ url }) => url);
     if (!sourceUrls.length || sourceUrls.some(url => answer.includes(url))) return;
@@ -701,7 +705,7 @@ export async function POST(req: Request) {
       : cloudInstructions(classroomRules +
       (bundledImage ? ' The requested asset already exists locally. Show it as root = Card([ImageBlock("/water-cycle.svg", "Water cycle illustration")]). Keep the local path exactly as shown.' : "") +
       (nativeTable ? ' Use the native Table component. Aggregate any duplicate groups before rendering. Use one Col per header and put literal arrays of equal length in each Col. Example syntax: root = Card([Table([Col("Group", ["A", "B"]), Col("Count", ["2", "3"])])]). Use the actual requested data and headers.' : ""))) +
-      (recovery ? "\nThe previous attempt was interrupted. Answer the original request directly and finish the complete response." : "");
+      (recovery ? "\nThe previous attempt was interrupted. Answer the original request directly and finish the complete response." : "") + tasks.context;
     activity.detail(`system prompt${recovery ? ", recovery attempt" : ""}`, system);
     return streamText({
     temperature: 0.15,
@@ -769,6 +773,7 @@ export async function POST(req: Request) {
         inputSchema: z.object({ query: z.string().trim().min(3).max(160) }).strict(),
         execute: ({ query }, { toolCallId }) => executed("web_search", toolCallId, () => webSearch(query), { query }),
       }),
+      ...tasks.tools,
     },
     prepareStep: ({ stepNumber }) => stepNumber > 0 ? { activeTools: [], toolChoice: "none" } : {},
     stopWhen: stepCountIs(2),
