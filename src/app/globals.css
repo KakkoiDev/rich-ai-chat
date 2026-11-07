@@ -36,6 +36,18 @@ body {
 .artifact-stage__bar button { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 8px; min-height: 44px; padding: 0 16px; cursor: pointer; }
 body.artifact-full-window-open { overflow: hidden; }
 .html-artifact pre { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.artifact-install p { margin: 6px 0; overflow-wrap: anywhere; }
+.artifact-tag { display: inline-block; margin-right: 6px; padding: 0 6px; border: 1px solid currentColor; font-size: .85em; }
+
+/* The chat's connection line: offline, host unreachable or Tailscale off, always with Retry. */
+.connection-status {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; box-sizing: border-box;
+  max-width: 728px; margin: 0 auto var(--openui-space-xs, 8px); padding: 8px var(--openui-space-m-l, 16px);
+  border-block: 1px solid currentColor; color: var(--openui-text-neutral-primary, CanvasText);
+  font: var(--openui-text-body-sm, 14px/1.45 system-ui);
+}
+.connection-status p { flex: 1 1 16rem; margin: 0; }
+.connection-status button { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; min-height: 44px; padding: 0 16px; cursor: pointer; }
 .artifact-feedback { display: grid; gap: 6px; margin-top: 12px; }
 .artifact-feedback textarea { font: inherit; color: inherit; background: transparent; border: 1px solid #8888; border-radius: 8px; padding: 8px; resize: vertical; }
 

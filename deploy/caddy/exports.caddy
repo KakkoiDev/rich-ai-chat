@@ -1,0 +1,49 @@
+# Rich AI Chat: the export origin for "Install as app" (docs/INSTALLABLE-APPS.md).
+#
+# One Caddy site that serves the apps the chat writes into its exports folder (RICH_CHAT_EXPORTS_DIR) as
+# /apps/<id>/, on its own port, so it is a different origin from the chat: an installed app can never read the chat's
+# storage, cookies or caches. It listens on 127.0.0.1 only; Tailscale Serve publishes it to the tailnet over HTTPS,
+# the same way as the chat. Import it from the host's Caddyfile with two arguments, the port and the exports folder:
+#
+#   import /path/to/rich-ai-chat/deploy/caddy/exports.caddy 3216 "/Users/<you>/Library/Application Support/Rich AI Chat/exports"
+#
+# Check before reloading: caddy validate --adapter caddyfile --config <the host's Caddyfile>
+
+http://:{args[0]} {
+	bind 127.0.0.1
+	root * "{args[1]}"
+
+	# Strict for every response: an app runs only its own inline code, loads only its own files and data: images,
+	# and its offline worker may fetch only this origin. No framing, no forms, no plugins.
+	header {
+		Content-Security-Policy "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; worker-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=()"
+		Cache-Control "no-cache"
+		# No cookies, ever: nothing here sets one.
+		-Set-Cookie
+		-Server
+	}
+	# ... and none sent by a browser reach the files.
+	request_header -Cookie
+
+	# Only app folders, with ids as the chat makes them (lower-case letters, digits, single hyphens).
+	@app path_regexp app ^/apps/[a-z0-9]+(-[a-z0-9]+)*/
+	handle @app {
+		# An app's worker may control its own folder and nothing wider.
+		@worker path_regexp worker ^/apps/([a-z0-9]+(?:-[a-z0-9]+)*)/sw\.js$
+		header @worker Service-Worker-Allowed "/apps/{re.worker.1}/"
+		@manifest path *.webmanifest
+		header @manifest Content-Type "application/manifest+json"
+		file_server {
+			# Folders still being written (.incoming-*) and any other dot file stay invisible.
+			hide .*
+		}
+	}
+	handle {
+		respond 404
+	}
+}

@@ -17,15 +17,17 @@ export function engineScript(engine: string) {
   return `<script>${engine.replace(/<\/script/gi, "<\\/script")}</script>`;
 }
 
-const escapeHtml = (text: string) => text.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+export const escapeHtml = (text: string) => text.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 /**
  * A standalone HTML file for a generated app: no preview monitor, the preview's content policy, and the LittleJS engine
  * inlined with its licence when the app uses it. The output depends only on the input, so the same app exports to the
  * same bytes.
  */
-export function exportArtifact({ title, document, engine, engineLicense }: {
+export function exportArtifact({ title, document, engine, engineLicense, policy = artifactPolicy, head: extra = [] }: {
   title: string; document: string; engine?: string; engineLicense?: string;
+  /** An installed copy (app-install.ts) widens the policy for its own manifest, icons and offline worker. */
+  policy?: string; head?: string[];
 }) {
   const source = artifactSource(document);
   const needsEngine = source.includes(engineMarker);
@@ -35,8 +37,9 @@ export function exportArtifact({ title, document, engine, engineLicense }: {
     "<!doctype html>",
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
-    `<meta http-equiv="Content-Security-Policy" content="${artifactPolicy}">`,
+    `<meta http-equiv="Content-Security-Policy" content="${policy}">`,
     ...(/<title\b/i.test(source) ? [] : [`<title>${escapeHtml(title)}</title>`]),
+    ...extra,
     "<!-- Exported from Rich AI Chat. Self-contained: it makes no network requests and works offline. -->",
   ].join("\n");
   return `${head}\n${licence}${needsEngine ? engineScript(engine!) + "\n" : ""}${source}\n`;

@@ -67,6 +67,9 @@ async function main() {
 
   // The deterministic checks run on the frozen build before any model does.
   await step('Activity checks (stub model)', process.execPath, ['tests/e2e/activity.cjs'], { cwd: build, env: { ...env, ACTIVITY_PORT: String(await freePort()) } });
+  // These two start their own chat (and a throwaway Caddy for the export origin) on free ports, in full Chromium.
+  await step('Installable app checks (export origin)', process.execPath, ['tests/e2e/export-install.cjs'], { cwd: build, env });
+  await step('Chat app checks (offline shell, stub model)', process.execPath, ['tests/e2e/chat-pwa.cjs'], { cwd: build, env });
   const port = await freePort();
   const app = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)],
     { cwd: build, env: { ...env, RICH_CHAT_LOG_DIR: 'off' }, stdio: ['ignore', 'pipe', 'ignore'] });
