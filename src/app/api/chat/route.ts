@@ -631,7 +631,11 @@ export async function POST(req: Request) {
         .slice(0, 4).map(x => ({ title: x.title.slice(0, 160), url: x.url, snippet: x.description?.slice(0, 300) })) : [];
       searchSources = untrustedSources;
       return { untrustedSources };
-    } catch { searchFailed = true; return { error: "Search failed or timed out." }; }
+    } catch (error) {
+      // How the attempts ended (no query text), so a failure in a long run can be diagnosed from Activity and the log.
+      searchFailed = true;
+      return { error: `Search failed or timed out (${error instanceof Error ? error.message.slice(0, 120) : "unknown"}).` };
+    }
   };
   /** Answer only from the search results already found: no tools, no second lookup. */
   const answerFromSources = async (writer: import("ai").UIMessageStreamWriter) => {
