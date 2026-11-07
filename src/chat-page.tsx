@@ -12,6 +12,7 @@ import {
 } from "@openuidev/react-ui";
 import { library } from "@/library";
 import { ChatComposer, ChatUserMessage } from "@/chat-composer";
+import { TasksPanel } from "@/tasks-panel";
 
 const serverDefault = "server-default";
 const modelOptions = [
@@ -111,6 +112,7 @@ export default function ChatPage({ defaultModelLabel }: { defaultModelLabel: str
             { displayText: "Make a game", prompt: "Make a playable two-player tic-tac-toe game." },
           ]} />
         </AgentInterface.Composer>
+        <TasksPanel />
       </AgentInterface>
     </div>
   );
