@@ -6,8 +6,11 @@ import type { UIMessageStreamWriter } from "ai";
  * allowlist: never prompt text, reply text, tool arguments, file contents or credentials.
  */
 export type ActivityPath = "chat" | "app-build" | "revision" | "image-search" | "video-search" | "clock" | "table" | "chart"
-  | "starter" | "tested-layout" | "transform";
-export type ActivityTool = "web_search" | "image_search" | "video_search" | "current_datetime";
+  | "starter" | "tested-layout" | "transform" | "job";
+export type TaskTool = "read_plan" | "propose_items" | "record_checkpoint" | "record_verification" | "queue_job";
+export type ActivityTool = "web_search" | "image_search" | "video_search" | "current_datetime" | TaskTool;
+/** Background job progress (M10): status changes, committed steps (`checkpoint`) and reclaimed leases (`requeued`). */
+export type JobProgress = "queued" | "waiting" | "blocked" | "running" | "checkpoint" | "requeued" | "succeeded" | "failed" | "cancelled";
 
 export type ActivityEvent = { requestId: string; seq: number; ms: number } & (
   | { type: "request"; path: ActivityPath; model: string }
@@ -18,6 +21,7 @@ export type ActivityEvent = { requestId: string; seq: number; ms: number } & (
   | { type: "check"; attempt: number; passed: boolean; reason?: string }
   | { type: "recovery"; method: "sources-synthesis" | "sources-only" | "clock" | "media" | "requested-search" }
   | { type: "reply"; status: "done" | "failed" | "cancelled" }
+  | { type: "job"; jobId: string; status: JobProgress; step?: number; steps?: number; reason?: string }
 );
 
 type Payload<T> = T extends unknown ? Omit<T, "requestId" | "seq" | "ms"> : never;
@@ -53,11 +57,14 @@ export function createActivity(log: (event: ActivityEvent) => void = () => {}) {
 }
 export type Activity = ReturnType<typeof createActivity>;
 
-/** A one-line, data-free summary of a tool result for the Activity panel. */
+const taskTools = new Set<ActivityTool>(["read_plan", "propose_items", "record_checkpoint", "record_verification", "queue_job"]);
+
+/** A one-line, data-free summary of a tool result for the Activity panel. Task tools write their own short summary. */
 export function toolSummary(tool: ActivityTool, result: unknown): { status: "ok" | "error"; summary: string } {
   const value = (result ?? {}) as { error?: unknown; untrustedSources?: { url: string }[]; count?: unknown; timeZone?: unknown;
-    images?: unknown[]; videos?: unknown[] };
+    images?: unknown[]; videos?: unknown[]; summary?: unknown };
   if (typeof value.error === "string") return { status: "error", summary: value.error };
+  if (taskTools.has(tool)) return { status: "ok", summary: typeof value.summary === "string" ? value.summary : "Updated the plan" };
   if (tool === "web_search") {
     const sources = value.untrustedSources ?? [];
     const sites = new Set(sources.map(source => { try { return new URL(source.url).hostname; } catch { return ""; } }).filter(Boolean));

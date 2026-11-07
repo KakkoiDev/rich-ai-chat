@@ -8,12 +8,18 @@ const pathWords: Record<string, string> = {
   chat: "Answered in chat", "app-build": "Built an app", revision: "Revised the app", "image-search": "Searched for pictures",
   "video-search": "Searched for videos", clock: "Read the clock", table: "Made a table", chart: "Made a chart",
   starter: "Opened a tested starter app", "tested-layout": "Used a tested app layout", transform: "Transformed the quoted text",
+  job: "Background job run",
 };
 const toolWords: Record<ActivityTool, [string, string]> = {
   web_search: ["Searching the web", "Searched the web"],
   image_search: ["Searching for pictures", "Searched for pictures"],
   video_search: ["Searching for videos", "Searched for videos"],
   current_datetime: ["Reading the clock", "Read the clock"],
+  read_plan: ["Reading the plan", "Read the plan"],
+  propose_items: ["Proposing todos", "Proposed todos"],
+  record_checkpoint: ["Recording a checkpoint", "Recorded a checkpoint"],
+  record_verification: ["Recording a verification", "Recorded a verification"],
+  queue_job: ["Queueing a background job", "Queued a background job"],
 };
 const reasonWords: Record<string, string> = {
   "stale-opening": "no reply started in time", "stale-answer": "the answer stalled", "stale-tool": "the step after the tool stalled",
@@ -32,10 +38,18 @@ const recoveryWords = {
 const toolNouns: Record<ActivityTool, [string, string]> = {
   web_search: ["search", "searches"], image_search: ["picture search", "picture searches"],
   video_search: ["video search", "video searches"], current_datetime: ["clock reading", "clock readings"],
+  read_plan: ["plan read", "plan reads"], propose_items: ["proposal", "proposals"],
+  record_checkpoint: ["checkpoint", "checkpoints"], record_verification: ["verification", "verifications"],
+  queue_job: ["queued job", "queued jobs"],
+};
+const jobWords: Record<string, string> = {
+  queued: "Queued", waiting: "Waiting", blocked: "Blocked", running: "Running", checkpoint: "Checkpoint",
+  requeued: "Requeued", succeeded: "Succeeded", failed: "Failed", cancelled: "Cancelled",
 };
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
-function line(event: ActivityEvent, ended: Set<string>) {
+/** One readable line per Activity event (null for events that add nothing); the Tasks panel reuses it for jobs. */
+export function activityLine(event: ActivityEvent, ended: Set<string> = new Set()) {
   switch (event.type) {
     case "request": return `${pathWords[event.path] ?? "Replied"} · model ${event.model}`;
     case "attempt-start": return event.attempt > 1 ? `Attempt ${event.attempt} started` : null;
@@ -51,6 +65,9 @@ function line(event: ActivityEvent, ended: Set<string>) {
     case "recovery": return recoveryWords[event.method];
     case "reply": return event.status === "done" ? `Finished in ${seconds(event.ms)}`
       : event.status === "cancelled" ? "Cancelled" : `Stopped without a complete answer after ${seconds(event.ms)}`;
+    case "job": return `${jobWords[event.status] ?? event.status}`
+      + (event.step && event.steps ? ` · step ${event.step} of ${event.steps}` : "")
+      + (event.reason ? ` · ${event.reason}` : "");
   }
 }
 
@@ -84,7 +101,7 @@ export function ReplyActivity({ userMessageId }: { userMessageId: string }) {
   );
   if (!entry) return null;
   const ended = new Set(entry.events.flatMap(event => event.type === "tool-end" ? [event.toolCallId] : []));
-  const lines = entry.events.map(event => ({ seq: event.seq, text: line(event, ended) })).filter(row => row.text);
+  const lines = entry.events.map(event => ({ seq: event.seq, text: activityLine(event, ended) })).filter(row => row.text);
   if (entry.ended && entry.ended !== "done") lines.push({ seq: -1, text: entry.ended === "cancelled" ? "Cancelled" : "The connection ended before the reply finished" });
   return (
     <details className="reply-activity">
