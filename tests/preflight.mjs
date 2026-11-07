@@ -386,3 +386,13 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
   assert.equal(readArtifact("<!-- draft -->\n" + page).document, page, "A leading note is dropped too");
   assert.match(readArtifact(page + "\n<p>stray</p>").error ?? "", /complete HTML/, "Content after </html> is still rejected");
 }
+
+// Every label in a quoted list is required, so an app missing some of them is sent back with their names.
+{
+  const request = 'Make a tally counter app. Add buttons labeled "Piano", "Trumpet", "Drums"; each adds one. Add a button labeled "Reset all".';
+  assert.deepEqual(artifactButtonLabels(request), ["Piano", "Trumpet", "Drums", "Reset all"]);
+  assert.deepEqual(artifactButtonLabels('Buttons labeled "Red", "Green" and "Blue" pick a colour.'), ["Red", "Green", "Blue"]);
+  assert.deepEqual(artifactButtonLabels("Add buttons labeled 'Yes' or 'No'."), ["Yes", "No"]);
+  const partial = '<button id="p">Piano</button><button id="r">Reset all</button><output id="o">0</output><script>p.onclick = () => {};</script>';
+  assert.match(checkArtifactRequest(partial, request) ?? "", /exact labels: "Trumpet", "Drums"/);
+}

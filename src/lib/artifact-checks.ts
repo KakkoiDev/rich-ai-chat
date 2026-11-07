@@ -161,9 +161,10 @@ export function artifactButtonLabels(request: string) {
   // Only lift literal-looking labels from explicit control requests, not descriptions of behavior.
   for (const match of request.matchAll(/\b(?:label the button|buttons? labell?ed)\s+/gi)) {
     const rest = request.slice(match.index + match[0].length);
-    const quoted = /^(?:"([^"\r\n]{1,40})"|'([^'\r\n]{1,40})')/.exec(rest);
-    if (quoted) {
-      names.add(quoted[1] ?? quoted[2]);
+    // A list of quoted labels: "Piano", "Trumpet" and "Drums" (commas, "and", "or").
+    const list = /^(?:"[^"\r\n]{1,40}"|'[^'\r\n]{1,40}')(?:\s*(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)(?:"[^"\r\n]{1,40}"|'[^'\r\n]{1,40}'))*/.exec(rest);
+    if (list) {
+      for (const [, double, single] of list[0].matchAll(/"([^"\r\n]{1,40})"|'([^'\r\n]{1,40})'/g)) names.add(double ?? single);
       continue;
     }
     const phrase = rest.split(/[.,;!?\r\n]|\s+(?:that|which|to|remove|add|show|displays?|opens?)\b|\s+and\s+(?=[a-z])/)[0].trim();
