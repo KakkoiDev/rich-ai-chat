@@ -27,6 +27,7 @@ const recoveryWords = {
   "sources-only": "Showed the sources found; the answer did not finish",
   clock: "Answered with the clock reading already taken",
   media: "Showed the results already found",
+  "requested-search": "Searched the web because you asked; the model had answered without searching",
 };
 const toolNouns: Record<ActivityTool, [string, string]> = {
   web_search: ["search", "searches"], image_search: ["picture search", "picture searches"],

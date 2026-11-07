@@ -118,3 +118,14 @@ export async function findVideos(query: string, signal: AbortSignal) {
   }).slice(0, 3);
   return videos.length ? { videos } : { error: "No videos found. Try a more specific topic." } as const;
 }
+
+/** "Look up the year X opened, and cite your source." -> "the year X opened". */
+export function explicitSearchQuery(request: string) {
+  const verb = /^\s*(?:(?:please|can you|could you)\s+)*(?:search(?: the web| online)?(?: for)?|look up)\s+/i;
+  if (!verb.test(request)) return undefined;
+  const query = request.trim()
+    .replace(verb, "")
+    .replace(/[,;]?\s*(?:and\s+)?(?:please\s+)?(?:cite|include|give|add)\s+(?:your|a|the)?\s*(?:sources?|links?|citations?)[^.?!]*[.?!]*\s*$/i, "")
+    .replace(/[.?!\s]+$/, "").slice(0, 160).trim();
+  return query.length >= 3 ? query : undefined;
+}

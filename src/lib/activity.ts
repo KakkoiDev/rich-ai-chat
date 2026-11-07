@@ -16,7 +16,7 @@ export type ActivityEvent = { requestId: string; seq: number; ms: number } & (
   | { type: "tool-start"; toolCallId: string; tool: ActivityTool }
   | { type: "tool-end"; toolCallId: string; tool: ActivityTool; elapsedMs: number; status: "ok" | "error"; summary: string }
   | { type: "check"; attempt: number; passed: boolean; reason?: string }
-  | { type: "recovery"; method: "sources-synthesis" | "sources-only" | "clock" | "media" }
+  | { type: "recovery"; method: "sources-synthesis" | "sources-only" | "clock" | "media" | "requested-search" }
   | { type: "reply"; status: "done" | "failed" | "cancelled" }
 );
 

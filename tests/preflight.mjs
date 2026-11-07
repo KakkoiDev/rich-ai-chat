@@ -327,3 +327,14 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
   const scripted = "<div id='row'></div><script>const b = document.createElement('button'); b.textContent = 'Penalty'; row.append(b);</script>";
   assert.equal(checkArtifactRequest(scripted, request), undefined);
 }
+
+// An explicit search request becomes a short query without its search verb or its request for sources.
+{
+  const { explicitSearchQuery } = await import("../src/lib/local-tools.ts");
+  assert.equal(explicitSearchQuery("Look up the year the Eiffel Tower opened, and cite your source."), "the year the Eiffel Tower opened");
+  assert.equal(explicitSearchQuery("Search the web for when Tokyo Skytree was completed and include a source link."), "when Tokyo Skytree was completed");
+  assert.equal(explicitSearchQuery("Please search online for the Shard in London opening year"), "the Shard in London opening year");
+  assert.equal(explicitSearchQuery("Search the web for current weather in Tokyo. Include a source link, or say if the search did not return usable data."),
+    "current weather in Tokyo");
+  assert.equal(explicitSearchQuery("Look up."), undefined);
+}

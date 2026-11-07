@@ -13,6 +13,7 @@ const { featurePrompt } = require('./prompts.cjs');
 const cases = [
   ['export-novel-app', 'export', async (page, spec, kit) => {
     const reply = await kit.ask(page, spec.prompt);
+    kit.track(page, reply);
     const built = reply.activity.filter(e => e.type === 'check' && e.passed).map(e => e.reason);
     assert.ok(built.some(reason => /^Built from the model's code/.test(reason)), `Built from the model's own code, not a tested part: ${JSON.stringify(built)}`);
     const frame = await kit.preview(page, reply);
@@ -84,19 +85,25 @@ const cases = [
     assert.equal(tools[0].tool, 'web_search');
     assert.equal(tools[0].status, 'ok', `The search worked: ${tools[0].summary}`);
     assert.match(tools[0].summary, /^[1-9]\d* sources? from [1-9]\d* sites?$/);
-    assert.equal(reply.toolOutputs, 1, 'Activity matches the one tool result in the stream');
+    // The model's own search shows as one tool result in the stream; when the model answered from memory the app
+    // searched itself (no tool result in the stream). Either way exactly one search ran and Activity shows one.
+    assert.ok(reply.toolOutputs <= 1, `At most one tool result in the stream: ${reply.toolOutputs}`);
     assert.equal(reply.activity.at(-1)?.type, 'reply');
     assert.equal(reply.activity.at(-1)?.status, 'done');
     assert.match(reply.text, /https:\/\//, 'The answer cites a link');
     await page.locator('.reply-activity summary').last().filter({ hasText: /^Activity · 1 search · / }).waitFor();
   }],
-  ['activity-no-tool', 'activity', async (page, spec, kit) => {
+  ['activity-matches-tools', 'activity', async (page, spec, kit) => {
+    // Whatever the model decides for a simple explanation, Activity reports exactly what ran.
     const reply = await kit.ask(page, spec.prompt);
     kit.track(page, reply);
-    assert.deepEqual(reply.activity.filter(e => e.type.startsWith('tool-')), [], 'No tool ran');
-    assert.equal(reply.toolOutputs, 0);
+    const ran = reply.activity.filter(e => e.type === 'tool-end');
+    assert.equal(ran.length, reply.toolOutputs, `Activity shows each tool result the stream carried: ${ran.length} vs ${reply.toolOutputs}`);
+    assert.equal(reply.activity.filter(e => e.type === 'tool-start').length, ran.length, 'Every tool that started also ended');
     assert.equal(reply.activity.at(-1)?.status, 'done');
-    await page.locator('.reply-activity summary').last().filter({ hasText: /^Activity · no tools · / }).waitFor();
+    const searches = ran.filter(e => e.tool === 'web_search').length;
+    const line = ran.length ? new RegExp(`^Activity · ${searches} search` + (searches === 1 ? ' · ' : 'es · ')) : /^Activity · no tools · /;
+    await page.locator('.reply-activity summary').last().filter({ hasText: line }).waitFor();
   }],
 ];
 

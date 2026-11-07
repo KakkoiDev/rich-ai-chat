@@ -124,8 +124,8 @@ After M1, a matrix round has (14 + 13 + 2) × 5 = **145 checks**, and the stable
 
 | ID | Type | Input | Assertions |
 | --- | --- | --- | --- |
-| `activity-single-search` | Model | A varied explicit web search request ("Look up the year … opened, and cite your source"). | Activity shows exactly **one** executed `web_search` that succeeded, with "N sources from M sites". This matches the one tool result in the stream. The reply cites a link, and the panel reads "Activity · 1 search · …". |
-| `activity-no-tool` | Model | A varied simple explanation. | Activity shows no tool and no tool result reaches the stream. The panel reads "Activity · no tools · …". |
+| `activity-single-search` | Model | A varied explicit web search request ("Look up the year … opened, and cite your source"). | Exactly **one** `web_search` ran and succeeded ("N sources from M sites"), either by the model or, when the model answered from memory, by the app, as the person asked. The reply cites a returned link, and the panel reads "Activity · 1 search · …". |
+| `activity-matches-tools` | Model | A varied simple explanation. | Activity reports exactly what ran. Its tool records equal the tool results in the stream, every start has an end, and the panel reads "no tools" only when none ran. Whether a model should search for a simple explanation is a model-policy question, covered by the basic `context` case. |
 | (in `export-novel-app`) | Model | The varied tally app. | Activity says the app was "Built from the model's code", so the model's own code is what gets tested, not a tested layout or starter. |
 | `activity-retry-no-duplicate` | Device | Stalled stream injected after a successful search (stubbed provider). | Activity shows the retry and its reason, and only **one** search execution. The reply is synthesized from the captured sources. |
 | `activity-persist-delete` | Device | A stubbed reply. | The panel survives reload. Deleting the thread removes its activity from IndexedDB. |

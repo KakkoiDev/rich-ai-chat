@@ -75,7 +75,7 @@ function explainTopic(next) {
 }
 
 const builders = { 'export-novel-app': tallyApp, 'export-after-revision': pointsApp,
-  'activity-single-search': searchQuestion, 'activity-no-tool': explainTopic };
+  'activity-single-search': searchQuestion, 'activity-matches-tools': explainTopic };
 
 function featurePrompt(caseId, round, model) {
   const build = builders[caseId];
