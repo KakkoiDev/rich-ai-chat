@@ -1,4 +1,5 @@
 import type { UIMessageStreamWriter } from "ai";
+import type { GateDecision, GatePrompt, PromptSlice } from "@/lib/prompt-slices";
 
 /**
  * What happened behind one reply, recorded where it actually happens (a tool's execute, an attempt's start and end),
@@ -17,6 +18,9 @@ export type ActivityEvent = { requestId: string; seq: number; ms: number } & (
   | { type: "tool-end"; toolCallId: string; tool: ActivityTool; elapsedMs: number; status: "ok" | "error"; summary: string }
   | { type: "check"; attempt: number; passed: boolean; reason?: string }
   | { type: "recovery"; method: "sources-synthesis" | "sources-only" | "clock" | "media" | "requested-search" }
+  /** The Laya component gate (M3): which slices it chose, how sure it was, and which prompt the reply used. */
+  | { type: "gate"; outcome: GateDecision["outcome"]; slices: PromptSlice[]; confidence?: number; elapsedMs: number; prompt: GatePrompt;
+      reason?: string }
   | { type: "reply"; status: "done" | "failed" | "cancelled" }
   /** Only in a chat the person switched to debugging: full text (their message, prompts, tool input and output, drafts). */
   | { type: "detail"; stage: string; text: string }

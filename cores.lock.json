@@ -33,5 +33,13 @@
   "test-core": {
     "repository": "https://github.com/KakkoiDev/test-core",
     "manifest": "test-core/MANIFEST.json"
+  },
+  "pi-local-harness": {
+    "commit": "31866dac0e5f80401f6d1e46c9a903cfe8b162ce",
+    "files": {
+      "harness/laya.py": "025b9552c35fc570caf62caf92ee2d93fb4f7f288b60a3cab84ec04e9ef08271",
+      "kit/laya-lock.json": "9d855bb8e5dc1f5c3d42c4043f1fccfd558df2b0cae2bbaa6ccf965f590ed608"
+    },
+    "laya": "laya-mlx 0.4.0, model aac6fef/laya-multilingual-mlx at f2b4faf51023039425946074e2cf1361d2db11d5, installed by `plh setup laya`; scripts/laya-sidecar.py refuses a harness/laya.py with another SHA-256"
   }
 }

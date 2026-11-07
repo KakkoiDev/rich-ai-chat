@@ -35,6 +35,20 @@ const toolNouns: Record<ActivityTool, [string, string]> = {
 };
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
+const gateWords = {
+  abstained: "the classifier wasn't sure", unavailable: "the classifier isn't available", timeout: "the classifier was too slow",
+  error: "the classifier failed",
+};
+const promptWords = { concise: "a plain-text prompt", sliced: "only those components", general: "the general prompt" };
+const milliseconds = (ms: number) => `${Math.round(ms)} ms`;
+const confidence = (value?: number) => value === undefined ? "" : ` (confidence ${value.toFixed(2)})`;
+
+function gateLine(event: Extract<ActivityEvent, { type: "gate" }>) {
+  if (event.outcome === "chosen")
+    return `Chose ${event.slices.join(", ")} components${confidence(event.confidence)}; used ${promptWords[event.prompt]} · ${milliseconds(event.elapsedMs)}`;
+  return `Component choice skipped: ${gateWords[event.outcome]}${confidence(event.confidence)}; used ${promptWords[event.prompt]} · ${milliseconds(event.elapsedMs)}`;
+}
+
 export function line(event: ActivityEvent, ended: Set<string>) {
   switch (event.type) {
     case "request": return `${pathWords[event.path] ?? "Replied"} · model ${event.model}`;
@@ -49,6 +63,7 @@ export function line(event: ActivityEvent, ended: Set<string>) {
       : `${toolWords[event.tool][1]}, but it failed: ${event.summary} · ${seconds(event.elapsedMs)}`;
     case "check": return event.passed ? event.reason || null : `Check failed: ${event.reason ?? "the app did not pass"}`;
     case "recovery": return recoveryWords[event.method];
+    case "gate": return gateLine(event);
     case "detail": return null;
     case "reply": return event.status === "done" ? `Finished in ${seconds(event.ms)}`
       : event.status === "cancelled" ? "Cancelled" : `Stopped without a complete answer after ${seconds(event.ms)}`;
