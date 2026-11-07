@@ -146,10 +146,24 @@ Order: the theme (M4) depends on design decisions, so engineering milestones tha
 
 ### M1 — Full-window generated apps and standalone source export *(recommended first; detail in §5)*
 
+**Status (2026-11-07):** built (`2fd4b40`). Its first release streak stopped in round 2 on a Gemma 4 E2B revision slip, which is now fixed (see [BENCHMARK-PLAN.md](BENCHMARK-PLAN.md)). M1 ships together with M2 under the M2 streak.
+
 - **Demo:** Generate a novel app in chat and play it. Open it full-window on a phone and fullscreen on desktop. Exit with the button or Escape, and find the app state unchanged. Download its source, open the file in a clean browser with the network off, and it works the same way.
 - **Accept:** see §5.
 
 ### M2 — Reply Activity and synthetic run capture
+
+**Status (2026-11-07):** built and under its release streak at 155 checks per round. Done:
+- server events
+- the browser store (IndexedDB) with export and deletion
+- the Activity line under each request
+- the daily server log
+- opt-in draft capture for benchmarks
+- the two Activity model cases
+
+Differences from the plan:
+- Activity attaches through the user-message slot and shows above the reply it describes. OpenUI doesn't export its assistant-message renderer, so the line moves under the reply when the Kakkoi shell is rebuilt on the headless layer (M4).
+- The per-chat "Debug this chat" switch and the full log view are not built yet. Today there is export from the browser, plus `RICH_CHAT_DEBUG_CAPTURE` for benchmark servers.
 
 - **Server** (`route.ts`, `chat-attempt.ts`):
   - Assign a `requestId` per POST, an `attemptId` per attempt and a `toolCallId` per execution.
