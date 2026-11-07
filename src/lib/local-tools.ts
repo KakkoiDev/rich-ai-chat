@@ -48,7 +48,7 @@ function httpsUrl(value: string | null | undefined) {
  * answered, and the next one at once after a connection error. A hung connection (Brave's slow tail) then costs a few
  * seconds instead of the whole budget. The first response wins and the others are cancelled.
  */
-function firstResponse(url: URL, key: string, budget: AbortSignal, hedgeAfterMs: number[]) {
+function firstResponse(url: URL, key: string, budget: AbortSignal, hedgeAfterMs: number[], signal: AbortSignal, budgetMs: number) {
   return new Promise<Response>((resolve, reject) => {
     const attempts: AbortController[] = [];
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -61,7 +61,12 @@ function firstResponse(url: URL, key: string, budget: AbortSignal, hedgeAfterMs:
       budget.removeEventListener("abort", stop);
       finish();
     };
-    const stop = () => done(() => { for (const attempt of attempts) attempt.abort(); reject(budget.reason); });
+    const errors: string[] = [];
+    const describe = (why: string) => new Error(`${attempts.length} attempt${attempts.length === 1 ? "" : "s"}, ${[...errors, why].join(", ")}`);
+    const stop = () => done(() => {
+      for (const attempt of attempts) attempt.abort();
+      reject(describe(signal.aborted ? "cancelled" : `no answer within ${budgetMs / 1000} s`));
+    });
     const start = () => {
       if (settled || attempts.length > hedgeAfterMs.length) return;
       const attempt = new AbortController();
@@ -74,8 +79,9 @@ function firstResponse(url: URL, key: string, budget: AbortSignal, hedgeAfterMs:
           if (settled) return;
           const transient = error instanceof TypeError || (error instanceof DOMException && error.name === "AbortError" && !budget.aborted);
           failed++;
+          errors.push(error instanceof Error ? (error.cause instanceof Error ? `${error.name}: ${error.cause.message}` : error.name) : "error");
           if (budget.aborted || !transient) return done(() => { for (const other of attempts) other.abort(); reject(error); });
-          if (failed === attempts.length && attempts.length > hedgeAfterMs.length) return done(() => reject(error));
+          if (failed === attempts.length && attempts.length > hedgeAfterMs.length) return done(() => reject(describe("all failed")));
           start();
         });
     };
@@ -90,7 +96,7 @@ export async function braveSearch(kind: "web" | "images" | "videos", query: stri
   const url = new URL(`https://api.search.brave.com/res/v1/${kind}/search`);
   url.search = new URLSearchParams({ q: query, count: "4", safesearch: "strict" }).toString();
   const budget = AbortSignal.any([signal, AbortSignal.timeout(timing.budgetMs)]);
-  const response = await firstResponse(url, key, budget, timing.hedgeAfterMs);
+  const response = await firstResponse(url, key, budget, timing.hedgeAfterMs, signal, timing.budgetMs);
   if (![429, 500, 502, 503, 504].includes(response.status)) return response;
   const retryHeader = response.headers.get("Retry-After");
   const retryMs = retryHeader && /^\d+$/.test(retryHeader)
@@ -98,7 +104,7 @@ export async function braveSearch(kind: "web" | "images" | "videos", query: stri
   if (retryMs > 5000) return response;
   await response.body?.cancel();
   await delay(Math.max(response.status === 429 ? 1100 : 250, retryMs || 0), undefined, { signal: budget });
-  return firstResponse(url, key, budget, []);
+  return firstResponse(url, key, budget, [], signal, timing.budgetMs);
 }
 
 async function searchMedia(kind: "images" | "videos", query: string, signal: AbortSignal) {

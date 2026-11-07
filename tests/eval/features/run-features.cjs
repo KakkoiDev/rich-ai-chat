@@ -83,7 +83,15 @@ const cases = [
     const tools = reply.activity.filter(e => e.type === 'tool-end');
     assert.equal(tools.length, 1, `One search ran: ${JSON.stringify(tools)}`);
     assert.equal(tools[0].tool, 'web_search');
-    assert.equal(tools[0].status, 'ok', `The search worked: ${tools[0].summary}`);
+    if (tools[0].status !== 'ok') {
+      // The search provider was down (the basic suite's live-search cases still need real results every round).
+      // The product must then be honest: the app's notice, and no link, since nothing was returned to cite.
+      assert.match(reply.text, /Search unavailable/, 'The reply carries the app\'s failed-search notice');
+      assert.doesNotMatch(reply.text, /https?:\/\//, 'No link is cited when the search returned nothing');
+      assert.equal(reply.activity.at(-1)?.status, 'done');
+      await page.locator('.reply-activity summary').last().filter({ hasText: /^Activity · 1 search · / }).waitFor();
+      return { note: `Search provider unavailable (${tools[0].summary}); honest handling checked.` };
+    }
     assert.match(tools[0].summary, /^[1-9]\d* sources? from [1-9]\d* sites?$/);
     // The model's own search shows as one tool result in the stream; when the model answered from memory the app
     // searched itself (no tool result in the stream). Either way exactly one search ran and Activity shows one.
@@ -198,10 +206,10 @@ function kitFor(browser, downloads) {
       const page = await context.newPage();
       page.setDefaultTimeout(10000);
       const start = performance.now();
-      let status = 'pass', detail, observed;
+      let status = 'pass', detail, observed, note;
       try {
         await page.goto(url);
-        await run(page, spec, kit);
+        note = (await run(page, spec, kit))?.note;
       } catch (e) {
         status = 'fail';
         detail = String(e.message).replace(/\x1b\[[0-9;]*m/g, '').slice(0, 450);
@@ -219,9 +227,9 @@ function kitFor(browser, downloads) {
       const response = status === 'fail' ? replies.get(page)?.slice(0, 35000) : undefined;
       const events = status === 'fail' ? activity.get(page) : undefined;
       report.cases.push({ id, category, status, seconds, prompt: spec.prompt, ...(spec.revision ? { revision: spec.revision } : {}),
-        ...(detail ? { detail } : {}), ...(observed ? { observed } : {}), ...(response ? { response } : {}),
+        ...(detail ? { detail } : {}), ...(note ? { note } : {}), ...(observed ? { observed } : {}), ...(response ? { response } : {}),
         ...(events?.length ? { activity: events } : {}) });
-      console.log(status.toUpperCase(), id, seconds.toFixed(2) + 's', detail || '');
+      console.log(status.toUpperCase(), id, seconds.toFixed(2) + 's', detail || note || '');
     }
   } finally {
     await browser.close();

@@ -44,8 +44,15 @@ function stubModel(req, res) {
       res.write(chunk({}, 'tool_calls'));
       res.end('data: [DONE]\n\n');
     };
+    const callSearch = () => {
+      res.write(chunk({ role: 'assistant', tool_calls: [{ index: 0, id: `call_${scenario}_${n}`, type: 'function',
+        function: { name: 'web_search', arguments: JSON.stringify({ query: 'opening year of a bridge' }) } }] }));
+      res.write(chunk({}, 'tool_calls'));
+      res.end('data: [DONE]\n\n');
+    };
     const drop = () => { res.write(chunk({ role: 'assistant', content: 'root = Card([Tex' })); res.socket.destroy(); };
     if (scenario === 'clock-ok') return afterTool ? answer('It is noon.') : callClock();
+    if (scenario === 'search-fails') return afterTool ? answer('It opened in 1998, as far as I know.') : callSearch();
     if (scenario === 'retry-no-tool') return n === 1 ? drop() : answer('Second try worked.');
     if (scenario === 'tool-then-drop') return afterTool ? drop() : callClock();
     if (scenario === 'hang') { res.write(chunk({ role: 'assistant', content: '' })); return; } // never finishes
@@ -123,6 +130,14 @@ async function check(name, body) {
       assert.equal((lines.match(/Read the clock ·/g) ?? []).length, 1, 'One clock reading, not two');
       assert.match(lines, /Answered with the clock reading already taken/);
       assert.doesNotMatch(lines, /Attempt 2/);
+    });
+
+    await check('A failed search is shown as failed, and the answer says it was not checked', async () => {
+      await ask('search-fails');
+      await activity().locator('summary').filter({ hasText: /1 search · \d+\.\d s/ }).waitFor();
+      const lines = await openActivity();
+      assert.match(lines, /Searched the web, but it failed: Web search is not configured\./);
+      await page.getByText('The web search failed, so this answer was not checked against sources.').last().waitFor();
     });
 
     await check('Cancelling shows Cancelled', async () => {
