@@ -350,3 +350,12 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
   assert.match(checkArtifact(app("const f = new Function('a', 'return a');")) ?? "", /blocks eval and Function/);
   assert.equal(maskCommentsAndStrings("a /* x\ny */ b 'c'").length, "a /* x\ny */ b 'c'".length, "Masking keeps offsets");
 }
+
+// A note after </html> (GPT-OSS traces a click there, as its instructions ask) does not make a complete app incomplete.
+{
+  const page = '<html><head><title>Sequence Puzzle</title></head><body><button id="r">Red</button><script>r.onclick = () => {};</script></body></html>';
+  const traced = page + '\n\n<!-- Trace of a click through the handler: 1. User clicks "Red". 2. choose("Red") is called. -->\n';
+  assert.equal(readArtifact(traced).document, page);
+  assert.equal(readArtifact("<!-- draft -->\n" + page).document, page, "A leading note is dropped too");
+  assert.match(readArtifact(page + "\n<p>stray</p>").error ?? "", /complete HTML/, "Content after </html> is still rejected");
+}

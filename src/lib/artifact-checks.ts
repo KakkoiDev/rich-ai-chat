@@ -76,7 +76,9 @@ export function checkArtifact(document: string): string | undefined {
 
 /** Extract a single HTML document; serialization into OpenUI is the host's job. */
 export function readArtifact(text: string, allowFragment = false) {
-  let document = text.trim().replace(/^```(?:html)?\s*([\s\S]*?)\s*```$/i, "$1").trim();
+  let document = text.trim().replace(/^```(?:html)?\s*([\s\S]*?)\s*```$/i, "$1").trim()
+    // Comments outside the document are never part of the app: models add notes such as a traced click there.
+    .replace(/^(?:<!--[\s\S]*?-->\s*)+/, "").replace(/(<\/html>)\s*(?:<!--[\s\S]*?-->\s*)+$/i, "$1");
   if (allowFragment) {
     // Recover one unambiguous HTML code block even if the model added an explanation.
     const blocks = [...document.matchAll(/^```html\s*\n([\s\S]*?)^```[ \t]*$/gim)];
