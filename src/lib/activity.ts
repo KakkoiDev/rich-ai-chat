@@ -18,6 +18,8 @@ export type ActivityEvent = { requestId: string; seq: number; ms: number } & (
   | { type: "check"; attempt: number; passed: boolean; reason?: string }
   | { type: "recovery"; method: "sources-synthesis" | "sources-only" | "clock" | "media" | "requested-search" }
   | { type: "reply"; status: "done" | "failed" | "cancelled" }
+  /** Only in a chat the person switched to debugging: full text (their message, prompts, tool input and output, drafts). */
+  | { type: "detail"; stage: string; text: string }
 );
 
 type Payload<T> = T extends unknown ? Omit<T, "requestId" | "seq" | "ms"> : never;
@@ -26,7 +28,15 @@ export type ActivityInput = Payload<ActivityEvent>;
 /** Reasons are the app's own fixed sentences; cap them so nothing long can ride along. */
 const short = (text: string) => text.replace(/\s+/g, " ").trim().slice(0, 200);
 
-export function createActivity(log: (event: ActivityEvent) => void = () => {}) {
+/** Detail text is capped so one request can't fill the browser's store or the debug file. */
+const detailLimit = 40000;
+
+/**
+ * `log` receives the data-free events. With `debug` (the person switched "Debug this chat" on), `detail()` also
+ * records full text: it streams to that person's browser and goes to `logDetail`, never to `log`.
+ */
+export function createActivity(log: (event: ActivityEvent) => void = () => {},
+  { debug = false, logDetail = () => {} }: { debug?: boolean; logDetail?: (event: ActivityEvent) => void } = {}) {
   const requestId = crypto.randomUUID();
   const started = performance.now();
   const pending: ActivityEvent[] = [];
@@ -41,8 +51,14 @@ export function createActivity(log: (event: ActivityEvent) => void = () => {}) {
       if ("summary" in event) event.summary = short(event.summary);
       // A check's reason can quote labels from the request, so the server log keeps only whether it passed.
       const logged = event.type === "check" ? { ...event, reason: undefined } : event;
-      try { log(logged); } catch { /* logging never breaks a reply */ }
+      try { (event.type === "detail" ? logDetail : log)(logged); } catch { /* logging never breaks a reply */ }
       if (writer) send(event); else pending.push(event);
+    },
+    debug,
+    /** Full text for debugging; does nothing unless this request is in debug mode. */
+    detail(stage: string, text: string) {
+      if (!debug) return;
+      this.record({ type: "detail", stage: stage.slice(0, 80), text: text.length > detailLimit ? text.slice(0, detailLimit) + "\n[cut at 40,000 characters]" : text });
     },
     /** Stream buffered and later events to the browser with the reply. */
     attach(next: UIMessageStreamWriter) {

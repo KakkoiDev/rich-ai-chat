@@ -13,6 +13,7 @@ const { once } = require('node:events');
 
 assert.ok(process.env.RICH_CHAT_BUILD_DIR, 'Set RICH_CHAT_BUILD_DIR to a built app');
 const MARKER = 'zebra-7731'; // in every prompt; must never reach the server log or the export
+const DEBUG_MARKER = 'heron-4096'; // only in the debugged chat; reaches its Activity and the debug file only
 const calls = new Map(); // scenario -> number of model requests
 
 function chunk(delta, finish = null) {
@@ -164,11 +165,62 @@ async function check(name, body) {
     });
 
     await check('The server log records every request without prompt text', async () => {
-      const log = fs.readdirSync(logDir).map(name => fs.readFileSync(path.join(logDir, name), 'utf8')).join('');
+      const log = fs.readdirSync(logDir).filter(name => name.startsWith('activity-')).map(name => fs.readFileSync(path.join(logDir, name), 'utf8')).join('');
+      assert.ok(!fs.readdirSync(logDir).some(name => name.startsWith('debug-')), 'No debug file without the switch');
       const events = log.trim().split('\n').map(line => JSON.parse(line));
       assert.ok(events.filter(event => event.type === 'request').length >= 4);
       assert.ok(events.some(event => event.type === 'tool-end' && event.tool === 'current_datetime'));
       assert.ok(!log.includes(MARKER), 'No prompt text in the server log');
+    });
+
+    await check('The full log lists every request with its question and reply, and finds the problems', async () => {
+      const log = await context.newPage();
+      await log.goto(`http://127.0.0.1:${port}/log`);
+      const rows = log.getByRole('list', { name: 'Requests' }).locator(':scope > li');
+      await rows.first().waitFor();
+      const all = await rows.count();
+      assert.ok(all >= 5, `Every request is listed (${all})`);
+      // Newest first: clock-ok is the oldest request with one clock reading.
+      const clock = rows.filter({ has: log.locator('summary').filter({ hasText: /1 clock reading/ }) }).last();
+      await clock.locator('summary').first().click();
+      await clock.locator('pre').getByText(`Please answer scenario clock-ok (${MARKER}).`).waitFor();
+      await clock.locator('pre').getByText('It is noon.').first().waitFor();
+      // The hung request was cancelled just before a reload; with no end stored it must not look like it is still working.
+      assert.equal(await rows.filter({ hasText: /working…/ }).count(), 0);
+      await rows.filter({ hasText: /no end recorded/ }).first().waitFor();
+      assert.match((await clock.locator('table').innerText()), /tool-end[\s\S]*Read the clock/);
+      await log.getByRole('combobox', { name: 'Show' }).selectOption('problems');
+      const problems = await rows.count();
+      assert.ok(problems >= 3 && problems < all, `Only requests with problems (${problems} of ${all})`);
+      assert.equal(await rows.filter({ hasText: /1 clock reading · \d+\.\d s$/ }).count(), 0);
+      await log.close();
+    });
+
+    await check('Debug this chat records full text for that chat only', async () => {
+      const fresh = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+      const debugPage = await fresh.newPage();
+      debugPage.setDefaultTimeout(20000);
+      await debugPage.goto(`http://127.0.0.1:${port}/`);
+      await debugPage.getByRole('checkbox', { name: 'Debug this chat' }).check();
+      const box = debugPage.getByRole('textbox', { name: 'Message' });
+      await box.fill(`Please answer scenario search-fails (${DEBUG_MARKER}).`);
+      await box.press('Enter');
+      const panel = debugPage.locator('.reply-activity').last();
+      await panel.locator('summary').filter({ hasText: /1 search · \d+\.\d s/ }).first().waitFor();
+      await panel.locator('summary').first().click();
+      const details = panel.getByRole('region', { name: 'Debug details' });
+      for (const stage of ['user message', 'system prompt', 'web_search input', 'web_search output', 'reply as sent'])
+        await details.locator('summary').filter({ hasText: new RegExp('^' + stage) }).first().waitFor();
+      assert.match(await details.textContent(), /opening year of a bridge/, "The tool input is recorded in full");
+      assert.ok(await debugPage.getByRole('checkbox', { name: 'Debug this chat' }).isChecked(), 'The switch stays on for this chat');
+      assert.equal(await page.locator('.debug-details').count(), 0, 'Other chats have no debug details');
+      const files = fs.readdirSync(logDir);
+      const debugFile = files.filter(name => name.startsWith('debug-')).map(name => fs.readFileSync(path.join(logDir, name), 'utf8')).join('');
+      assert.ok(debugFile.includes(DEBUG_MARKER), 'The debug file has the debugged chat');
+      assert.ok(!debugFile.includes(MARKER), 'The debug file has nothing from other chats');
+      const activityLog = files.filter(name => name.startsWith('activity-')).map(name => fs.readFileSync(path.join(logDir, name), 'utf8')).join('');
+      assert.ok(!activityLog.includes(DEBUG_MARKER), 'The activity log stays free of text');
+      await fresh.close();
     });
 
     await check('Deleting the chat deletes its Activity', async () => {

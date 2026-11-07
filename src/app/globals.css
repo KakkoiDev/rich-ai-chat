@@ -125,3 +125,20 @@ body.artifact-full-window-open { overflow: hidden; }
 .reply-activity li { overflow-wrap: anywhere; }
 .reply-activity__note { margin: 4px 0; }
 .reply-activity button { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 6px; min-height: 32px; padding: 0 10px; cursor: pointer; }
+.reply-activity__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.reply-activity a { color: inherit; }
+.debug-details h4 { margin: 8px 0 4px; font: inherit; font-weight: 600; }
+.debug-details summary { justify-content: flex-start; }
+.debug-details pre, .activity-log pre { margin: 4px 0 8px; padding: 8px; max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid currentColor; border-radius: 6px; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.debug-switch { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 6px; font: var(--openui-text-body-sm, 13px/1.45 system-ui); color: var(--openui-text-neutral-secondary, GrayText); cursor: pointer; }
+.activity-log { max-width: 768px; margin: 0 auto; padding: 24px 16px 64px; font: 14px/1.5 system-ui, sans-serif; color: CanvasText; background: Canvas; }
+.activity-log h1 { margin: 0 0 4px; font-size: 24px; }
+.activity-log__bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 16px; }
+.activity-log button, .activity-log select { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 6px; min-height: 36px; padding: 0 10px; cursor: pointer; }
+.activity-log > ol { list-style: none; margin: 0; padding: 0; }
+.activity-log > ol > li { border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); padding: 8px 0; }
+.activity-log summary { cursor: pointer; min-height: 32px; overflow-wrap: anywhere; }
+.activity-log__flag { margin-left: 6px; padding: 0 6px; border: 1px solid currentColor; border-radius: 4px; font-size: 12px; }
+.activity-log table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.activity-log th, .activity-log td { text-align: left; vertical-align: top; padding: 4px 6px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); overflow-wrap: anywhere; }
+.activity-log h3 { margin: 12px 0 4px; font-size: 14px; }

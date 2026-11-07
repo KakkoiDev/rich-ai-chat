@@ -72,6 +72,12 @@ Report `reports/2fd4b40.MyyZob`, state `needs-investigation`, 289/290.
 - The features suite now saves each failing reply's Activity in the report.
 - `RICH_CHAT_DEBUG_CAPTURE=1` saves rejected drafts beside the server log. It is for synthetic benchmark runs only, never for a server people use.
 
+### M1 + M2 release streak at `6c935ab` (2026-11-08): passed
+
+- Report folder `6c935ab.iCn14Z`: `stable-and-regression-passed`, 10 perfect rounds plus the regression round, 1,705 of 1,705 checks (155 per round, 31 cases per model per round).
+- It followed six stopped streaks. Each stop was fixed in the product, not in the cases; the fixes are listed in the M1 streak section above and in the commit history from `2fd4b40` to `6c935ab`.
+- Merged to `main` as #3 (M1 + M2) and #5 (the test-core release command).
+
 ## 2. Rules (unchanged, restated)
 
 - **Stable** means ten consecutive perfect rounds on the expanded matrix, then one full regression round on the same frozen revision. Failures, skips, changed expectations and mixed revisions all reset the streak.
@@ -200,5 +206,10 @@ After each streak, append a table to this file:
 | Revision | Model | Rounds | Passed / expected | Median / max case seconds | New-suite failures (kept report) |
 | --- | --- | --- | --- | --- | --- |
 | `b490e06` | each of the 5 | 11 | 297 / 297 | see §1 | — |
+| `6c935ab` | DeepSeek Flash | 11 | 341 / 341 | 78.7 / 84.9 s per round task | — |
+| `6c935ab` | GPT-OSS 20B | 11 | 341 / 341 | 201.5 / 204.4 s per round task | — |
+| `6c935ab` | Gemma 4 12B | 11 | 341 / 341 | 178.3 / 194.2 s per round task | — |
+| `6c935ab` | Gemma 4 E4B | 11 | 341 / 341 | 77.7 / 88.1 s per round task | — |
+| `6c935ab` | Gemma 4 E2B | 11 | 341 / 341 | 53.0 / 55.3 s per round task | — |
 
 Also record the wall-clock time per round. Model-driven app cases include generation, so expect each round to take longer than today's 7.5 minutes. Measure the M1 cost in the first round rather than estimating it.

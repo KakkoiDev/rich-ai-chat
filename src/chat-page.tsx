@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { chatModelIds, chatModelLabels, isChatModelId } from "@/lib/chat-models";
 import { localStorageChat } from "@/lib/local-storage";
+import { debugMode } from "@/lib/debug-mode";
 import {
   AgentInterface,
   fetchLLM,
@@ -50,7 +51,7 @@ function selectModel(value: string) {
   window.dispatchEvent(new Event(modelChanged));
 }
 
-function chatTransport(model?: string) {
+function chatTransport(model?: string, debug = false) {
   return fetchLLM({
     url: "/api/chat",
     streamAdapter: vercelAIAdapter(),
@@ -72,17 +73,19 @@ function chatTransport(model?: string) {
         }));
       },
     },
-    body: model ? { model } : undefined,
+    body: model || debug ? { ...(model ? { model } : {}), ...(debug ? { debug } : {}) } : undefined,
   });
 }
 
 const defaultTransport = chatTransport();
-const transports = new Map(chatModelIds.map(model => [model, chatTransport(model)]));
+const transports = new Map([undefined, ...chatModelIds].flatMap(model => [false, true]
+  .map(debug => [`${model ?? ""}|${debug}`, chatTransport(model, debug)] as const)));
 const { llm, storage } = localStorageChat({
   ...defaultTransport,
   send(params) {
     const model = readModel();
-    return (isChatModelId(model) ? transports.get(model)! : defaultTransport).send(params);
+    const debug = debugMode.forRequest(params.threadId, params.messages.filter(message => message.role === "user").length <= 1);
+    return transports.get(`${isChatModelId(model) ? model : ""}|${debug}`)!.send(params);
   },
 }, "rich-ai-chat");
 
