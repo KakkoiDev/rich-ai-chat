@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- standalone benchmark driver. */
+// The five-model matrix on test-core's pinned benchmark runner (test-core/bench). One task is one model in one round:
+// it starts the app for that model, runs every suite and passes only when each suite passed all its expected cases.
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
@@ -13,34 +15,19 @@ if (!models.length) models.push('deepseek-flash', 'gpt-oss:20b', 'gemma4:12b-mlx
 const port = Number(process.env.EVAL_PORT || 3238);
 const chatUrl = 'http://127.0.0.1:' + port + '/';
 const directory = path.resolve(EVAL_DIR);
-fs.mkdirSync(directory, { recursive: true });
-const summaryPath = path.join(directory, 'matrix.json');
-assert.ok(!fs.existsSync(summaryPath), 'Use a fresh report directory for each revision or matrix attempt');
-const summary = { revision: EVAL_REVISION, models, required: 10, regressionRounds: 1, state: 'running', rounds: [] };
+// The release gate is 10 + 1. Smaller values are for parity and focused checks and never count as a stable release.
+const required = Number(process.env.EVAL_REQUIRED || 10);
+const regression = Number(process.env.EVAL_REGRESSION ?? 1);
 const suites = [
   ['basic', path.join(__dirname, 'run.cjs'), 14],
   ['breadth', path.join(__dirname, 'breadth/run-breadth.cjs'), 13],
 ];
+const root = path.resolve(__dirname, '../..');
+const frozen = ['tests/eval/matrix.cjs', 'tests/eval/run.cjs', 'tests/eval/breadth/run-breadth.cjs',
+  ...fs.readdirSync(path.join(root, 'tests/e2e')).map(name => 'tests/e2e/' + name),
+  'test-core/bench/bench.mjs', 'package-lock.json', path.join(RICH_CHAT_BUILD_DIR, 'BUILD_ID')];
 
-function save() {
-  fs.writeFileSync(summaryPath + '.tmp', JSON.stringify(summary, null, 2) + '\n');
-  fs.renameSync(summaryPath + '.tmp', summaryPath);
-}
-
-let server;
-let runner;
-function stop() {
-  runner?.kill();
-  server?.kill();
-}
-for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
-  summary.state = 'interrupted';
-  save();
-  stop();
-  process.exit(130);
-});
-
-async function evaluate(model, roundDir, report) {
+async function evaluate(model, round, taskDir, signal) {
   const hosted = model === 'deepseek-flash';
   const env = {
     ...process.env, NEXT_TELEMETRY_DISABLED: '1', MODEL_ID: model, EVAL_MODEL: model, CHAT_URL: chatUrl,
@@ -48,27 +35,29 @@ async function evaluate(model, roundDir, report) {
     MODEL_API_KEY: hosted ? process.env.DEEPSEEK_API_KEY || '' : 'local',
   };
   assert.ok(env.MODEL_API_KEY, 'DeepSeek API key is missing');
-  server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)], { env, stdio: 'inherit' });
+  const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)],
+    { env, stdio: 'inherit', signal, killSignal: 'SIGTERM' });
+  server.on('error', () => {});
+  const results = [];
   try {
     for (let attempt = 0; ; attempt++) {
+      if (signal.aborted) throw new Error('aborted');
       if (server.exitCode !== null || attempt === 50) throw new Error('Benchmark chat server did not start');
       const response = await fetch(chatUrl, { signal: AbortSignal.timeout(1000) }).catch(() => null);
       if (response?.ok) { await response.arrayBuffer(); break; }
       await delay(200);
     }
     for (const [suite, script, expected] of suites) {
-      summary.active = { ...summary.active, suite };
-      save();
-      const file = path.join(roundDir, suite + '.json');
-      runner = spawn(process.execPath, [script], { env: { ...env, EVAL_ROUND: String(summary.active.round), EVAL_REPORT: file }, stdio: 'inherit' });
+      const file = path.join(taskDir, suite + '.json');
+      const runner = spawn(process.execPath, [script], { env: { ...env, EVAL_ROUND: String(round), EVAL_REPORT: file }, stdio: 'inherit', signal });
+      runner.on('error', () => {});
       const [code] = await once(runner, 'exit');
-      runner = undefined;
+      if (signal.aborted) throw new Error('aborted');
       const result = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
       const passed = result?.cases.filter(test => test.status === 'pass').length ?? 0;
       const perfect = code === 0 && result?.model === model && result.appRevision === EVAL_REVISION &&
         result.cases.length === expected && passed === expected;
-      report.suites.push({ suite, passed, expected, perfect, report: result ? path.relative(directory, file) : null });
-      save();
+      results.push({ suite, passed, expected, perfect, report: result ? path.relative(directory, file) : null });
     }
   } finally {
     if (server.exitCode === null && server.signalCode === null) {
@@ -76,41 +65,41 @@ async function evaluate(model, roundDir, report) {
       server.kill();
       await exited;
     }
-    server = undefined;
   }
+  return results;
 }
 
 (async () => {
-  const existing = await fetch(chatUrl, { signal: AbortSignal.timeout(1000) }).catch(() => null);
-  assert.ok(!existing, 'The benchmark port is already in use');
-  for (let round = 1; round <= summary.required + summary.regressionRounds; round++) {
-    const entry = { round, regression: round > summary.required, models: [] };
-    summary.rounds.push(entry);
-    for (const model of models) {
-      console.log(`=== ${model}, ${entry.regression ? 'final regression' : 'round ' + round + '/' + summary.required} ===`);
-      const roundDir = path.join(directory, 'round-' + String(round).padStart(2, '0'), model.replace(/[^a-z0-9.-]/gi, '-'));
-      fs.mkdirSync(roundDir, { recursive: true });
-      const report = { model, suites: [] };
-      entry.models.push(report);
-      summary.active = { round, model };
-      save();
-      await evaluate(model, roundDir, report);
-    }
-    if (!entry.models.every(report => report.suites.length === suites.length && report.suites.every(test => test.perfect))) {
-      summary.state = 'needs-investigation';
-      process.exitCode = 1;
-      break;
-    }
+  const { runBench, streakGate } = await import(path.join(root, 'test-core/bench/bench.mjs'));
+  const resume = process.env.EVAL_RESUME === '1';
+  if (!resume) {
+    const existing = await fetch(chatUrl, { signal: AbortSignal.timeout(1000) }).catch(() => null);
+    assert.ok(!existing, 'The benchmark port is already in use');
   }
-  if (summary.state === 'running') summary.state = 'stable-and-regression-passed';
-  delete summary.active;
-  save();
+  const tasks = [];
+  for (let round = 1; round <= required + regression; round++)
+    for (const model of models)
+      tasks.push({ id: 'r' + String(round).padStart(2, '0') + '-' + model.replace(/[^a-z0-9.-]/gi, '-'), round, model });
+  const { state, exitCode, summary } = await runBench({
+    dir: directory, revision: EVAL_REVISION, tasks, resume,
+    gate: streakGate({ required, regression }),
+    freeze: { root, files: frozen },
+    secrets: [process.env.DEEPSEEK_API_KEY, process.env.MODEL_API_KEY, process.env.BRAVE_SEARCH_API_KEY],
+    config: { models, suites: suites.map(([name, , expected]) => ({ name, expected })), required, regression, port },
+    onEvent: event => { if (event.type === 'task-start') console.log(`=== ${event.id} ===`); },
+    async run(task, { signal, taskDir }) {
+      const results = await evaluate(task.model, task.round, taskDir, signal);
+      const passed = results.reduce((sum, suite) => sum + suite.passed, 0);
+      const expected = suites.reduce((sum, [, , count]) => sum + count, 0);
+      return { ok: results.length === suites.length && results.every(suite => suite.perfect), checks: { passed, expected }, suites: results };
+    },
+  });
+  // A short summary under the historical name for tools and notes that read matrix.json.
+  fs.writeFileSync(path.join(directory, 'matrix.json'), JSON.stringify({ revision: EVAL_REVISION, models, required,
+    regressionRounds: regression, state, summary }, null, 2) + '\n');
+  console.log(`${state}: ${summary.checks?.passed ?? 0}/${summary.checks?.expected ?? 0} checks`);
+  process.exitCode = exitCode;
 })().catch(error => {
   console.error(error.message);
-  summary.state = 'runner-error';
-  summary.error = error.message;
-  delete summary.active;
-  save();
-  stop();
   process.exitCode = 2;
 });

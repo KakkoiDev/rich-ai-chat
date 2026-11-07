@@ -9,6 +9,8 @@ const eslintConfig = defineConfig([
     ".next/**",
     ".next-local/**",
     "public/vendor/**",
+    // Pinned copy of test-core (see test-core/MANIFEST.json); change it in test-core, then re-adopt.
+    "test-core/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

@@ -43,4 +43,14 @@ RICH_CHAT_BUILD_DIR=.next-local/bench EVAL_REVISION="$(git rev-parse HEAD)" \
   EVAL_DIR=/path/to/new-report-directory node tests/eval/matrix.cjs
 ```
 
-The matrix runs the basic and breadth suites serially for each model. A skipped, failed, or missing case ends the streak after the current round finishes. On a frozen build, ten perfect rounds across all models trigger one final regression round. The reports record duration per task and the matrix records the current round, model, and suite. After a fix, rebuild and use a fresh directory so prior failures remain available for comparison.
+The matrix runs the basic and breadth suites serially for each model. A skipped, failed, or missing case ends the streak after the current round finishes. On a frozen build, ten perfect rounds across all models trigger one final regression round. After a fix, rebuild and use a fresh directory so prior failures remain available for comparison.
+
+The matrix runs on test-core's pinned benchmark runner (`test-core/bench`; the pin is in `test-core/MANIFEST.json`, checked with `python3 test-core/adopt.py --verify test-core`). One task is one model in one round. The report directory holds:
+
+- `manifest.json`: the revision, plan, frozen files with their hashes (the harness scripts, `package-lock.json`, the build's `BUILD_ID`) and the configuration
+- `state.json`: the state, PID, active task and a running summary, refreshed while the run is alive
+- `tasks/rNN-<model>.json`: each finished task's verdict, checks and duration
+- `tasks/rNN-<model>/{basic,breadth}.json`: the suite reports with per-case durations
+- `matrix.json`: a short final summary
+
+Failed and interrupted reports are kept. `EVAL_RESUME=1` continues an interrupted run in the same directory without repeating finished tasks. It refuses if a frozen file, the plan or the revision changed. A run fails as `secret-leak` if a configured API key appears anywhere in its reports. `EVAL_REQUIRED` and `EVAL_REGRESSION` (default 10 and 1) shorten a run for parity and focused checks. Only the full 10 + 1 run counts toward a release, whatever its final state is called.
