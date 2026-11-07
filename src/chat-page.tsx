@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { chatModelIds, chatModelLabels, isChatModelId } from "@/lib/chat-models";
 import { localStorageChat } from "@/lib/local-storage";
 import { debugMode } from "@/lib/debug-mode";
+import { profileHeader, readProfile } from "@/lib/browser-profile";
 import {
   AgentInterface,
   fetchLLM,
@@ -60,6 +61,7 @@ function chatTransport(model?: string, debug = false) {
     fetch(input, init) {
       const headers = new Headers(init?.headers);
       headers.set("X-Chat-Time-Zone", Intl.DateTimeFormat().resolvedOptions().timeZone);
+      headers.set(profileHeader, readProfile());
       return fetch(input, { ...init, headers });
     },
     messageFormat: {

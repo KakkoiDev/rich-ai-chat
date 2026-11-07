@@ -12,14 +12,10 @@ export function taskServices() {
   return shared.richChatTasks;
 }
 
-export const profileCookie = "rich_chat_profile";
 export const profileHeader = "x-rich-chat-profile";
 
-/** The browser profile of a request: the header the Tasks panel sends, else the cookie it sets for the chat route. */
+/** The browser profile of a request: the header the chat and the Tasks panel send. Never a cookie (see browser-profile.ts). */
 export function requestProfile(req: Request): string | undefined {
   const header = req.headers.get(profileHeader);
-  if (validProfileId(header)) return header;
-  const cookie = (req.headers.get("cookie") ?? "").split(/;\s*/).find(part => part.startsWith(profileCookie + "="));
-  const value = cookie ? decodeURIComponent(cookie.slice(profileCookie.length + 1)) : undefined;
-  return validProfileId(value) ? value : undefined;
+  return validProfileId(header) ? header : undefined;
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useThread, useThreadList } from "@openuidev/react-headless";
+import { readProfile } from "@/lib/browser-profile";
 import type { Evidence, Item, ItemEvent, Plan } from "@/lib/tasks/store";
 import type { JobView } from "@/lib/tasks/jobs";
 import { activityLine } from "@/reply-activity";
@@ -13,22 +14,6 @@ import styles from "./tasks-panel.module.css";
  * tasks API and as a cookie so the chat route can offer the plan tools for the same profile.
  */
 
-const profileKey = "rich-ai-chat:profile";
-let memoryProfile = "";
-
-function readProfile() {
-  try {
-    let id = localStorage.getItem(profileKey) ?? "";
-    if (!/^[A-Za-z0-9_-]{16,64}$/.test(id)) {
-      id = crypto.randomUUID();
-      localStorage.setItem(profileKey, id);
-    }
-    return id;
-  } catch {
-    memoryProfile ||= crypto.randomUUID();
-    return memoryProfile;
-  }
-}
 const noSubscribe = () => () => {};
 
 type Snapshot = { chat: string | null; plan: Plan | null; jobs: JobView[] };
@@ -116,7 +101,8 @@ export function TasksPanel() {
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    if (profile) document.cookie = `rich_chat_profile=${profile}; path=/; max-age=31536000; SameSite=Strict`;
+    // Earlier versions kept the profile in a cookie, which every port on this host can read; remove it.
+    if (profile) document.cookie = "rich_chat_profile=; path=/; max-age=0; SameSite=Strict";
   }, [profile]);
 
   const load = useCallback(() => {
