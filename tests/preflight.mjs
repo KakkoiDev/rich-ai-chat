@@ -338,3 +338,15 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
     "current weather in Tokyo");
   assert.equal(explicitSearchQuery("Look up."), undefined);
 }
+
+// eval and Function are blocked as calls in code, not when a comment or string mentions them.
+{
+  const { maskCommentsAndStrings } = await import("../src/lib/artifact-checks.ts");
+  const app = (script) => `<html><body><button id="b">+5</button><output id="o">0</output><script>${script}</script></body></html>`;
+  assert.equal(checkArtifact(app("// No eval() or new Function() here.\nlet points = 0;\nb.onclick = () => { points += 5; o.textContent = points; };")), undefined,
+    "A comment that mentions eval is fine");
+  assert.equal(checkArtifact(app("const note = 'eval(x) is blocked';\nb.onclick = () => { o.textContent = note.length; };")), undefined, "So is a string");
+  assert.match(checkArtifact(app("let points = 0;\nb.onclick = () => { points = eval('points + 5'); };")) ?? "", /line 2: the preview blocks eval/);
+  assert.match(checkArtifact(app("const f = new Function('a', 'return a');")) ?? "", /blocks eval and Function/);
+  assert.equal(maskCommentsAndStrings("a /* x\ny */ b 'c'").length, "a /* x\ny */ b 'c'".length, "Masking keeps offsets");
+}

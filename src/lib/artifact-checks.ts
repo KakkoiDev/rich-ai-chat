@@ -35,6 +35,13 @@ function checkDomReceivers(markup: string, scripts: string[]) {
 }
 
 /** Check the preview contract without executing generated code. */
+/** JavaScript with comments and string contents blanked to spaces (newlines kept), so offsets and lines still match. */
+export function maskCommentsAndStrings(source: string) {
+  const blank = (text: string) => text.replace(/[^\n]/g, " ");
+  return source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|(["'`])(?:\\[\s\S]|(?!\1)[^\\])*\1/g,
+    match => /^["'`]/.test(match) ? match[0] + blank(match.slice(1, -1)) + match.at(-1) : blank(match));
+}
+
 export function checkArtifact(document: string): string | undefined {
   const scripts = [...document.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
   if (scripts.length !== (document.match(/<script\b/gi)?.length ?? 0))
@@ -46,8 +53,9 @@ export function checkArtifact(document: string): string | undefined {
   for (const [i, [, attributes, source]] of scripts.entries()) {
     if (/\bsrc\s*=/i.test(attributes)) return `Script ${i + 1}: include JavaScript inline; the preview blocks external scripts.`;
     if (/\btype\s*=/i.test(attributes) && !/\btype\s*=\s*["']?(?:text|application)\/javascript/i.test(attributes)) continue;
-    // Catch common direct uses that the preview's CSP rejects at runtime.
-    const dynamic = /\b(?:eval|Function)\s*\(/.exec(source);
+    // Catch common direct uses that the preview's CSP rejects at runtime, in code only: a comment or string that
+    // mentions eval() is not a call.
+    const dynamic = /\b(?:eval|Function)\s*\(/.exec(maskCommentsAndStrings(source));
     if (dynamic) {
       const line = source.slice(0, dynamic.index).split("\n").length;
       return `Script ${i + 1}, line ${line}: the preview blocks eval and Function. Implement the behavior directly.`;
