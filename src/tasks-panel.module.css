@@ -1,7 +1,9 @@
+/* A tab on the right edge: clear of the thread header's actions at the top and of the composer at the bottom. */
 .toggle {
-  position: fixed; top: 10px; right: 12px; z-index: 40; display: inline-flex; align-items: center; gap: 6px;
-  min-height: 36px; padding: 0 12px; font: inherit; cursor: pointer; border-radius: 999px;
+  position: fixed; top: 38vh; right: 0; z-index: 40; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 10px 0 14px; font: inherit; cursor: pointer; border-radius: 999px 0 0 999px;
   color: var(--openui-text-neutral-primary, CanvasText); background: var(--openui-background, Canvas); border: 1px solid #8886;
+  border-right: 0; box-shadow: -2px 2px 8px #0001;
 }
 .badge { min-width: 1.4em; padding: 0 5px; border-radius: 999px; font-size: .8em; text-align: center; background: #8883; }
 .panel {
