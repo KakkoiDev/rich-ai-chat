@@ -48,3 +48,28 @@ Then the summary has the score and its Wilson interval, and the state is above-t
 Given a plan of six tasks, a concurrency of three and two tasks sharing one exclusive group
 When the runner finishes
 Then no more than three tasks ran at once, the two grouped tasks never overlapped and all checkpoints were written
+
+### Scenario: seeded prompts vary between keys and repeat for the same key
+Given a prompt builder that picks words with a seeded generator
+When it builds prompts for twenty rounds and two subjects, then again for the same keys
+Then the prompts differ across keys, the same key gives the same prompt, and picked words never repeat within one prompt
+
+### Scenario: a report summarises each subject's cases, timings and failures
+Given a finished streak whose tasks report their cases, one of them failing with a detail
+When the report command reads the run folder
+Then it prints the state, the checks, each subject's passed cases and median and slowest time, and the failing case with its detail, and the JSON form holds the same
+
+### Scenario: freezing copies one committed revision and refuses to overwrite
+Given a git repository with a committed revision, an uncommitted edit and a dependency folder
+When the revision is frozen into a new folder, and again into the same folder
+Then the folder holds the committed files without the edit, a copy of the dependencies and a FROZEN.json naming the revision, and the second freeze is refused
+
+### Scenario: a detached run outlives its launcher and is watched to the end
+Given a frozen consumer whose benchmark takes a few tasks
+When a short-lived launcher starts it detached and exits, and the watch command waits on its folder
+Then the run finishes on its own, the watch command reports its final state and exits with the run's exit code, and its output went to the log files
+
+### Scenario: a detached run can be stopped
+Given a detached run whose task waits until it is stopped
+When the stop command targets it
+Then the run ends as interrupted and leaves no lock behind

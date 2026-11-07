@@ -60,3 +60,26 @@ The matrix runs on test-core's pinned benchmark runner (`test-core/bench`; the p
 Failed and interrupted reports are kept. `EVAL_RESUME=1` continues an interrupted run in the same directory without repeating finished tasks. It refuses if a frozen file, the plan or the revision changed. A run fails as `secret-leak` if a configured API key appears anywhere in its reports. `EVAL_REQUIRED` and `EVAL_REGRESSION` (default 10 and 1) shorten a run for parity and focused checks. Only the full 10 + 1 run counts toward a release, whatever its final state is called.
 
 The features runner saves each failing reply's Activity events (ids, timings, statuses and the app's own check messages) in the report. To read the drafts a model produced, start the benchmark server with `RICH_CHAT_DEBUG_CAPTURE=1` and a `RICH_CHAT_LOG_DIR`: rejected drafts are appended to `debug-drafts.jsonl` there. Use it only for synthetic benchmark runs, never on a server people use.
+
+## Starting a release streak
+
+One command does what the [benchmark plan](../../docs/BENCHMARK-PLAN.md) requires, using test-core's bench toolkit
+(`test-core/bench`, [its method](../../test-core/bench/README.md)):
+
+```sh
+node tests/eval/release.mjs --revision HEAD --note "why this run"
+node test-core/bench/cli.mjs watch "$(cat ~/Library/Application\ Support/Rich\ AI\ Chat\ Benchmarks/latest.txt)"
+```
+
+1. It refuses while another benchmark is still running.
+2. It freezes the commit into `builds/<sha>`: committed files only, `node_modules` as clones, and a link to the
+   Playwright folder (`RICH_CHAT_BENCH_MODULES`, default `<root>/bench-modules`).
+3. It builds there.
+4. It runs the deterministic checks on that build: Activity against a stub model, then full screen and export.
+5. It launches the matrix as a launchd job that survives this process and the desktop app.
+
+The job gets settings only. Secrets stay in the env file (`RICH_CHAT_ENV_FILE`), which the run reads itself. Rejected
+drafts are captured for diagnosis, because benchmark prompts are synthetic. `--no-launch` stops after the checks.
+
+`node test-core/bench/cli.mjs report <folder>` shows each model's cases, median and slowest times, and failures with
+their details at any point. `stop <folder>` ends a run as interrupted.

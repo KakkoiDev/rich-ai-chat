@@ -62,7 +62,8 @@ async function evaluate(model, round, taskDir, signal) {
       const passed = result?.cases.filter(test => test.status === 'pass').length ?? 0;
       const perfect = code === 0 && result?.model === model && result.appRevision === EVAL_REVISION &&
         result.cases.length === expected && passed === expected;
-      results.push({ suite, passed, expected, perfect, report: result ? path.relative(directory, file) : null });
+      results.push({ suite, passed, expected, perfect, report: result ? path.relative(directory, file) : null,
+        cases: (result?.cases ?? []).map(c => ({ id: `${suite}/${c.id}`, status: c.status, seconds: c.seconds, ...(c.detail ? { detail: c.detail } : {}) })) });
     }
   } finally {
     if (server.exitCode === null && server.signalCode === null) {
@@ -96,7 +97,10 @@ async function evaluate(model, round, taskDir, signal) {
       const results = await evaluate(task.model, task.round, taskDir, signal);
       const passed = results.reduce((sum, suite) => sum + suite.passed, 0);
       const expected = suites.reduce((sum, [, , count]) => sum + count, 0);
-      return { ok: results.length === suites.length && results.every(suite => suite.perfect), checks: { passed, expected }, suites: results };
+      // `cases` lets test-core's report show each model's cases, timings and failures.
+      return { ok: results.length === suites.length && results.every(suite => suite.perfect), checks: { passed, expected },
+        suites: results.map(s => ({ suite: s.suite, passed: s.passed, expected: s.expected, perfect: s.perfect, report: s.report })),
+        cases: results.flatMap(suite => suite.cases) };
     },
   });
   // A short summary under the historical name for tools and notes that read matrix.json.
