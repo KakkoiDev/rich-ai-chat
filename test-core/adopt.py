@@ -12,6 +12,8 @@ Writes into TARGET_REPO:
                             the generated test blocks (blocks/python, blocks/js, blocks/vocabulary.json), spec.json
   test-core/recording/      privacy-first action recorder (recorder.mjs) and its Python boundary (flows.py)
   test-core/bench/          the frozen, resumable benchmark runner (bench.mjs) and its scenarios
+  test-core/pwa/            PWA checks for Playwright: service worker control, CacheStorage, offline reload,
+                            Chromium installability (pwa.mjs, pwa.py; recipe pwa-offline)
   test-core/package.json    {"type": "module"}: the JavaScript files are ES modules whatever the project uses
   test-core/MANIFEST.json   the commit and every copied file's sha256 (what --verify checks)
   test-core/adopt.py        this script, for --verify
@@ -47,7 +49,7 @@ def library_files() -> dict[str, Path]:
     for path in sorted((ROOT / "functional").rglob("*")):
         if path.is_file() and "__pycache__" not in path.parts and path.suffix in (".py", ".js", ".json", ".md"):
             files[f"functional/{path.relative_to(ROOT / 'functional').as_posix()}"] = path
-    for folder in ("recording", "bench"):
+    for folder in ("recording", "bench", "pwa"):
         for path in sorted((ROOT / folder).rglob("*")):
             if path.is_file() and "__pycache__" not in path.parts and path.suffix in (".py", ".mjs", ".md"):
                 files[f"{folder}/{path.relative_to(ROOT / folder).as_posix()}"] = path
@@ -72,7 +74,7 @@ def sha256(data: bytes) -> str:
 def commit() -> str:
     try:
         sha = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-        dirty = subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain", "--", "tools", "functional", "recording", "bench", "adopt"],
+        dirty = subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain", "--", "tools", "functional", "recording", "bench", "pwa", "adopt"],
                                capture_output=True, text=True, check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
