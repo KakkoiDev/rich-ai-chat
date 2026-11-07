@@ -178,7 +178,7 @@ Per slice, answered correctly out of answered (abstained in brackets):
 
 - **All four wrong answers were `layout` requests.** Two became `app` and two became `text`. Laya rarely answers for `table`, `sources` and `layout`.
 - **Time:** a round trip through the sidecar takes a median of 5 ms (95th percentile 7 ms) once the model is loaded.
-- **Decision:** the held-out rate is exactly the owner's 95% bar, so the gate is on by default, with `RICH_CHAT_LAYA_GATE=0` to turn it off. 40 answered requests is a small sample (a 95% interval of roughly 83–99%), and sliced prompts have not been through a model streak.
+- **Decision:** the held-out rate is exactly the owner's 95% bar, so the classifier clears the bar. The gate still ships off (`RICH_CHAT_LAYA_GATE=1` turns it on) until the M3 streak runs the small Gemma models with it on, because no model has answered with the sliced prompts yet. 40 answered requests is a small sample (a 95% interval of roughly 83–99%), and sliced prompts have not been through a model streak.
 
 Prompt size per slice. Tokens are counted with Laya's tokenizer, which is mmBERT's Gemma tokenizer and close to what Gemma 4 sees:
 

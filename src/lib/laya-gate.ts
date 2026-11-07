@@ -167,9 +167,11 @@ export function layaSidecarLaunch(env: NodeJS.ProcessEnv = process.env, root = p
 /**
  * Whether the gate runs. RICH_CHAT_LAYA_GATE=1 turns it on, 0 off; otherwise `layaGateEnabledByDefault`. The owner's
  * rule: on by default only if Laya's accuracy on the questions it answers is at least 95%. Measured 2026-11-08 on the
- * synthetic sets (docs/BENCHMARK-PLAN.md): 97.8% on the development set, 95.0% on the held-out set.
+ * synthetic sets (docs/BENCHMARK-PLAN.md): 97.8% on the development set, 95.0% on the held-out set. That clears the
+ * classifier, but no model has answered with the sliced prompts yet, so it stays off until the M3 release streak passes
+ * with it on (the benchmark rule: nothing reaches people before its streak).
  */
-export const layaGateEnabledByDefault = true;
+export const layaGateEnabledByDefault = false;
 export function layaGateEnabled(env: NodeJS.ProcessEnv = process.env) {
   const flag = env.RICH_CHAT_LAYA_GATE;
   return flag === "1" ? true : flag === "0" ? false : layaGateEnabledByDefault;

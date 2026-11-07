@@ -185,7 +185,7 @@ Differences from the plan:
 
 ### M3 — OpenUI reachability, actions and gallery
 
-**Status (2026-11-08):** the Laya slice gate and the prompt slices are built on branch `laya-gate`, **on by default** (`RICH_CHAT_LAYA_GATE=0` turns it off). The rest of M3 (`onAction`, gallery, chat-library additions) is not started.
+**Status (2026-11-08):** the Laya slice gate and the prompt slices are built, and **off by default until the M3 streak passes with it on** (`RICH_CHAT_LAYA_GATE=1` turns it on). The rest of M3 (`onAction`, gallery, chat-library additions) is not started.
 - **Measured** on synthetic English and Japanese requests (details in [BENCHMARK-PLAN.md](BENCHMARK-PLAN.md#laya-slice-gate-measurement-2026-11-08)):
   - Development set: 176 requests, 97.8% correct on the 90 it answered.
   - Held-out set: 80 requests, 95.0% correct on the 40 it answered.
