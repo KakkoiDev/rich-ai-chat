@@ -1,6 +1,6 @@
 {
   "test-core": "https://github.com/KakkoiDev/test-core",
-  "commit": "13f517d07c786f2a9f3881f7df0432c5a25ba3db",
+  "commit": "0ff7b1dc77a9dd4ae4caeac465aaf6dcf29b0b80",
   "files": {
     "adopt.py": "a1b15b1e2b0c5707b912cbbca2d20c4c1fc6bf4310fc74319b5dbba4aca7a2c8",
     "bench/README.md": "bd0acddfd395845b7e36c27eb6ca84b934776ad6b6cec5513cb3de432d8a1ee9",

@@ -43,6 +43,33 @@ try {
   assert.equal(requests, 2);
   globalThis.fetch = async () => new Response("limited", { status: 429, headers: { "Retry-After": "60" } });
   assert.equal(await (await braveSearch("web", "public topic", "unused", new AbortController().signal)).text(), "limited");
+
+  // A hung first attempt is overtaken by the hedge, and the loser is cancelled.
+  const hang = (signal) => new Promise((_, reject) => signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true }));
+  let started = 0;
+  let cancelled = 0;
+  globalThis.fetch = async (_url, init) => {
+    if (++started === 1) {
+      init.signal.addEventListener("abort", () => cancelled++, { once: true });
+      return hang(init.signal);
+    }
+    return new Response("hedged");
+  };
+  const fast = { hedgeAfterMs: [20, 60], budgetMs: 2000 };
+  assert.equal(await (await braveSearch("web", "public topic", "unused", new AbortController().signal, fast)).text(), "hedged");
+  assert.equal(started, 2, "One hedge was enough");
+  assert.equal(cancelled, 1, "The hung attempt was cancelled");
+
+  // When every attempt hangs, the search fails at its budget instead of hanging.
+  started = 0;
+  globalThis.fetch = async (_url, init) => { started++; return hang(init.signal); };
+  const begun = performance.now();
+  // A server always holds the event loop open; AbortSignal.timeout alone does not, so hold it here.
+  const alive = setInterval(() => {}, 1000);
+  await assert.rejects(braveSearch("web", "public topic", "unused", new AbortController().signal, { hedgeAfterMs: [20, 40], budgetMs: 150 }))
+    .finally(() => clearInterval(alive));
+  assert.ok(performance.now() - begun < 1000, "Failed within its budget");
+  assert.equal(started, 3, "Three attempts at most");
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -225,3 +252,147 @@ for (const [label, operation, operand, expected] of [
 }
 assert.equal(addCalculatorAction(calculatorSource, "Bad divisor", "divide", 0), undefined);
 assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), undefined);
+
+// Exported apps: the preview's policy, no monitor, the engine only with its marker, stable bytes and safe names.
+{
+  const { artifactPolicy, exportArtifact, exportFilename } = await import("../src/lib/artifact-export.ts");
+  const { createHash } = await import("node:crypto");
+  const app = "<html><body><button id='b'>0</button><script>b.onclick=()=>b.textContent=+b.textContent+1</script></body></html>";
+  const exported = exportArtifact({ title: "Counter", document: app });
+  assert.ok(exported.startsWith("<!doctype html>\n"), "Export is a standalone document");
+  assert.ok(exported.includes(`content="${artifactPolicy}"`), "Export keeps the preview's content policy");
+  assert.ok(exported.includes("<title>Counter</title>") && exported.includes(app), "Export adds a title and keeps the source");
+  assert.ok(!exported.includes("rich-chat-preview") && !exported.includes("postMessage"), "Export leaves out the preview monitor");
+  assert.ok(!/littlejs/i.test(exported), "No engine without the marker");
+  assert.equal(exportArtifact({ title: "Counter", document: app }), exported, "Same app, same bytes");
+  assert.ok(!exportArtifact({ title: "X", document: "<title>Own</title><p>x</p>" }).includes("<title>X</title>"), "An app's own title wins");
+  assert.ok(exportArtifact({ title: "<b>&\"", document: "<p>x</p>" }).includes("<title>&lt;b&gt;&amp;&quot;</title>"), "Title is escaped");
+  assert.ok(exportArtifact({ title: "x", document: "<button onclick=\\\"go()\\\">Go</button>" }).includes('<button onclick="go()">Go</button>'),
+    "Export applies the preview's source clean-up");
+
+  const engine = readFileSync(new URL("../public/vendor/littlejs-1.27.0.min.js", import.meta.url), "utf8");
+  const license = readFileSync(new URL("../public/vendor/LICENSE.littlejs", import.meta.url), "utf8");
+  const slingshot = readFileSync(new URL("../src/starters/slingshot.html", import.meta.url), "utf8");
+  const game = exportArtifact({ title: "Slingshot", document: slingshot, engine, engineLicense: license });
+  assert.ok(game.includes("Frank Force") && game.includes("MIT License"), "Engine export carries its licence");
+  assert.equal((game.match(/<\/script/gi) ?? []).length, (slingshot.match(/<\/script/gi) ?? []).length + 1, "Inlined engine cannot close its script tag early");
+  assert.throws(() => exportArtifact({ title: "Slingshot", document: slingshot }), /LittleJS/, "Engine apps need the engine");
+
+  const digest = createHash("sha256").update(exported).digest("hex");
+  assert.equal(exportFilename("Tip calculator", digest), `tip-calculator-${digest.slice(0, 8)}.html`);
+  assert.equal(exportFilename("計算機 v2", digest), `計算機-v2-${digest.slice(0, 8)}.html`);
+  assert.equal(exportFilename("../../etc/passwd", digest), `etc-passwd-${digest.slice(0, 8)}.html`, "No path parts in names");
+  assert.equal(exportFilename("!!!", digest), `app-${digest.slice(0, 8)}.html`);
+}
+
+// Features-suite prompts: varied per round and model, always on the general build path (no tested layout or starter).
+{
+  const { createRequire } = await import("node:module");
+  const { featurePrompt, caseIds } = createRequire(import.meta.url)("./eval/features/prompts.cjs");
+  const { basicRecipe } = await import("../src/lib/basic-recipes.ts");
+  const { isSequenceGame, wantsShuffleBag } = await import("../src/lib/artifact-build.ts");
+  const models = ["deepseek-flash", "gpt-oss:20b", "gemma4:12b-mlx", "gemma4:e4b-mlx", "gemma4:e2b-mlx"];
+  for (const id of caseIds) {
+    const prompts = new Set();
+    for (let round = 1; round <= 20; round++) for (const model of models) {
+      const spec = featurePrompt(id, round, model);
+      assert.deepEqual(featurePrompt(id, round, model), spec, "Same key, same prompt");
+      for (const request of [spec.prompt, spec.revision].filter(Boolean)) {
+        assert.ok(!basicRecipe(request) && !basicKeypadSpec(request) && !basicTakeAwaySpec(request) && !basicExpenseSpec(request)
+          && !isSequenceGame(request) && !wantsShuffleBag(request), `Outside the tested layouts: ${request}`);
+      }
+      if (id.startsWith("export-")) assert.ok(artifactBuildGuide(spec.prompt), `Takes the app build path: ${spec.prompt}`);
+      else assert.ok(!artifactBuildGuide(spec.prompt) && !chartFromTable(spec.prompt, []) && !inlineSumTable(spec.prompt), `Takes the chat path: ${spec.prompt}`);
+      prompts.add(spec.prompt);
+    }
+    assert.ok(prompts.size >= 40, `${id} varies its prompts (${prompts.size} distinct)`);
+  }
+}
+
+// A revision that adds the requested button under another wording keeps its behavior and gets the requested label;
+// anything ambiguous is left for the normal rejection.
+{
+  const { relabelNewButton } = await import("../src/lib/artifact-edits.ts");
+  const original = '<output id="result"></output><button id="add">+2</button><button id="reset">Reset</button><script>/* app */</script>';
+  const draft = '<output id="result"></output><button id="add">+2</button><button id="minus" aria-label="-1">-1</button><button id="reset">Reset</button><script>/* app */</script>';
+  const fixed = relabelNewButton(original, draft, ["Minus 1"]);
+  assert.equal(fixed, draft.replace('<button id="minus" aria-label="-1">-1</button>', '<button id="minus">Minus 1</button>'), "The new button gets the requested label");
+  assert.equal(checkArtifactRequest(fixed, 'Add a button labeled "Minus 1" that subtracts 1 point.'), undefined);
+  assert.equal(relabelNewButton(original, draft.replace("</script>", "</script>").replace('<button id="reset">', '<button id="x">Undo</button><button id="reset">'), ["Minus 1"]), undefined,
+    "Two new buttons: no guess");
+  assert.equal(relabelNewButton(original, original, ["Minus 1"]), undefined, "No new button: nothing to relabel");
+  assert.equal(relabelNewButton(original, draft, ["Minus 1", "Plus 5"]), undefined, "Two missing labels: no guess");
+  assert.equal(relabelNewButton(original, draft.replace(">-1<", ">Minus 1<"), ["Minus 1"]), undefined, "Nothing missing: nothing to do");
+  assert.ok(!relabelNewButton(original, draft, ["<b>&"])?.includes("<b>&<"), "The label is escaped");
+}
+
+// Markup that stopped before its script is closed cleanly before the script is requested separately.
+{
+  const { closeMarkup } = await import("../src/lib/artifact-edits.ts");
+  const draft = '<output id="result"></output><button id="crowButton">Crow</button><button id="resetButton">Reset all</script>';
+  assert.equal(closeMarkup(draft), '<output id="result"></output><button id="crowButton">Crow</button><button id="resetButton">Reset all</button>');
+  assert.equal(closeMarkup('<div><p>A<br><input id="x"><button>Go'), '<div><p>A<br><input id="x"><button>Go</button></p></div>', "Innermost first; void elements stay open");
+  assert.equal(closeMarkup("<main><button>Ok</button></main>"), "<main><button>Ok</button></main>", "Complete markup is unchanged");
+}
+
+// Unclosed buttons are closed before the script; complete markup is untouched.
+{
+  const { closeButtons } = await import("../src/lib/artifact-edits.ts");
+  const draft = '<output id="r"></output><button id="a">Robin</button><button id="reset">Reset all</br><script>var x = 1;</script>';
+  assert.equal(closeButtons(draft), '<output id="r"></output><button id="a">Robin</button><button id="reset">Reset all</button><script>var x = 1;</script>');
+  assert.equal(checkArtifactRequest(closeButtons(draft), 'Add a button labeled "Reset all" that sets every count back to zero.'), undefined);
+  assert.equal(closeButtons('<button>One<button>Two</button>'), '<button>One</button><button>Two</button>');
+  const complete = '<div><button><span>Go</span></button></div><script>1</script>';
+  assert.equal(closeButtons(complete), complete, "Complete markup is unchanged");
+}
+
+// A requested label quoted as an id does not count as a button; a label on a button made in the script does.
+{
+  const request = 'Add a button labeled "Penalty" that subtracts 4 points.';
+  const markupOnly = "<button id='add'>+5</button><button id='minus'>-4</button><script>const penalty = document.getElementById('Penalty');</script>";
+  assert.match(checkArtifactRequest(markupOnly, request) ?? "", /exact labels: "Penalty"/);
+  const scripted = "<div id='row'></div><script>const b = document.createElement('button'); b.textContent = 'Penalty'; row.append(b);</script>";
+  assert.equal(checkArtifactRequest(scripted, request), undefined);
+}
+
+// An explicit search request becomes a short query without its search verb or its request for sources.
+{
+  const { explicitSearchQuery } = await import("../src/lib/local-tools.ts");
+  assert.equal(explicitSearchQuery("Look up the year the Eiffel Tower opened, and cite your source."), "the year the Eiffel Tower opened");
+  assert.equal(explicitSearchQuery("Search the web for when Tokyo Skytree was completed and include a source link."), "when Tokyo Skytree was completed");
+  assert.equal(explicitSearchQuery("Please search online for the Shard in London opening year"), "the Shard in London opening year");
+  assert.equal(explicitSearchQuery("Search the web for current weather in Tokyo. Include a source link, or say if the search did not return usable data."),
+    "current weather in Tokyo");
+  assert.equal(explicitSearchQuery("Look up."), undefined);
+}
+
+// eval and Function are blocked as calls in code, not when a comment or string mentions them.
+{
+  const { maskCommentsAndStrings } = await import("../src/lib/artifact-checks.ts");
+  const app = (script) => `<html><body><button id="b">+5</button><output id="o">0</output><script>${script}</script></body></html>`;
+  assert.equal(checkArtifact(app("// No eval() or new Function() here.\nlet points = 0;\nb.onclick = () => { points += 5; o.textContent = points; };")), undefined,
+    "A comment that mentions eval is fine");
+  assert.equal(checkArtifact(app("const note = 'eval(x) is blocked';\nb.onclick = () => { o.textContent = note.length; };")), undefined, "So is a string");
+  assert.match(checkArtifact(app("let points = 0;\nb.onclick = () => { points = eval('points + 5'); };")) ?? "", /line 2: the preview blocks eval/);
+  assert.match(checkArtifact(app("const f = new Function('a', 'return a');")) ?? "", /blocks eval and Function/);
+  assert.equal(maskCommentsAndStrings("a /* x\ny */ b 'c'").length, "a /* x\ny */ b 'c'".length, "Masking keeps offsets");
+}
+
+// A note after </html> (GPT-OSS traces a click there, as its instructions ask) does not make a complete app incomplete.
+{
+  const page = '<html><head><title>Sequence Puzzle</title></head><body><button id="r">Red</button><script>r.onclick = () => {};</script></body></html>';
+  const traced = page + '\n\n<!-- Trace of a click through the handler: 1. User clicks "Red". 2. choose("Red") is called. -->\n';
+  assert.equal(readArtifact(traced).document, page);
+  assert.equal(readArtifact("<!-- draft -->\n" + page).document, page, "A leading note is dropped too");
+  assert.match(readArtifact(page + "\n<p>stray</p>").error ?? "", /complete HTML/, "Content after </html> is still rejected");
+}
+
+// Every label in a quoted list is required, so an app missing some of them is sent back with their names.
+{
+  const request = 'Make a tally counter app. Add buttons labeled "Piano", "Trumpet", "Drums"; each adds one. Add a button labeled "Reset all".';
+  assert.deepEqual(artifactButtonLabels(request), ["Piano", "Trumpet", "Drums", "Reset all"]);
+  assert.deepEqual(artifactButtonLabels('Buttons labeled "Red", "Green" and "Blue" pick a colour.'), ["Red", "Green", "Blue"]);
+  assert.deepEqual(artifactButtonLabels("Add buttons labeled 'Yes' or 'No'."), ["Yes", "No"]);
+  const partial = '<button id="p">Piano</button><button id="r">Reset all</button><output id="o">0</output><script>p.onclick = () => {};</script>';
+  assert.match(checkArtifactRequest(partial, request) ?? "", /exact labels: "Trumpet", "Drums"/);
+}

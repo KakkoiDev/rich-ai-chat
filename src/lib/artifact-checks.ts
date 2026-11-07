@@ -35,6 +35,13 @@ function checkDomReceivers(markup: string, scripts: string[]) {
 }
 
 /** Check the preview contract without executing generated code. */
+/** JavaScript with comments and string contents blanked to spaces (newlines kept), so offsets and lines still match. */
+export function maskCommentsAndStrings(source: string) {
+  const blank = (text: string) => text.replace(/[^\n]/g, " ");
+  return source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|(["'`])(?:\\[\s\S]|(?!\1)[^\\])*\1/g,
+    match => /^["'`]/.test(match) ? match[0] + blank(match.slice(1, -1)) + match.at(-1) : blank(match));
+}
+
 export function checkArtifact(document: string): string | undefined {
   const scripts = [...document.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
   if (scripts.length !== (document.match(/<script\b/gi)?.length ?? 0))
@@ -46,8 +53,9 @@ export function checkArtifact(document: string): string | undefined {
   for (const [i, [, attributes, source]] of scripts.entries()) {
     if (/\bsrc\s*=/i.test(attributes)) return `Script ${i + 1}: include JavaScript inline; the preview blocks external scripts.`;
     if (/\btype\s*=/i.test(attributes) && !/\btype\s*=\s*["']?(?:text|application)\/javascript/i.test(attributes)) continue;
-    // Catch common direct uses that the preview's CSP rejects at runtime.
-    const dynamic = /\b(?:eval|Function)\s*\(/.exec(source);
+    // Catch common direct uses that the preview's CSP rejects at runtime, in code only: a comment or string that
+    // mentions eval() is not a call.
+    const dynamic = /\b(?:eval|Function)\s*\(/.exec(maskCommentsAndStrings(source));
     if (dynamic) {
       const line = source.slice(0, dynamic.index).split("\n").length;
       return `Script ${i + 1}, line ${line}: the preview blocks eval and Function. Implement the behavior directly.`;
@@ -68,7 +76,9 @@ export function checkArtifact(document: string): string | undefined {
 
 /** Extract a single HTML document; serialization into OpenUI is the host's job. */
 export function readArtifact(text: string, allowFragment = false) {
-  let document = text.trim().replace(/^```(?:html)?\s*([\s\S]*?)\s*```$/i, "$1").trim();
+  let document = text.trim().replace(/^```(?:html)?\s*([\s\S]*?)\s*```$/i, "$1").trim()
+    // Comments outside the document are never part of the app: models add notes such as a traced click there.
+    .replace(/^(?:<!--[\s\S]*?-->\s*)+/, "").replace(/(<\/html>)\s*(?:<!--[\s\S]*?-->\s*)+$/i, "$1");
   if (allowFragment) {
     // Recover one unambiguous HTML code block even if the model added an explanation.
     const blocks = [...document.matchAll(/^```html\s*\n([\s\S]*?)^```[ \t]*$/gim)];
@@ -95,12 +105,17 @@ export function checkArtifactRequest(document: string, request: string): string 
     && !/createElement\(\s*["']output["']\s*\)/i.test(document)) {
     return "The request explicitly requires an HTML <output> element. Use it for the requested visible value.";
   }
-  const buttons = [...document.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button\s*>/gi)]
-    .map(([, label]) => label.replace(/<[^>]*>/g, "").trim());
+  // A button's name is its aria-label when it has one, else its text.
+  const buttons = [...document.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button\s*>/gi)]
+    .map(([, attrs, label]) => /\baria-label\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs)?.slice(1).find(v => v !== undefined)?.trim()
+      ?? label.replace(/<[^>]*>/g, "").trim());
   const named = artifactButtonLabels(request);
   // Also accept labels present as string literals for controls created in JavaScript.
   const literal = (label: string) => ['"', "'", "`"].some(quote => document.includes(quote + label + quote));
-  const missing = named.filter(label => !buttons.includes(label) && !literal(label));
+  // A quoted label stands in for a button only when the script makes buttons; an id or variable named like the
+  // label is not a button.
+  const scriptButtons = /createElement\(\s*["'`]button["'`]\s*\)|innerHTML\s*[+]?=/i.test(document);
+  const missing = named.filter(label => !buttons.includes(label) && !(scriptButtons && literal(label)));
   if (missing.length) return "Add buttons with these exact labels: " + missing.map(label => JSON.stringify(label)).join(", ") + ".";
   if (/<(?:input|select|textarea)\b/i.test(document)) {
     const labels = [...document.matchAll(/<label\b([^>]*)>([\s\S]*?)<\/label\s*>/gi)];
@@ -146,9 +161,10 @@ export function artifactButtonLabels(request: string) {
   // Only lift literal-looking labels from explicit control requests, not descriptions of behavior.
   for (const match of request.matchAll(/\b(?:label the button|buttons? labell?ed)\s+/gi)) {
     const rest = request.slice(match.index + match[0].length);
-    const quoted = /^(?:"([^"\r\n]{1,40})"|'([^'\r\n]{1,40})')/.exec(rest);
-    if (quoted) {
-      names.add(quoted[1] ?? quoted[2]);
+    // A list of quoted labels: "Piano", "Trumpet" and "Drums" (commas, "and", "or").
+    const list = /^(?:"[^"\r\n]{1,40}"|'[^'\r\n]{1,40}')(?:\s*(?:,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+)(?:"[^"\r\n]{1,40}"|'[^'\r\n]{1,40}'))*/.exec(rest);
+    if (list) {
+      for (const [, double, single] of list[0].matchAll(/"([^"\r\n]{1,40})"|'([^'\r\n]{1,40})'/g)) names.add(double ?? single);
       continue;
     }
     const phrase = rest.split(/[.,;!?\r\n]|\s+(?:that|which|to|remove|add|show|displays?|opens?)\b|\s+and\s+(?=[a-z])/)[0].trim();

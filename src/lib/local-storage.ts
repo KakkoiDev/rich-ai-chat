@@ -6,6 +6,7 @@ import {
   type Thread,
   type UserMessage,
 } from "@openuidev/react-headless";
+import { activityStore, collectActivity } from "@/lib/activity-store";
 
 export function localStorageChat(
   llm: ChatLLM,
@@ -34,7 +35,12 @@ export function localStorageChat(
     const response = await llm.send(params);
     if (!response.ok || !response.body) return response;
 
-    const [forChat, forStorage] = response.body.tee();
+    const [forChat, rest] = response.body.tee();
+    const [forStorage, forActivity] = rest.tee();
+    // Activity rides beside the reply; it is keyed by the user message that started this request.
+    const asked = params.messages.at(-1);
+    if (asked?.role === "user") void collectActivity(forActivity, params.threadId, asked.id, params.signal);
+    else void forActivity.cancel();
     const reply = new Map<string, Message>();
     const keep = (message: Message) => reply.set(message.id, message);
     processStreamedMessage({
@@ -86,6 +92,7 @@ export function localStorageChat(
           try {
             localStorage.removeItem(messagesKey(id));
           } catch {}
+          await activityStore.deleteThread(id);
         },
       },
     },

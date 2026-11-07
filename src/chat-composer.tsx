@@ -6,6 +6,7 @@ import { Button, IconButton, ModelSwitcher } from "@openuidev/react-ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { chatFileExtensions, chatFileMime, decodeChatText, isChatFilename, maxChatFileBytes, maxChatFiles } from "@/lib/chat-files";
 import { VoiceControl } from "@/voice-composer";
+import { ReplyActivity } from "@/reply-activity";
 
 type Attachment = BinaryInputContent & { data: string; filename: string };
 type Starter = { displayText: string; prompt: string };
@@ -25,6 +26,7 @@ export function ChatUserMessage({ message }: { message: UserMessage }) {
       {!!files.length && <ul className="chat-files">{files.map((file, i) => <li key={i}>{file.filename || "Attachment"}</li>)}</ul>}
       {text && <div className="openui-shell-thread-message-user__content">{text}</div>}
     </div>
+    <ReplyActivity userMessageId={message.id} />
   </div>;
 }
 

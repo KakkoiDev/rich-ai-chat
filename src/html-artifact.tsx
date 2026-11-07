@@ -3,9 +3,9 @@
 import { defineComponent, useIsStreaming, useTriggerAction } from "@openuidev/react-lang";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
+import { artifactPolicy, artifactSource, engineMarker, engineScript, exportArtifact, exportFilename } from "@/lib/artifact-export";
 
-const policy = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'";
-
+// The monitor also relays Escape: key presses inside the opaque-origin frame never reach this page.
 const monitor = `<script>
 (() => {
   const send = parent.postMessage.bind(parent);
@@ -15,29 +15,49 @@ const monitor = `<script>
   }, true);
   addEventListener('unhandledrejection', e => report('error', e.reason?.message || e.reason || 'Unhandled promise rejection'));
   addEventListener('securitypolicyviolation', e => report('blocked', e.violatedDirective));
+  addEventListener('keydown', e => { if (e.key === 'Escape') report('escape'); });
   addEventListener('DOMContentLoaded', () => report('ready'));
 })();
 </script>`;
+
+/** A short, stable fingerprint for file names (FNV-1a); it works where crypto.subtle is unavailable (plain HTTP). */
+function fingerprint(text: string) {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0;
+  return hash.toString(16).padStart(8, "0");
+}
+
+async function fetchText(url: string, signal?: AbortSignal) {
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw Error(url);
+  return response.text();
+}
+
+type Screen = "inline" | "fullscreen" | "full-window";
 
 function Preview({ title, document }: { title: string; document: string }) {
   const [view, setView] = useState<"closed" | "preview" | "source">("closed");
   const [run, setRun] = useState(0);
   const [engine, setEngine] = useState<string>();
   const [engineError, setEngineError] = useState(false);
-  const needsEngine = document.includes("<!-- rich-ai-chat:littlejs -->");
+  const needsEngine = document.includes(engineMarker);
   const [ready, setReady] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [diagnostics, setDiagnostics] = useState<string[]>([]);
   const [feedback, setFeedback] = useState("");
+  const [screen, setScreen] = useState<Screen>("inline");
+  const [saved, setSaved] = useState("");
   const frame = useRef<HTMLIFrameElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const exitButton = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const streaming = useIsStreaming();
   const triggerAction = useTriggerAction();
 
   useEffect(() => {
     if (!needsEngine || view !== "preview") return;
     const controller = new AbortController();
-    fetch("/vendor/littlejs-1.27.0.min.js", { signal: controller.signal })
-      .then(response => { if (!response.ok) throw Error(); return response.text(); })
+    fetchText("/vendor/littlejs-1.27.0.min.js", controller.signal)
       .then(setEngine).catch(() => { if (!controller.signal.aborted) setEngineError(true); });
     return () => controller.abort();
   }, [needsEngine, view]);
@@ -52,6 +72,8 @@ function Preview({ title, document }: { title: string; document: string }) {
       if (data.kind === "ready") {
         window.clearTimeout(timer);
         setReady(true);
+      } else if (data.kind === "escape") {
+        setScreen(current => current === "full-window" ? "inline" : current);
       } else if ((data.kind === "error" || data.kind === "blocked") && typeof data.detail === "string") {
         const line = (data.kind === "blocked" ? "Blocked by preview policy: " : "JavaScript error: ") + data.detail.slice(0, 300);
         setDiagnostics(previous => previous.includes(line) || previous.length >= 5 ? previous : [...previous, line]);
@@ -64,12 +86,33 @@ function Preview({ title, document }: { title: string; document: string }) {
     };
   }, [view, run, needsEngine, engine]);
 
+  // Full screen keeps the same stage element (and so the same iframe and its state); it is restyled, never moved.
+  useEffect(() => {
+    const changed = () => setScreen(globalThis.document.fullscreenElement === stage.current ? "fullscreen" : "inline");
+    globalThis.document.addEventListener("fullscreenchange", changed);
+    return () => globalThis.document.removeEventListener("fullscreenchange", changed);
+  }, []);
+
+  useEffect(() => {
+    const body = globalThis.document.body;
+    body.classList.toggle("artifact-full-window-open", screen === "full-window");
+    if (screen === "inline") {
+      opener.current?.focus();
+      opener.current = null;
+    } else exitButton.current?.focus();
+    if (screen !== "full-window") return;
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setScreen("inline"); };
+    globalThis.document.addEventListener("keydown", escape);
+    return () => {
+      globalThis.document.removeEventListener("keydown", escape);
+      body.classList.remove("artifact-full-window-open");
+    };
+  }, [screen]);
+
   if (streaming) return <p role="status">Generating {title}…</p>;
   if (document.length > 32000) return <p>This artifact is too large to preview. Ask for a smaller version.</p>;
 
-  // Some models emit a line continuation or double-escape inline handler quotes.
-  const previewSource = document.replace(/\\\r?\n/g, "")
-    .replace(/(<[a-z][^<>]*?\s)(on[a-z]+\s*=\s*)\\+"([^"<>]*?)\\+"/gi, '$1$2"$3"');
+  const previewSource = artifactSource(document);
 
   const incomplete = (previewSource.match(/<script\b/gi)?.length ?? 0) > (previewSource.match(/<\/script\s*>/gi)?.length ?? 0);
   const findings = [
@@ -87,6 +130,39 @@ function Preview({ title, document }: { title: string; document: string }) {
     setView("preview");
   }
 
+  async function enterFullScreen() {
+    opener.current = globalThis.document.activeElement as HTMLElement | null;
+    const element = stage.current;
+    if (element && globalThis.document.fullscreenEnabled && element.requestFullscreen) {
+      try { await element.requestFullscreen(); return; } catch { /* refused: fill the window instead */ }
+    }
+    setScreen("full-window");
+  }
+
+  function exitFullScreen() {
+    if (globalThis.document.fullscreenElement) void globalThis.document.exitFullscreen();
+    else setScreen("inline");
+  }
+
+  async function downloadSource() {
+    setSaved("");
+    try {
+      const [engineText, license] = needsEngine
+        ? await Promise.all([engine ?? fetchText("/vendor/littlejs-1.27.0.min.js"), fetchText("/vendor/LICENSE.littlejs")])
+        : [];
+      const html = exportArtifact({ title, document, engine: engineText, engineLicense: license });
+      const name = exportFilename(title, fingerprint(html));
+      const link = globalThis.document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+      link.download = name;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 0);
+      setSaved(`Saved ${name}. It is one HTML file that works offline.`);
+    } catch {
+      setSaved("Could not prepare the download. Try again.");
+    }
+  }
+
   function requestRevision() {
     const note = feedback.trim();
     const context = [
@@ -101,6 +177,8 @@ function Preview({ title, document }: { title: string; document: string }) {
     });
   }
 
+  const running = view === "preview" && !incomplete && (!needsEngine || engine);
+
   return (
     <section className="html-artifact" aria-label={title}>
       <strong>{title}</strong>
@@ -109,22 +187,33 @@ function Preview({ title, document }: { title: string; document: string }) {
           {view === "preview" ? "Restart test" : "Run preview"}
         </button>
         {view === "preview" && <button type="button" onClick={() => setView("closed")}>Stop preview</button>}
+        {running && <button type="button" onClick={() => void enterFullScreen()}>Full screen</button>}
         <button type="button" onClick={() => setView(view === "source" ? "closed" : "source")}>
           {view === "source" ? "Hide source" : "View source"}
         </button>
+        <button type="button" disabled={incomplete} onClick={() => void downloadSource()}>Download source</button>
       </div>
+      <p className="artifact-hint" role="status">{saved}</p>
       {engineError && <p role="status">Could not load the bundled LittleJS engine.</p>}
-      {view === "preview" && !incomplete && (!needsEngine || engine) && (
+      {running && (
         <>
           <p className="artifact-hint">Play-test inside the preview. Click it before using keyboard controls.</p>
-          <iframe
-            key={run}
-            ref={frame}
-            title={title}
-            sandbox="allow-scripts"
-            referrerPolicy="no-referrer"
-            srcDoc={`<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}">${monitor}${needsEngine && engine ? `<script>${engine.replace(/<\/script/gi, "<\\/script")}</script>` : ""}${previewSource}`}
-          />
+          <div ref={stage} className="artifact-stage" data-view={screen}>
+            {screen !== "inline" && (
+              <div className="artifact-stage__bar">
+                <strong>{title}</strong>
+                <button ref={exitButton} type="button" onClick={exitFullScreen}>Exit full screen</button>
+              </div>
+            )}
+            <iframe
+              key={run}
+              ref={frame}
+              title={title}
+              sandbox="allow-scripts"
+              referrerPolicy="no-referrer"
+              srcDoc={`<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${artifactPolicy}">${monitor}${needsEngine && engine ? engineScript(engine) : ""}${previewSource}`}
+            />
+          </div>
         </>
       )}
       {view === "source" && <pre><code>{document}</code></pre>}

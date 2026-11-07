@@ -1,0 +1,99 @@
+"use client";
+
+import { useSyncExternalStore } from "react";
+import type { ActivityEvent, ActivityTool } from "@/lib/activity";
+import { activityStore, type ActivityEntry } from "@/lib/activity-store";
+
+const pathWords: Record<string, string> = {
+  chat: "Answered in chat", "app-build": "Built an app", revision: "Revised the app", "image-search": "Searched for pictures",
+  "video-search": "Searched for videos", clock: "Read the clock", table: "Made a table", chart: "Made a chart",
+  starter: "Opened a tested starter app", "tested-layout": "Used a tested app layout", transform: "Transformed the quoted text",
+};
+const toolWords: Record<ActivityTool, [string, string]> = {
+  web_search: ["Searching the web", "Searched the web"],
+  image_search: ["Searching for pictures", "Searched for pictures"],
+  video_search: ["Searching for videos", "Searched for videos"],
+  current_datetime: ["Reading the clock", "Read the clock"],
+};
+const reasonWords: Record<string, string> = {
+  "stale-opening": "no reply started in time", "stale-answer": "the answer stalled", "stale-tool": "the step after the tool stalled",
+  "provider-interrupted": "the model's connection ended", "repeated-reasoning": "the model kept repeating itself",
+  "check-failed": "the app failed a check", "syntax-error": "the app's script had a syntax error",
+  "incomplete-response": "the reply was incomplete", length: "the model hit its output limit", cancelled: "cancelled",
+  "incomplete-stream": "the reply stream ended early", "stream-error": "the reply stream failed",
+};
+const recoveryWords = {
+  "sources-synthesis": "Answered from the sources already found, without searching again",
+  "sources-only": "Showed the sources found; the answer did not finish",
+  clock: "Answered with the clock reading already taken",
+  media: "Showed the results already found",
+  "requested-search": "Searched the web because you asked; the model had answered without searching",
+};
+const toolNouns: Record<ActivityTool, [string, string]> = {
+  web_search: ["search", "searches"], image_search: ["picture search", "picture searches"],
+  video_search: ["video search", "video searches"], current_datetime: ["clock reading", "clock readings"],
+};
+const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+
+function line(event: ActivityEvent, ended: Set<string>) {
+  switch (event.type) {
+    case "request": return `${pathWords[event.path] ?? "Replied"} · model ${event.model}`;
+    case "attempt-start": return event.attempt > 1 ? `Attempt ${event.attempt} started` : null;
+    case "attempt-end":
+      if (event.outcome === "answer") return null;
+      return `Attempt ${event.attempt} stopped: ${reasonWords[event.reason ?? ""] ?? event.reason ?? "no reason given"}`
+        + (event.outcome === "retry" ? ". Trying again." : ".");
+    case "tool-start": return ended.has(event.toolCallId) ? null : `${toolWords[event.tool][0]}…`;
+    case "tool-end": return event.status === "ok"
+      ? `${toolWords[event.tool][1]} · ${event.summary} · ${seconds(event.elapsedMs)}`
+      : `${toolWords[event.tool][1]}, but it failed: ${event.summary} · ${seconds(event.elapsedMs)}`;
+    case "check": return event.passed ? event.reason || null : `Check failed: ${event.reason ?? "the app did not pass"}`;
+    case "recovery": return recoveryWords[event.method];
+    case "reply": return event.status === "done" ? `Finished in ${seconds(event.ms)}`
+      : event.status === "cancelled" ? "Cancelled" : `Stopped without a complete answer after ${seconds(event.ms)}`;
+  }
+}
+
+function summary(entry: ActivityEntry) {
+  const counts = new Map<ActivityTool, number>();
+  for (const event of entry.events) if (event.type === "tool-end") counts.set(event.tool, (counts.get(event.tool) ?? 0) + 1);
+  const attempts = Math.max(0, ...entry.events.map(event => event.type === "attempt-start" ? event.attempt : 0));
+  const reply = entry.events.find(event => event.type === "reply");
+  const parts = [
+    ...(counts.size ? [...counts].map(([tool, n]) => `${n} ${toolNouns[tool][n === 1 ? 0 : 1]}`) : ["no tools"]),
+    ...(attempts > 1 ? [`${attempts} attempts`] : []),
+    reply ? seconds(reply.ms) : entry.ended === "cancelled" ? "cancelled" : entry.ended ? "interrupted" : "working…",
+  ];
+  return parts.join(" · ");
+}
+
+async function exportLog(threadId: string) {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([await activityStore.exportThread(threadId)], { type: "application/x-ndjson" }));
+  link.download = `chat-activity-${threadId.slice(0, 8)}.jsonl`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(link.href), 0);
+}
+
+/** The collapsed Activity line for the request a user message started; nothing when there is no record. */
+export function ReplyActivity({ userMessageId }: { userMessageId: string }) {
+  const entry = useSyncExternalStore(
+    listener => activityStore.subscribe(userMessageId, listener),
+    () => activityStore.get(userMessageId),
+    () => undefined,
+  );
+  if (!entry) return null;
+  const ended = new Set(entry.events.flatMap(event => event.type === "tool-end" ? [event.toolCallId] : []));
+  const lines = entry.events.map(event => ({ seq: event.seq, text: line(event, ended) })).filter(row => row.text);
+  if (entry.ended && entry.ended !== "done") lines.push({ seq: -1, text: entry.ended === "cancelled" ? "Cancelled" : "The connection ended before the reply finished" });
+  return (
+    <details className="reply-activity">
+      <summary>Activity · {summary(entry)}</summary>
+      <ol aria-label="What happened">
+        {lines.map(row => <li key={row.seq}>{row.text}</li>)}
+      </ol>
+      <p className="reply-activity__note">Reasoning summary: not available for this model.</p>
+      <button type="button" onClick={() => void exportLog(entry.threadId)}>Export this chat&apos;s log</button>
+    </details>
+  );
+}

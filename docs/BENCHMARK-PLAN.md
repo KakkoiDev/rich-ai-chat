@@ -34,6 +34,44 @@ No new cases have been run yet. Results per model for the expanded matrix will b
   - The known gpt-oss tool-choice violation appeared once and was recovered.
   - The run is recorded as `stable-and-regression-passed` because it was configured as 1 round with no regression round. It is a parity check, not a release streak.
 
+### M1 trial round (2026-11-07, uncommitted candidate)
+
+The M1 candidate added full screen, source download and the `features` suite with its first two cases. One trial round (report `reports/m1-trial.202611071827`) passed **145/145**: every model scored 29/29 with an empty error log.
+
+| Model | Checks | `export-novel-app` | `export-after-revision` | Whole task |
+| --- | --- | --- | --- | --- |
+| DeepSeek Flash | 29/29 | 4.0 s | 6.0 s | 68 s |
+| GPT-OSS 20B | 29/29 | 14.3 s | 30.8 s | 189 s |
+| Gemma 4 12B | 29/29 | 17.4 s | 33.4 s | 159 s |
+| Gemma 4 E4B | 29/29 | 5.9 s | 9.6 s | 66 s |
+| Gemma 4 E2B | 29/29 | 2.3 s | 5.3 s | 42 s |
+
+This is a trial on an unfrozen working tree. It doesn't count toward the gate. The release streak (ten rounds plus one regression round at 145/145, so 1,595 checks) needs a committed, frozen revision.
+
+### M1 release streak at `2fd4b40` (2026-11-07): stopped in round 2
+
+Report `reports/2fd4b40.MyyZob`, state `needs-investigation`, 289/290.
+
+- Round 1 was perfect: 145/145.
+- In round 2, Gemma 4 E2B failed `export-after-revision`. It was asked to add a "Minus 1" button and labelled it "-1"; the behaviour was correct. Both attempts were rejected by the label check.
+- Every other model passed every case in both rounds.
+
+**Reproduce.** The same seeded prompt failed 6 out of 6 times. Sweeping E2B over the features prompts for rounds 1–20 found more failures the streak would have hit later.
+
+**Fixes, all general, all in the M2 candidate:**
+
+1. **Relabel a new button.** A revision that adds exactly one new button while exactly one requested label is missing gets that button relabelled. Its behaviour is kept, and anything ambiguous is still rejected (`relabelNewButton`).
+2. **Script requested separately.** When the smallest model writes markup but stops before the script (ending on a stray `</script>`), the host closes the markup and asks for the script alone (`closeMarkup`).
+3. **Unclosed buttons.** A button left unclosed (`Reset all</br><script>`) is closed before its label is checked, but only when that makes the draft pass (`closeButtons`).
+4. **Stricter label check.** A requested label written as a quoted string counted as a button even when it was only an id. Now a quoted label counts only when the script creates buttons, and a button's `aria-label` counts as its name.
+5. **Output rule for the smallest model.** Its output holds only the current value, never a message, at build time and on revision.
+
+**Result:** E2B passes 80 out of 80 features cases over two sweeps of rounds 1–20. Each fix has preflight tests built from the real failing drafts.
+
+**Diagnosis tools that came out of this** (both part of M2):
+- The features suite now saves each failing reply's Activity in the report.
+- `RICH_CHAT_DEBUG_CAPTURE=1` saves rejected drafts beside the server log. It is for synthetic benchmark runs only, never for a server people use.
+
 ## 2. Rules (unchanged, restated)
 
 - **Stable** means ten consecutive perfect rounds on the expanded matrix, then one full regression round on the same frozen revision. Failures, skips, changed expectations and mixed revisions all reset the streak.
@@ -86,14 +124,14 @@ After M1, a matrix round has (14 + 13 + 2) × 5 = **145 checks**, and the stable
 
 | ID | Type | Input | Assertions |
 | --- | --- | --- | --- |
-| `activity-single-search` | Model | A varied obscure-fact question that needs search. | Activity shows exactly **one** executed `web_search` with a duration. Its source count matches the source links in the reply. Activity text doesn't appear in the answer. |
-| `activity-no-tool` | Model | A varied explanation that needs no tool. | Activity lists no tool executions and the panel says so. |
-| `activity-app-attempts` | Model | A varied novel app build. | Activity shows build attempts equal to the server's actual attempts. Any retry has a reason. The final app passes its interaction check. |
+| `activity-single-search` | Model | A varied explicit web search request ("Look up the year … opened, and cite your source"). | Exactly **one** `web_search` ran, by the model or, when the model answered from memory, by the app as the person asked. The panel reads "Activity · 1 search · …". If the search succeeded ("N sources from M sites"), the reply cites a returned link. If the search provider was unreachable, the reply carries the app's "Search unavailable" notice and no link at all, and the report notes the outage. The owner chose this on 2026-11-07 so that a provider outage tests honesty instead of stopping the gate. Real results are still guarded: the basic suite's live-search cases need returned sources every round. |
+| `activity-matches-tools` | Model | A varied simple explanation. | Activity reports exactly what ran. Its tool records equal the tool results in the stream, every start has an end, and the panel reads "no tools" only when none ran. Whether a model should search for a simple explanation is a model-policy question, covered by the basic `context` case. |
+| (in `export-novel-app`) | Model | The varied tally app. | Activity says the app was "Built from the model's code", so the model's own code is what gets tested, not a tested layout or starter. |
 | `activity-retry-no-duplicate` | Device | Stalled stream injected after a successful search (stubbed provider). | Activity shows the retry and its reason, and only **one** search execution. The reply is synthesized from the captured sources. |
 | `activity-persist-delete` | Device | A stubbed reply. | The panel survives reload. Deleting the thread removes its activity from IndexedDB. |
 | `capture-replay` | Device | `EVAL_CAPTURE=1` on a synthetic case. | The capture file has the prompt, settled reply and redacted activity, and replays without loading personal history. |
 
-After M2: 32 cases per model, **160 checks per round**.
+After M2: 31 cases per model (14 + 13 + 4), **155 checks per round**, so the stable gate is **1,705/1,705**. The M2 deterministic checks are `tests/e2e/activity.cjs`, 7 checks against a stub model.
 
 ### M3 — OpenUI reachability and actions
 
