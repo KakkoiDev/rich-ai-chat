@@ -185,6 +185,22 @@ Differences from the plan:
 
 ### M3 — OpenUI reachability, actions and gallery
 
+**Status (2026-11-08):** the Laya slice gate and the prompt slices are built on branch `laya-gate`, **on by default** (`RICH_CHAT_LAYA_GATE=0` turns it off). The rest of M3 (`onAction`, gallery, chat-library additions) is not started.
+- **Measured** on synthetic English and Japanese requests (details in [BENCHMARK-PLAN.md](BENCHMARK-PLAN.md#laya-slice-gate-measurement-2026-11-08)):
+  - Development set: 176 requests, 97.8% correct on the 90 it answered.
+  - Held-out set: 80 requests, 95.0% correct on the 40 it answered.
+  - It abstains on about half; those requests keep today's path.
+  - Every wrong answer was a `layout` request (sent to `app` or `text`).
+  - Sliced prompts are 19–49% of the full prompt (10,354 Gemma-tokenizer tokens); `text` and `sources` use the 160-token Markdown prompt.
+- **Meets the owner's 95% rule only just, on a small held-out sample.** No model benchmark has run with sliced prompts yet. The M3 streak must show the small Gemma models do at least as well with them before this ships; until then `RICH_CHAT_LAYA_GATE=0` restores the old behaviour exactly.
+- **How it works:**
+  - `src/lib/laya-gate.ts` starts `scripts/laya-sidecar.py` on the first eligible request: small Gemma models on the general chat path, not the correction, native-table or bundled-image special cases.
+  - The sidecar runs PLH's `harness/laya.py`, pinned by commit and SHA-256 in `cores.lock.json`, with PLH's installed runtime and model. Nothing is downloaded.
+  - Each question waits at most 250 ms (`RICH_CHAT_LAYA_TIMEOUT_MS`). A sidecar that dies is restarted on the next request; one that keeps dying is left alone for a minute.
+  - The decision is a `gate` Activity event: outcome, slices, confidence, milliseconds and the prompt used. It never holds request text.
+  - The first request after a server start usually times out while the model loads, and uses the general path.
+- **Not done:** an end-to-end test of the gate. The gate only applies to Gemma on Ollama's fixed port 11434, so a browser test would reach the real models; the client, sidecar, pin and prompt assembly are covered by `tests/preflight.mjs` with a stub sidecar instead.
+
 - `onAction` handler: log custom actions to Activity and show "This action isn't supported".
 - A `/gallery` route, development only, that renders each of the 82 components from fixture markup.
 - Decide on `openuiChatLibrary` additions (`FollowUpBlock` first).
