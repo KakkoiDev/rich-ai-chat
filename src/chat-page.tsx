@@ -13,6 +13,7 @@ import {
   vercelAIMessageFormat,
 } from "@openuidev/react-ui";
 import { library } from "@/library";
+import kakkoi from "@/generated/kakkoi.openui.json";
 import { ChatComposer, ChatUserMessage } from "@/chat-composer";
 import { TasksPanel } from "@/tasks-panel";
 import { ConnectionStatus } from "@/connection-status";
@@ -105,8 +106,8 @@ export default function ChatPage({ defaultModelLabel }: { defaultModelLabel: str
         llm={llm}
         storage={storage}
         componentLibrary={library}
-        agentName="KakkoiSchool Rich Chat"
-        theme={{ mode }}
+        agentName="Kakkoi Chat"
+        theme={{ mode, lightTheme: kakkoi.lightTheme, darkTheme: kakkoi.darkTheme }}
         components={{ UserMessage: ChatUserMessage }}
       >
         <AgentInterface.Composer>

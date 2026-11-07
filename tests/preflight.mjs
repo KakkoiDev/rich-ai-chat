@@ -699,4 +699,11 @@ console.log("PASS: Laya component gate (slices, sidecar client, sidecar pin, act
   const manifest = JSON.parse(readFileSync(new URL(lock["test-core"].manifest, root), "utf8"));
   for (const [path, sha256] of Object.entries(manifest.files)) assert.equal(hash(`test-core/${path}`), sha256, `test-core/${path} matches its manifest`);
   assert.ok("pwa/pwa.mjs" in manifest.files, "test-core's PWA checks are pinned");
+  const { kakkoiInlineCss } = await import("../src/generated/kakkoi-inline.ts");
+  assert.equal(kakkoiInlineCss, readFileSync(new URL("src/generated/kakkoi-inline.css", root), "utf8"), "The inline subset module matches the pinned CSS");
+  const { exportArtifact } = await import("../src/lib/artifact-export.ts");
+  const hostStyle = `<style id="kakkoi-inline">${kakkoiInlineCss}</style>`;
+  assert.match(readFileSync(new URL("src/lib/host-style.ts", root), "utf8"), /`<style id="kakkoi-inline">\$\{kakkoiInlineCss\}<\/style>`/);
+  const exported = exportArtifact({ title: "Probe", head: [hostStyle], document: "<!doctype html><html><head><style>button{color:red}</style></head><body><button>Go</button></body></html>" });
+  assert.ok(exported.indexOf(hostStyle) > 0 && exported.indexOf(hostStyle) < exported.indexOf("button{color:red}"), "The host's subset comes before the app's own styles");
 }

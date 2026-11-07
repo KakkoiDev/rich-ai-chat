@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
+// Kakkoi web fonts (visual-core, pinned in cores.lock.json): bundled and served from this host, never a CDN.
+import "../../public/theme/kakkoi-fonts.css";
 import "./globals.css";
 
 
 export const metadata: Metadata = {
-  title: "KakkoiSchool Rich Chat",
-  description: "Generative UI chat with the Vercel AI SDK and Agent Interface",
+  title: "Kakkoi Chat",
+  description: "A classroom chat that answers, searches, charts and builds small apps, running on this Mac.",
   // Installable as "Kakkoi Chat" (manifest.ts); the icons are visual-core's, pinned in cores.lock.json.
   applicationName: "Kakkoi Chat",
   appleWebApp: { title: "Kakkoi Chat", statusBarStyle: "default" },
@@ -14,7 +16,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = { themeColor: "#000000" };
+export const viewport: Viewport = { themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#000000" }] };
 
 export default function RootLayout({
   children,

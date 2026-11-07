@@ -185,9 +185,10 @@ async function check(name, body) {
       await clock.locator('summary').first().click();
       await clock.locator('pre').getByText(`Please answer scenario clock-ok (${MARKER}).`).waitFor();
       await clock.locator('pre').getByText('It is noon.').first().waitFor();
-      // The hung request was cancelled just before a reload; with no end stored it must not look like it is still working.
+      // The hung request was cancelled just before a reload. Whether or not its end was saved in time, it must say how it
+      // ended ("cancelled") or that no end was recorded, never that it is still working.
       assert.equal(await rows.filter({ hasText: /working…/ }).count(), 0);
-      await rows.filter({ hasText: /no end recorded/ }).first().waitFor();
+      await rows.filter({ hasText: /cancelled|no end recorded/ }).first().waitFor();
       assert.match((await clock.locator('table').innerText()), /tool-end[\s\S]*Read the clock/);
       await log.getByRole('combobox', { name: 'Show' }).selectOption('problems');
       const problems = await rows.count();
