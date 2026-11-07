@@ -43,6 +43,33 @@ try {
   assert.equal(requests, 2);
   globalThis.fetch = async () => new Response("limited", { status: 429, headers: { "Retry-After": "60" } });
   assert.equal(await (await braveSearch("web", "public topic", "unused", new AbortController().signal)).text(), "limited");
+
+  // A hung first attempt is overtaken by the hedge, and the loser is cancelled.
+  const hang = (signal) => new Promise((_, reject) => signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true }));
+  let started = 0;
+  let cancelled = 0;
+  globalThis.fetch = async (_url, init) => {
+    if (++started === 1) {
+      init.signal.addEventListener("abort", () => cancelled++, { once: true });
+      return hang(init.signal);
+    }
+    return new Response("hedged");
+  };
+  const fast = { hedgeAfterMs: [20, 60], budgetMs: 2000 };
+  assert.equal(await (await braveSearch("web", "public topic", "unused", new AbortController().signal, fast)).text(), "hedged");
+  assert.equal(started, 2, "One hedge was enough");
+  assert.equal(cancelled, 1, "The hung attempt was cancelled");
+
+  // When every attempt hangs, the search fails at its budget instead of hanging.
+  started = 0;
+  globalThis.fetch = async (_url, init) => { started++; return hang(init.signal); };
+  const begun = performance.now();
+  // A server always holds the event loop open; AbortSignal.timeout alone does not, so hold it here.
+  const alive = setInterval(() => {}, 1000);
+  await assert.rejects(braveSearch("web", "public topic", "unused", new AbortController().signal, { hedgeAfterMs: [20, 40], budgetMs: 150 }))
+    .finally(() => clearInterval(alive));
+  assert.ok(performance.now() - begun < 1000, "Failed within its budget");
+  assert.equal(started, 3, "Three attempts at most");
 } finally {
   globalThis.fetch = originalFetch;
 }

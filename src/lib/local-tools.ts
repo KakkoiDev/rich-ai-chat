@@ -43,22 +43,54 @@ function httpsUrl(value: string | null | undefined) {
   }
 }
 
-export async function braveSearch(kind: "web" | "images" | "videos", query: string, key: string, signal: AbortSignal) {
+/**
+ * The first answer from a hedged request: one attempt now, another after each `hedgeAfterMs` delay while none has
+ * answered, and the next one at once after a connection error. A hung connection (Brave's slow tail) then costs a few
+ * seconds instead of the whole budget. The first response wins and the others are cancelled.
+ */
+function firstResponse(url: URL, key: string, budget: AbortSignal, hedgeAfterMs: number[]) {
+  return new Promise<Response>((resolve, reject) => {
+    const attempts: AbortController[] = [];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let settled = false;
+    let failed = 0;
+    const done = (finish: () => void) => {
+      if (settled) return;
+      settled = true;
+      for (const timer of timers) clearTimeout(timer);
+      budget.removeEventListener("abort", stop);
+      finish();
+    };
+    const stop = () => done(() => { for (const attempt of attempts) attempt.abort(); reject(budget.reason); });
+    const start = () => {
+      if (settled || attempts.length > hedgeAfterMs.length) return;
+      const attempt = new AbortController();
+      attempts.push(attempt);
+      fetch(url, { headers: { "X-Subscription-Token": key }, redirect: "error", signal: AbortSignal.any([budget, attempt.signal]) })
+        .then(response => done(() => {
+          for (const other of attempts) if (other !== attempt) other.abort();
+          resolve(response);
+        }), (error: unknown) => {
+          if (settled) return;
+          const transient = error instanceof TypeError || (error instanceof DOMException && error.name === "AbortError" && !budget.aborted);
+          failed++;
+          if (budget.aborted || !transient) return done(() => { for (const other of attempts) other.abort(); reject(error); });
+          if (failed === attempts.length && attempts.length > hedgeAfterMs.length) return done(() => reject(error));
+          start();
+        });
+    };
+    budget.addEventListener("abort", stop, { once: true });
+    start();
+    for (const delayMs of hedgeAfterMs) timers.push(setTimeout(start, delayMs));
+  });
+}
+
+export async function braveSearch(kind: "web" | "images" | "videos", query: string, key: string, signal: AbortSignal,
+  timing = { hedgeAfterMs: [3000, 8000], budgetMs: 15000 }) {
   const url = new URL(`https://api.search.brave.com/res/v1/${kind}/search`);
   url.search = new URLSearchParams({ q: query, count: "4", safesearch: "strict" }).toString();
-  const budget = AbortSignal.any([signal, AbortSignal.timeout(15000)]);
-  const request = () => fetch(url, {
-    headers: { "X-Subscription-Token": key }, redirect: "error",
-    signal: AbortSignal.any([budget, AbortSignal.timeout(6500)]),
-  });
-  let response: Response;
-  try {
-    response = await request();
-  } catch (error) {
-    if (budget.aborted || !(error instanceof TypeError || (error instanceof DOMException && error.name === "TimeoutError"))) throw error;
-    await delay(250, undefined, { signal: budget });
-    return request();
-  }
+  const budget = AbortSignal.any([signal, AbortSignal.timeout(timing.budgetMs)]);
+  const response = await firstResponse(url, key, budget, timing.hedgeAfterMs);
   if (![429, 500, 502, 503, 504].includes(response.status)) return response;
   const retryHeader = response.headers.get("Retry-After");
   const retryMs = retryHeader && /^\d+$/.test(retryHeader)
@@ -66,7 +98,7 @@ export async function braveSearch(kind: "web" | "images" | "videos", query: stri
   if (retryMs > 5000) return response;
   await response.body?.cancel();
   await delay(Math.max(response.status === 429 ? 1100 : 250, retryMs || 0), undefined, { signal: budget });
-  return request();
+  return firstResponse(url, key, budget, []);
 }
 
 async function searchMedia(kind: "images" | "videos", query: string, signal: AbortSignal) {
