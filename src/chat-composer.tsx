@@ -3,7 +3,8 @@
 import { parseMessage } from "@openuidev/react-lang";
 import { useThread, useThreadList, type BinaryInputContent, type UserMessage } from "@openuidev/react-headless";
 import { Button, IconButton, ModelSwitcher } from "@openuidev/react-ui";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { debugMode } from "@/lib/debug-mode";
 import { chatFileExtensions, chatFileMime, decodeChatText, isChatFilename, maxChatFileBytes, maxChatFiles } from "@/lib/chat-files";
 import { VoiceControl } from "@/voice-composer";
 import { ReplyActivity } from "@/reply-activity";
@@ -32,10 +33,11 @@ export function ChatUserMessage({ message }: { message: UserMessage }) {
 
 export function ChatComposer(props: Props) {
   const thread = useThreadList(state => state.selectedThreadId);
-  return <ComposerDraft key={thread ?? "new"} {...props} />;
+  return <ComposerDraft key={thread ?? "new"} thread={thread} {...props} />;
 }
 
-function ComposerDraft({ model, models, selectModel, starters }: Props) {
+function ComposerDraft({ model, models, selectModel, starters, thread }: Props & { thread?: string | null }) {
+  const debugging = useSyncExternalStore(debugMode.subscribe, () => debugMode.isOn(thread), () => false);
   const { processMessage, cancelMessage, isRunning, isLoadingMessages, messages } = useThread();
   const [draft, setDraft] = useState("");
   const [files, setFiles] = useState<Attachment[]>([]);
@@ -140,6 +142,10 @@ function ComposerDraft({ model, models, selectModel, starters }: Props) {
             disabled={reading || files.length >= maxChatFiles} onClick={() => picker.current?.click()}
             icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>} />
           <div className="rich-chat-composer__spacer" />
+          <label className="debug-switch" title="Record full text for this chat: your messages, the prompts, tool results and rejected drafts. It shows in Activity and in the server's debug file, kept 7 days.">
+            <input type="checkbox" checked={debugging} onChange={e => debugMode.set(thread, e.target.checked)} aria-label="Debug this chat" />
+            Debug
+          </label>
           <ModelSwitcher models={models} value={model} onValueChange={selectModel} />
           <VoiceControl insert={insert} reportError={setError} />
           <IconButton aria-label={isRunning ? "Cancel message" : "Send message"} title={isRunning ? "Cancel" : "Send"}

@@ -7,6 +7,7 @@ import {
   type UserMessage,
 } from "@openuidev/react-headless";
 import { activityStore, collectActivity } from "@/lib/activity-store";
+import { debugMode } from "@/lib/debug-mode";
 
 export function localStorageChat(
   llm: ChatLLM,
@@ -93,6 +94,7 @@ export function localStorageChat(
             localStorage.removeItem(messagesKey(id));
           } catch {}
           await activityStore.deleteThread(id);
+          debugMode.forget(id);
         },
       },
     },
