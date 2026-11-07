@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tasks on phone</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/232ffe54ef71b53181f68fc03eeda221">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@400..700&amp;family=Noto+Sans+JP:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#595959}
+.ph{width:390px;height:844px;border:1px solid #000;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.cap{font:600 13px/1.4 Inter,sans-serif;margin:0 0 12px}
+.it{display:grid;grid-template-columns:1fr 44px;gap:4px;align-items:center;min-height:60px;border-bottom:1px solid #d4d4d4;padding-left:16px;font-size:15px}
+.it small{display:flex;gap:6px;align-items:center;font-size:12px;font-weight:500}
+.it small svg{width:14px;height:14px}
+.job{border:1px solid #000;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+</style>
+</helmet>
+<div class="k" style="width: 980px; height: 1000px; padding: 48px; display: flex; gap: 72px; align-items: flex-start">
+<figure style="margin: 0" lang="ja">
+<figcaption class="cap">タスク · JA · bottom sheet</figcaption>
+<div class="ph">
+<div style="height: 47px; flex: none; background: #595959"></div>
+<div style="height: 60px; flex: none; background: #595959"></div>
+<div role="dialog" aria-modal="true" aria-labelledby="tj" style="flex: 1; background: #fff; border-top: 1px solid #000; display: flex; flex-direction: column; font-family: 'Noto Sans JP', sans-serif">
+<header style="height: 56px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 4px 0 16px; border-bottom: 1px solid #000"><h2 id="tj" class="t-h2" lang="ja">タスク</h2><button class="btn btn-ghost btn-icon" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></header>
+<div style="padding: 12px 16px; border-bottom: 1px solid #d4d4d4"><p style="margin: 0; font: 700 13px/1.4 'Noto Sans JP'">目標</p><p style="margin: 0; line-height: 1.7">5年生向け「宇宙」の授業を5回分つくる</p></div>
+<div class="job" style="margin: 12px 16px" aria-label="ジョブ">
+<div style="display: flex; justify-content: space-between"><strong>5回中2回完了</strong><span class="badge">実行中</span></div>
+<div class="progress"><i style="width: 40%"></i></div>
+<span style="font-size: 13px; color: #595959">ローカルモデルを待っています · <span class="t-num">01:12</span></span>
+<span style="font-size: 13px">タブを閉じても止まりません。止めるときは「中止」を押してください。</span>
+<button class="btn btn-danger" style="align-self: flex-start">中止</button>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0; border-top: 1px solid #000">
+<li class="it"><span>第3回 惑星クイズ<small><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>実行中</small></span><button class="btn btn-ghost btn-icon" aria-label="第3回の操作"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button></li>
+<li class="it"><span>第4回 月の満ち欠け<small><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle></svg>待機中</small></span><button class="btn btn-ghost btn-icon" aria-label="第4回の操作"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button></li>
+<li class="it"><span>第5回 ロケット打ち上げ動画<small class="warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"></path></svg>保留：このクラスではWeb検索がオフです</small></span><button class="btn btn-ghost btn-icon" aria-label="第5回の操作"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button></li>
+<li class="it"><span>第1回 太陽と惑星の図<small class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>完了 · 確認済み</small></span><span></span></li>
+</ul>
+<form style="display: flex; gap: 8px; padding: 12px 16px" aria-label="タスクを追加"><input class="input" aria-label="新しいタスク" placeholder="タスクを追加"><button class="btn">追加</button></form>
+<div style="height: 34px; flex: none"></div>
+</div>
+</div>
+</figure>
+
+<figure style="margin: 0">
+<figcaption class="cap">Job card states · in the thread</figcaption>
+<div style="width: 390px; display: flex; flex-direction: column; gap: 20px">
+<div class="job"><div style="display: flex; justify-content: space-between"><strong>Space unit · 2 of 5</strong><span class="badge">Running</span></div><div class="progress"><i style="width: 40%"></i></div><span class="t-small t-muted">Writing Lesson 3 · <span class="t-num">00:41</span></span></div>
+<div class="job"><div style="display: flex; justify-content: space-between"><strong>Space unit · 2 of 5</strong><span class="badge">Waiting</span></div><div class="progress"><i style="width: 40%"></i></div><span class="t-small">Waiting for the local model. Another chat is using it.</span><span class="t-small t-muted">Started waiting <span class="t-num">14:31</span></span></div>
+<div class="job"><div style="display: flex; justify-content: space-between"><strong>Space unit · 2 of 5</strong><span class="badge">Running</span></div><div class="progress"><i style="width: 40%"></i></div><span class="t-small" style="display: flex; gap: 6px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="flex: none; margin-top: 2px"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>Resumed after the Mac restarted, from the checkpoint at 14:20. Nothing was lost.</span></div>
+<div class="job" role="alertdialog" aria-labelledby="cj" style="border-width: 2px"><strong id="cj">Cancel this job?</strong><span class="t-small">Lessons 1 and 2 are kept. Lessons 3 to 5 won't be made.</span><div style="display: flex; gap: 8px"><button class="btn is-focus">Keep going</button><button class="btn btn-danger">Cancel job</button></div></div>
+<div class="job" style="border-color: #d4d4d4"><div style="display: flex; justify-content: space-between"><strong>Space unit · 2 of 5</strong><span class="badge">Cancelled</span></div><span class="t-small t-muted">Cancelled by you at 14:36. 2 lessons kept.</span></div>
+<div class="job" style="border-color: #c4161c"><div style="display: flex; justify-content: space-between"><strong>Space unit · 4 of 5</strong><span class="badge bad">Stopped</span></div><span class="t-small">Lesson 5 is blocked: web search is off in this classroom.</span><div style="display: flex; gap: 8px"><button class="btn">Skip Lesson 5</button><button class="btn btn-ghost">Open tasks</button></div></div>
+</div>
+</figure>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":980,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Rich AI Chat — designer handoff
 
-This brief is self-contained: you don't need the chat that produced it. Engineering context is in [ENGINEERING-ROADMAP.md](ENGINEERING-ROADMAP.md), but you shouldn't need it.
+This brief is self-contained: you don't need the chat that produced it. Engineering context is in [ENGINEERING-ROADMAP.md](../ENGINEERING-ROADMAP.md), but you shouldn't need it.
 
 ## 1. The job
 
