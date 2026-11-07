@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { useThreadList } from "@openuidev/react-headless";
+import { useThread, useThreadList } from "@openuidev/react-headless";
 import type { Evidence, Item, ItemEvent, Plan } from "@/lib/tasks/store";
 import type { JobView } from "@/lib/tasks/jobs";
 import { activityLine } from "@/reply-activity";
@@ -141,7 +141,9 @@ export function TasksPanel() {
   }, [chatId, profile]);
   const tryAct = useCallback((body: object) => act(body).catch(() => {}), [act]);
 
-  useEffect(load, [load]);
+  // Reload when a reply finishes too: the model may have just started or changed the plan.
+  const replying = useThread(state => state.isRunning);
+  useEffect(() => { if (!replying) load(); }, [load, replying]);
   useEffect(() => {
     if (!open) return;
     const timer = setInterval(load, 2500);
@@ -168,9 +170,12 @@ export function TasksPanel() {
 
   return (
     <>
-      <button type="button" className={styles.toggle} aria-expanded={open} onClick={() => { setOpen(!open); load(); }}>
-        Tasks{openCount ? <span className={styles.badge}>{openCount}</span> : null}
-      </button>
+      {/* Shown only once this chat has a plan or a job: the model starts one when asked for a plan or checklist. */}
+      {plan || data.jobs.length || open ? (
+        <button type="button" className={styles.toggle} aria-expanded={open} onClick={() => { setOpen(!open); load(); }}>
+          Tasks{openCount ? <span className={styles.badge}>{openCount}</span> : null}
+        </button>
+      ) : null}
       {open ? (
         <aside className={styles.panel} aria-label="Tasks">
           <header className={styles.header}>

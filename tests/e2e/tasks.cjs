@@ -237,7 +237,8 @@ async function check(name, body) {
       const other = await browser.newContext();
       const stranger = await other.newPage();
       await stranger.goto(`http://127.0.0.1:${port}/`);
-      await stranger.getByRole('button', { name: /^Tasks/ }).waitFor();
+      await stranger.getByRole('textbox', { name: 'Message' }).waitFor();
+      assert.equal(await stranger.getByRole('button', { name: /^Tasks/ }).count(), 0, 'No Tasks button without a plan');
       const result = await stranger.evaluate(async chat => {
         const headers = { 'x-rich-chat-profile': localStorage.getItem('rich-ai-chat:profile'), 'content-type': 'application/json' };
         const read = await (await fetch(`/api/tasks?chat=${encodeURIComponent(chat)}`, { headers })).json();

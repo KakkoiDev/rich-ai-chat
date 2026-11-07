@@ -154,3 +154,10 @@ body.artifact-full-window-open { overflow: hidden; }
 .activity-log table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .activity-log th, .activity-log td { text-align: left; vertical-align: top; padding: 4px 6px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); overflow-wrap: anywhere; }
 .activity-log h3 { margin: 12px 0 4px; font-size: 14px; }
+
+/* Phones: starters wrap instead of running off the edge, and the Debug switch keeps only its box so the model name fits. */
+@media (max-width: 560px) {
+  .chat-starters { flex-wrap: wrap; justify-content: center; overflow-x: visible; }
+  .debug-switch { padding: 0 2px; }
+  .debug-switch__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}

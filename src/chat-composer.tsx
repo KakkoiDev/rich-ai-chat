@@ -144,7 +144,7 @@ function ComposerDraft({ model, models, selectModel, starters, thread }: Props &
           <div className="rich-chat-composer__spacer" />
           <label className="debug-switch" title="Record full text for this chat: your messages, the prompts, tool results and rejected drafts. It shows in Activity and in the server's debug file, kept 7 days.">
             <input type="checkbox" checked={debugging} onChange={e => debugMode.set(thread, e.target.checked)} aria-label="Debug this chat" />
-            Debug
+            <span className="debug-switch__text">Debug</span>
           </label>
           <ModelSwitcher models={models} value={model} onValueChange={selectModel} />
           <VoiceControl insert={insert} reportError={setError} />
