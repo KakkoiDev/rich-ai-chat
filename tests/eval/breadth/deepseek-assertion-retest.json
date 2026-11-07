@@ -1,0 +1,32 @@
+{
+  "model": "deepseek-flash",
+  "appRevision": "ec31eb0aaa8e19c029511f1fef07c1349c7d86fb",
+  "startedAt": "2026-11-05T00:54:11.004Z",
+  "cases": [
+    {
+      "id": "turn-based-game",
+      "category": "build",
+      "status": "fail",
+      "seconds": 3.686529375,
+      "detail": "The input did not match the regular expression /\\b7\\b/. Input:\n\n'Player A starts'\n"
+    },
+    {
+      "id": "adapt-calculator",
+      "category": "adapt",
+      "status": "pass",
+      "seconds": 4.0439047079999995
+    },
+    {
+      "id": "unit-converter",
+      "category": "build",
+      "status": "pass",
+      "seconds": 4.113547541
+    },
+    {
+      "id": "correction-and-language",
+      "category": "multi-turn",
+      "status": "pass",
+      "seconds": 3.8500250419999995
+    }
+  ]
+}

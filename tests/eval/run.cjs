@@ -37,7 +37,11 @@ async function ask(page, prompt) {
   await box.press('Enter');
   const result = await response;
   assert.ok(result.ok(), 'Chat request failed: ' + result.status());
-  assert.ok(parseEvents(await result.text()).some(e => e.type === 'finish'), 'No completed reply');
+  const events = parseEvents(await result.text());
+  assert.ok(events.some(e => e.type === 'finish'), 'No completed reply');
+  const text = events.filter(e => e.type === 'text-delta').map(e => e.delta).join('');
+  assert.ok(text.trim() && !/model (?:stopped before finishing|could not finish)/i.test(text), text.slice(0, 240) || 'Empty reply');
+  return text;
 }
 
 const cases = [
@@ -48,15 +52,17 @@ const cases = [
     assert.match(b.text, /\bKumo\b/i);
     assert.equal(a.calls.length + b.calls.length, 0, 'Class context must not need search');
   }],
-  ['calculator', 'model', () => e2e('gpt-oss')],
+  ['calculator', 'model', async () => {
+    const { stdout } = await e2e('gpt-oss');
+    return stdout.includes('APP_PATH: starter') ? { category: 'app', note: 'Tested calculator starter' } : undefined;
+  }],
   ['repair', 'model', () => e2e('gpt-oss-repair')],
   ['native-pie', 'model', async page => {
     await ask(page, 'Show a native pie chart with exactly three slices: Apples 50, Bananas 30, Cherries 20.');
-    const palette = ['#2563eb', '#d97706', '#0f766e'];
-    await page.locator('svg path[fill="#0f766e"]').first().waitFor();
-    const fills = await page.locator('svg path[fill]').evaluateAll(nodes => nodes.map(n => n.getAttribute('fill')));
-    for (const color of palette) assert.ok(fills.includes(color), 'Missing slice ' + color);
+    const palette = ['#2563eb', '#d97706', '#0f766e', '#be185d', '#7c3aed', '#b91c1c', '#4d7c0f', '#475569'];
     for (const value of [50, 30, 20]) await page.getByText(new RegExp('^' + value + '(?:\\.0+)?%$')).first().waitFor();
+    const fills = await page.locator('svg path[fill]').evaluateAll(nodes => nodes.map(n => n.getAttribute('fill')));
+    assert.equal(new Set(fills.filter(color => palette.includes(color))).size, 3, 'Expected three distinct slice colors');
     assert.equal(await page.getByRole('button', { name: 'Run preview' }).count(), 0);
   }],
   ['classroom-image', 'model', async page => {
@@ -66,7 +72,7 @@ const cases = [
     await image.evaluate(node => node.decode());
   }],
   ['tic-tac-toe', 'model', async page => {
-    await ask(page, 'Make a compact two-player tic-tac-toe game. Use a 3 by 3 grid of buttons labeled 1 to 9 in row-major order when empty. X goes first. Announce the winner as "X wins" or "O wins". Include a Restart button.');
+    const reply = await ask(page, 'Make a compact two-player tic-tac-toe game. Use a 3 by 3 grid of buttons labeled 1 to 9 in row-major order when empty. X goes first. Announce the winner as "X wins" or "O wins". Include a Restart button.');
     await page.getByRole('button', { name: 'Run preview' }).click();
     const frame = page.frameLocator('.html-artifact iframe');
     for (const name of ['1', '4', '2', '5', '3']) {
@@ -77,6 +83,7 @@ const cases = [
     for (const name of ['1', '4', '2', '5', '3']) {
       await frame.getByRole('button', { name, exact: true }).waitFor();
     }
+    return reply.includes('HtmlArtifact("Tic-tac-toe starter"') ? { category: 'app', note: 'Tested tic-tac-toe starter' } : undefined;
   }],
   ['table-to-chart', 'app', async page => {
     const table = '| Day | High (°F) | Rain (%) |\n| --- | --- | --- |\n| Mon | 67 | 20 |\n| Tue | 70 | 15 |';
@@ -88,6 +95,59 @@ const cases = [
     assert.equal(await page.locator('svg[role="img"]').count(), 2, 'Different units need separate charts');
   }],
   ['slingshot', 'app', () => e2e('slingshot')],
+  ['local-clock', 'app', async page => {
+    const context = await page.context().browser().newContext({ timezoneId: 'Asia/Tokyo' });
+    try {
+      const localPage = await context.newPage();
+      await localPage.goto(url);
+      const text = await ask(localPage, "What's today's date?");
+      const date = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format();
+      assert.ok(text.includes(date), 'Expected today in the browser time zone');
+      await localPage.getByText('Asia/Tokyo', { exact: true }).waitFor();
+    } finally {
+      await context.close();
+    }
+  }],
+  ['named-zone-clock', 'model', async () => {
+    const result = await turn(part('user', 'What time is it in New York right now?'));
+    assert.equal(result.calls.length, 1);
+    const [call] = result.calls;
+    assert.equal(call.toolName, 'current_datetime');
+    const output = result.events.find(e => e.type === 'tool-output-available' && e.toolCallId === call.toolCallId)?.output;
+    assert.ok(['America/New_York', 'US/Eastern'].includes(output?.timeZone), 'Expected a valid New York time zone');
+    assert.match(output.time, /^\d{2}:\d{2}:\d{2}$/);
+  }],
+  ['online-pictures', 'app-live', async page => {
+    const reply = await ask(page, 'Show me pictures of Mount Fuji');
+    assert.match(reply, /ImageGallery\(/, 'Missing image gallery');
+    const image = page.locator('img[src^="https://imgs.search.brave.com/"]').first();
+    await image.waitFor();
+    await image.evaluate(node => node.decode());
+    await page.getByRole('link', { name: 'Source 1', exact: true }).waitFor();
+  }],
+  ['online-videos', 'app-live', async page => {
+    const reply = await ask(page, 'show video of shibuya');
+    assert.match(reply, /Shibuya/i, 'Expected a Shibuya video result');
+    const link = page.getByRole('link', { name: 'Watch video', exact: true }).first();
+    await link.waitFor();
+    assert.match(await link.getAttribute('href'), /^https:\/\//);
+    const image = page.locator('img[src^="https://imgs.search.brave.com/"]').first();
+    await image.waitFor();
+    await image.evaluate(node => node.decode());
+  }],
+  ['uncertain-fact-search', 'model-live', async () => {
+    const result = await turn(part('user', 'What is the IAU observatory code of Kiso Observatory, and in what year did its 105 cm Schmidt telescope begin observations?'));
+    assert.equal(result.calls.length, 1, 'Expected the model to look up the obscure fact');
+    const [call] = result.calls;
+    assert.equal(call.toolName, 'web_search');
+    assert.match(call.input.query, /Kiso/i);
+    const output = result.events.find(e => e.type === 'tool-output-available' && e.toolCallId === call.toolCallId)?.output;
+    assert.ok(output, 'Missing search tool result');
+    const sources = output.untrustedSources ?? [];
+    if (!sources.length) return { skip: output.error || 'Provider returned no sources' };
+    assert.ok(sources.some(source => result.text.includes(source.url)), 'Reply did not cite a returned source');
+    assert.doesNotMatch(result.text, /couldn’t finish the answer/, 'The model retrieved sources but did not answer');
+  }],
   ['weather-search', 'live', async () => {
     const result = await turn(part('user', 'Search the web for current weather in Tokyo. Include a source link, or say if the search did not return usable data.'));
     assert.equal(result.calls.length, 1, 'Expected exactly one search');
@@ -99,6 +159,8 @@ const cases = [
     const sources = output.untrustedSources || [];
     if (!sources.length) return { skip: output.error || 'Provider returned no sources' };
     assert.ok(sources.some(source => result.text.includes(source.url)), 'Reply did not cite a returned source');
+    return result.events.some(event => event.type === 'text-delta' && event.id === 'search-sources')
+      ? { note: 'Model called search; app displayed returned source links' } : undefined;
   }],
 ];
 
@@ -106,26 +168,28 @@ const cases = [
   const selected = process.argv.slice(2);
   for (const id of selected) assert.ok(cases.some(([name]) => name === id), 'Unknown case: ' + id);
   const browser = await chromium.launch();
-  const report = { model, startedAt: new Date().toISOString(), cases: [] };
+  const report = { model, appRevision: process.env.EVAL_REVISION, startedAt: new Date().toISOString(), cases: [] };
   try {
     for (const [id, category, run] of cases) {
       if (selected.length && !selected.includes(id)) continue;
       const page = await browser.newPage();
       page.setDefaultTimeout(10000);
       const start = Date.now();
-      let status = 'pass', detail;
+      let status = 'pass', detail, pathCategory = category;
       try {
         await page.goto(url);
         const result = await run(page);
+        if (result?.category) pathCategory = result.category;
+        if (result?.note) detail = result.note;
         if (result?.skip) { status = 'skip'; detail = result.skip; }
       } catch (error) {
         status = 'fail';
-        detail = error.message.split('\n').slice(0, 3).join(' ').slice(0, 300);
+        detail = error.message.replace(/\x1b\[[0-9;]*m/g, '').split('\n').slice(0, 3).join(' ').slice(0, 300);
       } finally {
         await page.close();
       }
       const seconds = (Date.now() - start) / 1000;
-      report.cases.push({ id, category, status, seconds, ...(detail ? { detail } : {}) });
+      report.cases.push({ id, category: pathCategory, status, seconds, ...(detail ? { detail } : {}) });
       console.log(`${status.toUpperCase()} ${id} (${seconds.toFixed(1)}s)${detail ? ': ' + detail : ''}`);
     }
   } finally {

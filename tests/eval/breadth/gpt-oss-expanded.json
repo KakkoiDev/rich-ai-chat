@@ -1,0 +1,85 @@
+{
+  "model": "gpt-oss:20b",
+  "appRevision": "ec31eb0aaa8e19c029511f1fef07c1349c7d86fb",
+  "startedAt": "2026-11-05T00:52:30.790Z",
+  "cases": [
+    {
+      "id": "budget-composition",
+      "category": "build",
+      "status": "fail",
+      "seconds": 28.027754624999996,
+      "detail": "locator.fill: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().getByLabel('Item', { exact: true })\n"
+    },
+    {
+      "id": "turn-based-game",
+      "category": "build",
+      "status": "fail",
+      "seconds": 22.071721875,
+      "detail": "locator.innerText: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().locator('output')\n"
+    },
+    {
+      "id": "adapt-calculator",
+      "category": "adapt",
+      "status": "fail",
+      "seconds": 27.463002082999992,
+      "detail": "locator.innerText: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().locator('output')\n"
+    },
+    {
+      "id": "repair-preserves-reset",
+      "category": "repair",
+      "status": "pass",
+      "seconds": 7.36038829100001
+    },
+    {
+      "id": "unit-converter",
+      "category": "build",
+      "status": "fail",
+      "seconds": 20.625091667,
+      "detail": "locator.fill: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().getByLabel('Celsius', { exact: true })\n"
+    },
+    {
+      "id": "sequence-game",
+      "category": "build",
+      "status": "pass",
+      "seconds": 11.912199541000009
+    },
+    {
+      "id": "starter-adaptation",
+      "category": "adapt",
+      "status": "pass",
+      "seconds": 35.99748270899999
+    },
+    {
+      "id": "native-tab-switch",
+      "category": "structured-ui",
+      "status": "pass",
+      "seconds": 12.79560495899999
+    },
+    {
+      "id": "table-aggregation",
+      "category": "structured-ui",
+      "status": "fail",
+      "seconds": 18.652407166999996,
+      "detail": "The input was expected to not match the regular expression /HtmlArtifact\\(/. Input:\n\n`root = Card([HtmlArtifact(\"Team Totals Table\", \"<!doctype html>\\\\n<html lang=\\\\\"en\\\\\">\\\\n<head>\\\\n<meta charset=\\\\\"utf-8\\\\\">\\\\n<title>Team Totals Table</title>\\\\n<style>\\\\n  body{font-family:Arial,sans-serif;margin:2rem;}\\\\n  table{border-collapse:collapse;width:50%;margin-top:1rem;}\\\\n  th,td{border:1px solid #ccc;padding:.5rem;text-align:left;}\\\\n  button{marg"
+    },
+    {
+      "id": "correction-and-language",
+      "category": "multi-turn",
+      "status": "fail",
+      "seconds": 0.22282037500001026,
+      "detail": "response.ok is not a function"
+    },
+    {
+      "id": "clarification-before-lookup",
+      "category": "tool-restraint",
+      "status": "pass",
+      "seconds": 6.352152500000026
+    },
+    {
+      "id": "quoted-tool-instruction",
+      "category": "tool-restraint",
+      "status": "pass",
+      "seconds": 2.2462023749999935
+    }
+  ]
+}

@@ -11,7 +11,14 @@ const { chromium } = require('playwright');
     await page.goto(url);
     const box = page.getByRole('textbox').first();
     await box.fill('Make a calculator with buttons for digits, addition (+), equals (=), and clear (Clear).');
+    const reply = page.waitForResponse(response => new URL(response.url()).pathname === '/api/chat');
     await box.press('Enter');
+    const response = await reply;
+    assert.ok(response.ok(), 'Chat returned HTTP ' + response.status());
+    const chunks = (await response.text()).split('\n').filter(line => line.startsWith('data: {'))
+      .map(line => JSON.parse(line.slice(6)));
+    const text = chunks.filter(chunk => chunk.type === 'text-delta').map(chunk => chunk.delta).join('');
+    assert.ok(text.includes('HtmlArtifact('), 'No calculator artifact: ' + text.slice(0, 240));
     await page.getByRole('button', { name: 'Run preview' }).click({ timeout: 120000 });
     const frame = page.frameLocator('iframe');
     await frame.getByRole('button', { name: '2', exact: true }).waitFor();
@@ -30,7 +37,9 @@ const { chromium } = require('playwright');
     await frame.getByRole('button', { name: /^(clear|c|ac)$/i }).click();
     const cleared = await displayValues();
     assert.ok(cleared[display] === '' || cleared[display] === '0', 'Clear must reset the display');
-    console.log('PASS: generated calculator rendered, calculated and cleared');
+    const starter = text.includes('HtmlArtifact("Calculator starter"');
+    console.log('PASS: calculator rendered, calculated and cleared');
+    if (starter) console.log('APP_PATH: starter');
   } finally {
     await browser.close();
   }

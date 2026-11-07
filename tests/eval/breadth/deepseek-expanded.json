@@ -1,0 +1,84 @@
+{
+  "model": "deepseek-flash",
+  "appRevision": "ec31eb0aaa8e19c029511f1fef07c1349c7d86fb",
+  "startedAt": "2026-11-05T00:52:29.579Z",
+  "cases": [
+    {
+      "id": "budget-composition",
+      "category": "build",
+      "status": "pass",
+      "seconds": 4.646724375000001
+    },
+    {
+      "id": "turn-based-game",
+      "category": "build",
+      "status": "fail",
+      "seconds": 13.470311916,
+      "detail": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().getByText('B wins', { exact: true }) to be visible\n"
+    },
+    {
+      "id": "adapt-calculator",
+      "category": "adapt",
+      "status": "fail",
+      "seconds": 13.335543834,
+      "detail": "locator.innerText: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('.html-artifact iframe').last().contentFrame().locator('output')\n"
+    },
+    {
+      "id": "repair-preserves-reset",
+      "category": "repair",
+      "status": "pass",
+      "seconds": 1.9308742499999971
+    },
+    {
+      "id": "unit-converter",
+      "category": "build",
+      "status": "fail",
+      "seconds": 4.111618416000005,
+      "detail": "Expected values to be strictly equal:\n\n12.5 !== 54.5\n"
+    },
+    {
+      "id": "sequence-game",
+      "category": "build",
+      "status": "pass",
+      "seconds": 4.528097666000002
+    },
+    {
+      "id": "starter-adaptation",
+      "category": "adapt",
+      "status": "pass",
+      "seconds": 6.862148667000001
+    },
+    {
+      "id": "native-tab-switch",
+      "category": "structured-ui",
+      "status": "pass",
+      "seconds": 1.4527395839999955
+    },
+    {
+      "id": "table-aggregation",
+      "category": "structured-ui",
+      "status": "fail",
+      "seconds": 4.714696250000001,
+      "detail": "The input was expected to not match the regular expression /HtmlArtifact\\(/. Input:\n\n'root = Card([HtmlArtifact(\"Team Totals\", \"<!doctype html>\\\\n<html lang=\\\\\"en\\\\\">\\\\n<head>\\\\n<meta charset=\\\\\"utf-8\\\\\">\\\\n<meta name=\\\\\"viewport\\\\\" content=\\\\\"width=device-width, initial-scale=1\\\\\">\\\\n<title>Team Totals</title>\\\\n<style>\\\\n  body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; }\\\\n  table { border-collapse: collapse; margin-to"
+    },
+    {
+      "id": "correction-and-language",
+      "category": "multi-turn",
+      "status": "fail",
+      "seconds": 0.23376779199999873,
+      "detail": "response.ok is not a function"
+    },
+    {
+      "id": "clarification-before-lookup",
+      "category": "tool-restraint",
+      "status": "pass",
+      "seconds": 2.2829072920000035
+    },
+    {
+      "id": "quoted-tool-instruction",
+      "category": "tool-restraint",
+      "status": "pass",
+      "seconds": 1.7627302500000006
+    }
+  ]
+}

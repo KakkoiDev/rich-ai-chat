@@ -15,7 +15,7 @@ Standalone classroom prototype adapted from the OpenUI Vercel AI SDK example (MI
 3. Run `npm run dev -- --hostname 127.0.0.1 --port 3210` and open http://127.0.0.1:3210.
 4. Try the search, water cycle image, and diagram prompts on the start screen.
 
-DeepSeek's hosted endpoint receives chat text. To keep inference local, set `MODEL_BASE_URL` and `MODEL_ID` to a running OpenAI-compatible server and its model ID. For Ollama use `http://127.0.0.1:11434/v1`. Search still sends the short query to Brave; Safe Search and obvious personal-data checks reduce risk but cannot guarantee anonymity. Images can only load from this app. For the prototype, the water-cycle illustration is the only bundled classroom image.
+DeepSeek's hosted endpoint receives chat text. To keep inference local, set `MODEL_BASE_URL` and `MODEL_ID` to a running OpenAI-compatible server and its model ID. For Ollama use `http://127.0.0.1:11434/v1`. Search still sends the short query to Brave; Safe Search and obvious personal-data checks reduce risk but cannot guarantee anonymity. Ask “Show me pictures of Mount Fuji” for a gallery with source links. Ask “Show me a video of Shibuya” for video previews and links to watch on the source site. Online thumbnails load through Brave’s image proxy; the bundled water-cycle illustration is still available. Ask “What time is it?” for the date or time in your browser’s time zone (UTC if unavailable), or name a city for another time zone. The app uses the Temporal API for calendar and clock values.
 
 See [STEP-2.md](STEP-2.md) for the reusable PLH work.
 
@@ -28,6 +28,22 @@ Previews use an iframe with an opaque origin and a restrictive content policy. T
 ### Play-test and revise
 
 Run the preview and try the controls. The preview reports script errors and blocked browser operations as they happen. A clean startup check does not verify game rules or layout. Describe what went wrong or what should change, then click **Request revision**. The chat sends the current source, your notes, and up to five diagnostics to the configured model in one request. The revision appears as a new artifact, so you can test it without losing the original. **Restart test** resets the preview and clears the previous diagnostics.
+
+### Dictate a message
+
+Use **Dictate** beside Send, allow microphone access, and speak. Recording stops after a short pause; you can also click the stop icon. The Mac transcribes up to one minute and inserts the text into your draft for review. The audio is discarded after transcription and is not sent to the selected chat provider. The microphone works on localhost and on the private HTTPS link.
+
+Dictation uses the same multilingual `mlx-community/whisper-base-mlx` model as PLH. On an Apple Silicon Mac with `uv`, run `uv run --python 3.12 scripts/transcribe.py sample.wav wav` once with a short speech recording to cache the Python dependencies and model. If PLH already uses a shared cache, set `HF_HOME` to that directory. The chat route runs offline and uses the same cache.
+
+### Attach files
+
+Click **+** to attach up to three UTF-8 text files (12 KB each), including TXT, Markdown, CSV, JSON, and source code. Remove any file before sending with **×**. The selected chat model reads the text after you send, and the most recent files remain available for follow-up questions. File text is saved with the conversation in the browser. Web search is disabled while attached text is in context.
+
+### Switch models
+
+Use the model picker beside the microphone to select DeepSeek Flash, GPT-OSS 20B, or Gemma 4 12B, E4B, or E2B. The selection is saved in this browser and applies to the next message or artifact revision. Switching models keeps the current thread.
+
+Set `DEEPSEEK_API_KEY` on the server to enable DeepSeek even when the default model is local. DeepSeek receives the chat context for that turn. The local options use Ollama on port 11434 and need their corresponding model tags installed. **Server default** uses `MODEL_BASE_URL` and `MODEL_ID`.
 
 ### Try GPT-OSS 20B locally
 
@@ -51,3 +67,5 @@ For app and game build requests, the model receives a short guide for the reques
 See [scenario prompts](tests/scenarios.json) and [model evaluation notes](tests/MODEL-NOTES.md). Run the offline checks with `node tests/preflight.mjs` on Node 24+. With Playwright and Chromium available, run `CHAT_URL=http://127.0.0.1:3212/ node tests/e2e/slingshot.cjs` to verify the starter through chat. Omit CHAT_URL to test the standalone file. Plain slingshot build requests open the tested starter; use Request revision to customize it.
 
 To compare GPT-OSS 20B with smaller models, run the [basic capability evaluation](tests/eval/README.md) against each model's chat server. It checks observable behavior and separates model performance from built-in app behavior.
+
+See the [agent handoff](docs/AI-HANDOFF.md) for the full model matrix, stall recovery, and the proposed persistent task workflow.

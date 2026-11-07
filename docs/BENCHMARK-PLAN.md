@@ -1,0 +1,166 @@
+# Rich AI Chat — expanded benchmark plan
+
+The benchmark grows with every feature. The existing suites stay unchanged:
+
+- `tests/eval/run.cjs`: 14 basic cases
+- `tests/eval/breadth/run-breadth.cjs`: 13 breadth cases
+
+A new `features` suite adds model-driven cases milestone by milestone. A separate deterministic **device suite** covers platform behaviour that doesn't depend on the model.
+
+## 1. Verified baseline
+
+| Item | Value |
+| --- | --- |
+| Revision | `b490e06` (`b490e062e2fd…`) |
+| Report | `~/Library/Application Support/Rich AI Chat Benchmarks/reports/b490e06.oVGouR`, state `stable-and-regression-passed` |
+| Result | 10 perfect rounds plus 1 regression round, each 135/135; **1,485/1,485** in total |
+| Per model | 297/297 for each of DeepSeek Flash, GPT-OSS 20B, Gemma 4 12B, E4B and E2B |
+| Wall-clock | About 83 minutes for 11 rounds (about 7.5 minutes per round) |
+| Per-case durations, median / max | DeepSeek 2.0 s / 12.9 s · GPT-OSS 4.0 s / 28.4 s · 12B 2.3 s / 23.3 s · E4B 1.5 s / 9.1 s · E2B 1.4 s / 5.6 s |
+| Latent issue | 6 gpt-oss `AI_ToolChoiceViolationError` entries in `error.log` (a tool call while tool choice was `none`), all recovered |
+| Failed reports kept | 16 `needs-investigation` directories plus 3 incomplete ones, all retained |
+
+Many breadth cases finish in under 1 s because the host's tested layouts and binders handle fully specified requests. That's by design. It also means those cases mostly measure the host. New model-driven cases must use prompts that fall **outside** the tested-layout contracts, so the model's own output is what gets checked.
+
+No new cases have been run yet. Results per model for the expanded matrix will be added here as each milestone's streak runs.
+
+### Runner moved to test-core (2026-11-07)
+
+- `tests/eval/matrix.cjs` now runs on test-core's shared runner (`test-core/bench/bench.mjs`), pinned at test-core `13f517d` through the adopt kit. The cases, environment variables and pass criteria are unchanged.
+- **Parity:** one round on the frozen `b490e06` build, with only the harness changed. Report: `reports/b490e06-bench-parity.202611070313`.
+  - Result: **135/135**, every model 27/27.
+  - Per-model median / max case durations: DeepSeek 1.7 s / 4.9 s, GPT-OSS 3.7 s / 27.8 s, 12B 2.0 s / 20.9 s, E4B 1.2 s / 5.0 s, E2B 1.0 s / 3.5 s, in line with the baseline.
+  - The app quit during the run. The runner recorded `interrupted` with DeepSeek's task checkpointed, and `EVAL_RESUME=1` finished the other four models without repeating it.
+  - The known gpt-oss tool-choice violation appeared once and was recovered.
+  - The run is recorded as `stable-and-regression-passed` because it was configured as 1 round with no regression round. It is a parity check, not a release streak.
+
+## 2. Rules (unchanged, restated)
+
+- **Stable** means ten consecutive perfect rounds on the expanded matrix, then one full regression round on the same frozen revision. Failures, skips, changed expectations and mixed revisions all reset the streak.
+- On a failure:
+  1. Keep the report and its per-case timings.
+  2. Reproduce with a synthetic input.
+  3. Fix the general prompt, tool or runtime behaviour, never a benchmark-specific response.
+  4. Add a test for the failing behaviour.
+  5. Restart from round 1 on the new revision.
+- Use a fresh `EVAL_DIR` per attempt; the harness refuses to reuse one.
+- Check `latest.txt`, the recorded `pid` and whether the logs are advancing before launching anything. Never run a competing matrix against the same Ollama instance.
+- Synthetic data only. The harness uses fresh Playwright contexts, never a personal browser profile, and never imports chat history. Reports live outside the repository.
+
+## 3. Harness changes (land with M1)
+
+1. **Third suite.** In `tests/eval/matrix.cjs`, add `['features', path.join(__dirname, 'features/run-features.cjs'), N]` to `suites`.
+   - `run-features.cjs --list` prints its case IDs, and `matrix.cjs` asserts that N equals that count. Adding a case can then never be silently left out of the expected total.
+   - Everything else, including the perfect check, already derives from `suites`.
+2. **Same runner contract** as the breadth suite:
+   - inputs: `CHAT_URL`, `EVAL_MODEL`, `EVAL_REVISION`, `EVAL_ROUND`, `EVAL_REPORT`
+   - output: `{model, appRevision, startedAt, cases:[{id, category, status, seconds, …}]}`
+   - exit code non-zero on any failure
+3. **Varied synthetic prompts.** `tests/eval/features/prompts.cjs` exports seeded generators keyed by `(EVAL_ROUND, model, caseId)`. They draw app themes, labels, item names, numbers and languages (EN/JA) from synthetic word banks. Every generated prompt is written into the case report, so a failure can be reproduced exactly. Generators are checked to stay outside the tested-layout matchers (`basicKeypadSpec`, `basicExpenseSpec`, `basicTakeAwaySpec`, `basicRecipe`, the starters): preflight runs every generator for rounds 1–20 against those matchers.
+4. **Per-case evidence**, synthetic only:
+   - always: `prompt`, `seconds`, `status`, and phase timings (`generateSeconds`, `interactSeconds`, `exportSeconds`)
+   - on failure: `observed` (as in breadth), `response` (up to 35 KB), and a PNG of the preview frame
+   - from M2 on: `activity`, the redacted event list
+5. **Secret scan.** Preflight scans the new report directory for the literal values of `MODEL_API_KEY`, `DEEPSEEK_API_KEY` and `BRAVE_SEARCH_API_KEY` and for tailnet hostnames, and fails if any appear.
+6. **Device suite.** `tests/device/run-device.cjs` is deterministic, runs no model, and uses test-core recipes. It runs once per candidate before the matrix and must pass, but it isn't part of the five-model count.
+   - It runs Chromium, plus Playwright WebKit where useful. Playwright WebKit is **not** iOS Safari, so iPhone behaviour stays on the manual checklist.
+   - A manual device checklist, `docs/device-checklist.md` (created in M1), is filled in per release candidate. It records each device, OS and browser and the result.
+
+## 4. Case catalog by milestone
+
+Each case says what it observes. "Model" cases run in the five-model matrix every round. "Device" cases run once per candidate.
+
+### M1 — Full-window apps and source export
+
+| ID | Type | Synthetic input (varies per round) | Observable assertions |
+| --- | --- | --- | --- |
+| `export-novel-app` | Model | Build a small app outside the tested layouts, for example a tally board with 3–5 named counters drawn from a word bank, per-counter +1 buttons, "Reset all", and the total in one `<output>`. | In chat: a click sequence gives the expected per-counter values and total. **Full window:** after entering and exiting, the values are unchanged and focus returns to the trigger. **Export:** the downloaded file, served from loopback with the context offline, gives the same results for the same sequence, with no console errors or CSP violations. The reply isn't a known starter. |
+| `export-after-revision` | Model | Build a varied app, then use the card's "What should change?" box to request one more control (label and effect vary). | v2 has the new behaviour and keeps the old behaviour. v1 is still in the thread and works unchanged. Both exports run offline with their own behaviour. |
+| `fullscreen-native` | Device | The tested calculator starter, Chromium at 1280×800. | `document.fullscreenElement` is the wrapper. Escape, then Exit, restores the layout. The calculator state is preserved. |
+| `fullscreen-overlay` | Device | The same starter at 390×844 with touch and `fullscreenEnabled` stubbed to false. | The overlay covers the viewport and the body doesn't scroll. Exit is visible, at least 44 px and reachable by Tab. Escape relayed from inside the frame exits. Focus is restored. |
+| `export-engine-inline` | Device | The slingshot starter. | The exported file runs offline with LittleJS inlined and its licence notice present. |
+
+After M1, a matrix round has (14 + 13 + 2) × 5 = **145 checks**, and the stable gate is **1,595/1,595**.
+
+### M2 — Reply Activity
+
+| ID | Type | Input | Assertions |
+| --- | --- | --- | --- |
+| `activity-single-search` | Model | A varied obscure-fact question that needs search. | Activity shows exactly **one** executed `web_search` with a duration. Its source count matches the source links in the reply. Activity text doesn't appear in the answer. |
+| `activity-no-tool` | Model | A varied explanation that needs no tool. | Activity lists no tool executions and the panel says so. |
+| `activity-app-attempts` | Model | A varied novel app build. | Activity shows build attempts equal to the server's actual attempts. Any retry has a reason. The final app passes its interaction check. |
+| `activity-retry-no-duplicate` | Device | Stalled stream injected after a successful search (stubbed provider). | Activity shows the retry and its reason, and only **one** search execution. The reply is synthesized from the captured sources. |
+| `activity-persist-delete` | Device | A stubbed reply. | The panel survives reload. Deleting the thread removes its activity from IndexedDB. |
+| `capture-replay` | Device | `EVAL_CAPTURE=1` on a synthetic case. | The capture file has the prompt, settled reply and redacted activity, and replays without loading personal history. |
+
+After M2: 32 cases per model, **160 checks per round**.
+
+### M3 — OpenUI reachability and actions
+
+| ID | Type | Input | Assertions |
+| --- | --- | --- | --- |
+| `form-submit-roundtrip` | Model | A varied form request ("collect X, Y, Z; when I submit, plan …"). | The first reply contains the form and no pre-written result. Filling and submitting sends one user turn. The next reply uses exactly the submitted values. Submitting twice is prevented. |
+| `editable-table-save` | Model | Varied table data to edit. | After an edit and "Save Changes", the next reply reflects the edited cell. |
+| `native-layout-choice` | Model | A varied request for an accordion, steps or tabs. | A native component is used (no `HtmlArtifact`), and it can be operated with the keyboard at 390 px. |
+| `gallery-coverage` | Device | The `/gallery` route. | All 82 components render, and every interactive control has an e2e step (`e2e_coverage.py`). |
+
+After M3: 35 cases per model, **175 checks per round**.
+
+### M4 — Kakkoi theme
+
+| ID | Type | Assertions |
+| --- | --- | --- |
+| `themed-app-contrast` | Model | A varied generated app with the host-injected inline theme. Every visible control and the result meet 4.5:1 text contrast in light and dark. |
+| `theme-token-pin` | Device | The chat and an exported app reference the pinned token hash, and no copied theme definitions exist in the repository. |
+
+After M4: 36 cases per model, **180 checks per round**.
+
+### M5 — Saved projects
+
+| ID | Type | Assertions |
+| --- | --- | --- |
+| `project-reopen-revise` | Model | Save v1, reload, reopen it into a new thread and request a varied change. v2 works, and v1 is unchanged in the store. |
+
+After M5: 37 cases per model, **185 checks per round**.
+
+### M6 — Installable exported apps
+
+| ID | Type | Assertions |
+| --- | --- | --- |
+| `pwa-export-novel-app` | Model | The varied model-built app is exported as a PWA on the export origin. CDP `Page.getInstallabilityErrors` returns nothing. After the service worker is installed, an offline reload works and the interaction check passes. |
+| `pwa-origin-isolation` | Device | The export origin can't read the chat origin's storage. Manifest `id` and scope are distinct per app. |
+
+After M6: 38 cases per model, **190 checks per round**.
+
+### M7–M8 — Chat PWA and Capacitor
+
+These are deterministic and run on devices; model behaviour is not under test.
+
+- `chat-offline-shell`: the shell loads offline and shows the offline state.
+- `host-unreachable`: the API is blocked, the unreachable state appears, and retry recovers.
+- `reconnect-midstream`: an interrupted reply is labelled, and the next turn works.
+- CORS and token checks for native origins.
+
+Real-device checks for install, streaming, upload, dictation and the Tailscale-off state go on the manual checklist.
+
+### M9–M10 — Tasks and background jobs
+
+| ID | Type | Assertions |
+| --- | --- | --- |
+| `task-plan-two-step` | Model | A varied objective. The agent creates a two-item plan, which is visible in the panel. It completes item 1 with evidence. After a reload, item 2 and the checkpoint remain. |
+| `task-verify-needs-evidence` | Model | Asked to mark an item verified without a test or receipt, the host rejects it and the reply says it isn't verified. |
+| `job-resume-checkpoint` | Model | A varied two-step job. The harness kills the worker after checkpoint 1. The job resumes from that checkpoint, step 1's receipt isn't repeated, and the result is correct. |
+| `job-cancel` | Model | The user cancels mid-run. The status is cancelled, no further operations happen and the reason is visible. |
+| Interrupted worker, duplicate delivery, concurrent edits, blocked dependencies, cross-profile isolation | Device | As described in the handoff. |
+
+After M10: 42 cases per model, **210 checks per round**.
+
+## 5. Reporting per model
+
+After each streak, append a table to this file:
+
+| Revision | Model | Rounds | Passed / expected | Median / max case seconds | New-suite failures (kept report) |
+| --- | --- | --- | --- | --- | --- |
+| `b490e06` | each of the 5 | 11 | 297 / 297 | see §1 | — |
+
+Also record the wall-clock time per round. Model-driven app cases include generation, so expect each round to take longer than today's 7.5 minutes. Measure the M1 cost in the first round rather than estimating it.
