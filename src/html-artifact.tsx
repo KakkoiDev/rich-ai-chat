@@ -4,6 +4,7 @@ import { defineComponent, useIsStreaming, useTriggerAction } from "@openuidev/re
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { artifactPolicy, artifactSource, engineMarker, engineScript, exportArtifact, exportFilename } from "@/lib/artifact-export";
+import { hostStyle } from "@/lib/host-style";
 
 // The monitor also relays Escape: key presses inside the opaque-origin frame never reach this page.
 const monitor = `<script>
@@ -153,7 +154,7 @@ function Preview({ title, document }: { title: string; document: string }) {
       const [engineText, license] = needsEngine
         ? await Promise.all([engine ?? fetchText("/vendor/littlejs-1.27.0.min.js"), fetchText("/vendor/LICENSE.littlejs")])
         : [];
-      const html = exportArtifact({ title, document, engine: engineText, engineLicense: license });
+      const html = exportArtifact({ title, document, engine: engineText, engineLicense: license, head: [hostStyle] });
       const name = exportFilename(title, fingerprint(html));
       const link = globalThis.document.createElement("a");
       link.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
@@ -239,7 +240,7 @@ function Preview({ title, document }: { title: string; document: string }) {
               title={title}
               sandbox="allow-scripts"
               referrerPolicy="no-referrer"
-              srcDoc={`<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${artifactPolicy}">${monitor}${needsEngine && engine ? engineScript(engine) : ""}${previewSource}`}
+              srcDoc={`<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${artifactPolicy}">${hostStyle}${monitor}${needsEngine && engine ? engineScript(engine) : ""}${previewSource}`}
             />
           </div>
         </>

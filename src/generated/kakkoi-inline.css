@@ -1,0 +1,34 @@
+/* Kakkoi inline subset v1 — added by the host to every generated app. System fonts only. */
+:root{color-scheme:light dark;--bg:#fff;--fg:#000;--mut:#595959;--line:#d4d4d4;--edge:#767676;--err:#c4161c;--ok:#1e7a34;
+--font:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans JP",sans-serif}
+@media(prefers-color-scheme:dark){:root{--bg:#000;--fg:#fff;--mut:#a6a6a6;--line:#333;--edge:#8c8c8c;--err:#ff6b6b;--ok:#5cd67a}}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+background:var(--bg);color:var(--fg);font:400 16px/1.6 var(--font)}
+main{max-width:768px;margin:0 auto}
+h1,h2,h3{line-height:1.2;margin:0 0 .5em;font-weight:700;letter-spacing:-.01em}
+h1{font-size:1.75rem}h2{font-size:1.375rem}h3{font-size:1.125rem}
+p{margin:0 0 1em}
+a{color:inherit;text-underline-offset:3px}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+button,input,select,textarea{font:inherit;color:inherit;border-radius:0}
+button{min-height:44px;min-width:44px;padding:0 16px;border:1px solid var(--fg);background:var(--bg);font-weight:600;cursor:pointer;touch-action:manipulation}
+button:hover{background:color-mix(in srgb,var(--fg) 8%,var(--bg))}
+button:active{background:var(--fg);color:var(--bg)}
+button.primary,button[type=submit]{background:var(--fg);color:var(--bg)}
+button.primary:hover,button[type=submit]:hover{background:var(--bg);color:var(--fg)}
+button:disabled{border-style:dashed;border-color:var(--edge);background:var(--bg);color:var(--mut);cursor:not-allowed}
+input,select,textarea{min-height:44px;width:100%;padding:10px 12px;border:1px solid var(--edge);background:var(--bg)}
+input[type=checkbox],input[type=radio]{width:20px;min-height:20px;accent-color:var(--fg)}
+input[type=range]{accent-color:var(--fg);padding:0}
+label{display:block;font-size:.875rem;font-weight:600;margin:0 0 6px}
+:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.result,output{display:block;border:1px solid var(--fg);padding:12px 16px;margin:16px 0;font-variant-numeric:tabular-nums}
+.muted{color:var(--mut)}
+.error{color:var(--err)}.success{color:var(--ok)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+canvas,img,svg,video{max-width:100%;height:auto}
+canvas{display:block;border:1px solid var(--line);touch-action:none}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

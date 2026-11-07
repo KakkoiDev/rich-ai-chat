@@ -1,8 +1,8 @@
 {
   "visual-core": {
     "repository": "https://github.com/KakkoiDev/visual-core",
-    "commit": "b5efb550aefc8a1e1503266c1e506dc639bca451",
-    "version": "0.6.0",
+    "commit": "d5a99c1f639346d007f1bbc28ebca9d4fcbafaf9",
+    "version": "0.7.2",
     "files": {
       "public/icons/kakkoi-icon-32.png": {
         "from": "themes/kakkoi/png/kakkoi-icon-32.png",
@@ -27,6 +27,34 @@
       "public/icons/kakkoi-icon-maskable-512.png": {
         "from": "themes/kakkoi/png/kakkoi-icon-maskable-512.png",
         "sha256": "d1f627e490664c4fb73030e74d2131b65ee79cb9e7f61c52f7706e8a3ba3c97d"
+      },
+      "public/theme/kakkoi-fonts.css": {
+        "from": "themes/kakkoi/kakkoi-fonts.css",
+        "sha256": "903013d850b14337b7c388fdc5f741e1cf8cbd16974af144f9a68904f3ccf7e6"
+      },
+      "public/theme/fonts/bebas-neue-latin.woff2": {
+        "from": "themes/kakkoi/fonts/bebas-neue-latin.woff2",
+        "sha256": "76f10b05c391e7e13e3cd6ba31b399309f105965b8308d83d8c75a0ded4fdbd4"
+      },
+      "public/theme/fonts/inter-latin.woff2": {
+        "from": "themes/kakkoi/fonts/inter-latin.woff2",
+        "sha256": "f7ca93be17f807b048ed903645e4d2495d69517f4ae43a217782ea3d5887db4e"
+      },
+      "public/theme/fonts/OFL-bebasneue.txt": {
+        "from": "themes/kakkoi/fonts/OFL-bebasneue.txt",
+        "sha256": "72082f6cb4d04be2ecf7cc7d9e1e7d73787f0af8a5a278a47cade70c16b78341"
+      },
+      "public/theme/fonts/OFL-inter.txt": {
+        "from": "themes/kakkoi/fonts/OFL-inter.txt",
+        "sha256": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57"
+      },
+      "src/generated/kakkoi.openui.json": {
+        "from": "themes/kakkoi/kakkoi.openui.json",
+        "sha256": "d5580926577e84c0435e5d42a796a35c99a963184b307e71856fa1b56cc52392"
+      },
+      "src/generated/kakkoi-inline.css": {
+        "from": "themes/kakkoi/kakkoi-inline.css",
+        "sha256": "38d610cf03389fef59964e7a836312ddbb556eafd05761a896e2b1b63ec3f940"
       }
     }
   },

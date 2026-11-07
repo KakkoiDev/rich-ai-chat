@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { hostStyle } from "@/lib/host-style";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { artifactPolicy, artifactSource, engineMarker, exportArtifact } from "@/lib/artifact-export";
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     const [engine, engineLicense] = needsEngine
       ? (await Promise.all([publicFile("vendor", "littlejs-1.27.0.min.js"), publicFile("vendor", "LICENSE.littlejs")])).map(String)
       : [];
-    const html = exportArtifact({ title, document, engine, engineLicense, policy: installedAppPolicy(artifactPolicy), head: installedAppHead });
+    const html = exportArtifact({ title, document, engine, engineLicense, policy: installedAppPolicy(artifactPolicy), head: [...installedAppHead, hostStyle] });
     const id = installedAppId(title, createHash("sha256").update(html).digest("hex"));
     const network = networkFeatures(artifactSource(document));
     const files: Record<string, string | Uint8Array> = {

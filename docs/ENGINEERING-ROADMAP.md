@@ -219,6 +219,18 @@ Differences from the plan:
 
 ### M4 — Kakkoi theme v0 *(the designer's deliverables have arrived; see the hand-back above)*
 
+**Status (2026-11-08):** theme v0 is built; the release streak with the inline subset is still to run.
+- The chat is named Kakkoi Chat and uses visual-core 0.7.2's OpenUI theme in light and dark, with self-hosted Latin woff2 fonts (Inter 31 KB, Bebas Neue 14 KB). Everything is pinned in `cores.lock.json` and checked by preflight.
+- visual-core fixes found while applying it:
+  - 0.7.1: OpenUI's `foreground` is a surface colour, not the text colour.
+  - 0.7.2: the sunk, elevated and highlight layers are ink at OpenUI's alphas, and accent text uses the accent's foreground.
+- Every preview and both exports get `kakkoi-inline.css` before the app's own markup (`src/lib/host-style.ts`).
+- Japanese uses the system font until Noto Sans JP is sliced.
+- Not done:
+  - the new Kakkoi shell on the headless layer
+  - strings from the copy deck
+  - the matrix streak with the subset injected, which this milestone's accept needs
+
 - **visual-core:**
   - **Done, merged in visual-core #5:** `themes/kakkoi/` with `kakkoi-tokens.json` as the source, `kakkoi.css` (Basecoat token values in light and dark, plus primitives), `kakkoi-inline.css` and the SVG marks. A scenario keeps the CSS, the inline subset and the contrast claims in step with the tokens. Version 0.5.0.
   - **Still to do:**
