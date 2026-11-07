@@ -472,6 +472,42 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
   }
 }
 
+// The chat's connection line tells offline, Tailscale off and an unreachable host apart (best effort).
+{
+  const { checkConnection, classifyConnection, isTailnetHost } = await import("../src/lib/connection.ts");
+  assert.equal(isTailnetHost("mac.tail0000.ts.net"), true);
+  assert.equal(isTailnetHost("100.101.1.2"), true);
+  assert.equal(isTailnetHost("100.200.1.2"), false, "Outside 100.64.0.0/10");
+  assert.equal(isTailnetHost("127.0.0.1"), false);
+  const tailnet = "mac.tail0000.ts.net";
+  assert.equal(classifyConnection({ online: false, status: 200, elapsedMs: 5, hostname: tailnet }), "offline");
+  assert.equal(classifyConnection({ online: true, status: 200, elapsedMs: 5, hostname: tailnet }), "online");
+  assert.equal(classifyConnection({ online: true, status: 502, elapsedMs: 5, hostname: tailnet }), "unreachable", "Serve answers, the chat server is down");
+  assert.equal(classifyConnection({ online: true, elapsedMs: 40, hostname: tailnet }), "tailscale", "The name stopped resolving");
+  assert.equal(classifyConnection({ online: true, elapsedMs: 6000, hostname: tailnet }), "unreachable", "Nothing answered in time");
+  assert.equal(classifyConnection({ online: true, elapsedMs: 40, hostname: "127.0.0.1" }), "unreachable", "Refused on a local address");
+
+  let clock = 0;
+  const now = () => clock;
+  const asked = [];
+  const answer = status => async (url, init) => { asked.push([url, init.cache]); clock += 10; return new Response(null, { status }); };
+  assert.equal(await checkConnection({ fetcher: answer(200), online: true, hostname: tailnet, now }), "online");
+  assert.deepEqual(asked[0], ["/api/health", "no-store"]);
+  assert.equal(await checkConnection({ fetcher: answer(502), online: true, hostname: tailnet, now }), "unreachable");
+  assert.equal(await checkConnection({ fetcher: async () => { clock += 20; throw new TypeError("Failed to fetch"); }, online: true, hostname: tailnet, now }), "tailscale");
+  assert.equal(await checkConnection({ fetcher: answer(200), online: false, hostname: tailnet, now }), "offline", "Offline: no request at all");
+  assert.equal(asked.length, 2);
+  const hang = (_url, init) => new Promise((_, reject) => init.signal.addEventListener("abort", () => { clock += 6000; reject(new DOMException("aborted", "AbortError")); }));
+  assert.equal(await checkConnection({ fetcher: hang, online: true, hostname: tailnet, now, timeoutMs: 20 }), "unreachable", "A host that never answers times out");
+}
+
+// The shell worker never answers or caches /api/* and keeps only the page and build files.
+{
+  const worker = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
+  assert.match(worker, /url\.pathname\.startsWith\('\/api\/'\)\) return;/, "API requests pass straight through");
+  assert.doesNotThrow(() => new Function(worker), "The worker is valid JavaScript");
+}
+
 // Pinned cores: every copied file still has the hash recorded when it was pinned (cores.lock.json for visual-core's
 // icons, test-core/MANIFEST.json for test-core), so a hand-edited copy fails here. Re-pin with
 // scripts/pin-visual-core.mjs or test-core's adopt.py --update instead.

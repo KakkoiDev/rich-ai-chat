@@ -12,6 +12,7 @@ import {
 } from "@openuidev/react-ui";
 import { library } from "@/library";
 import { ChatComposer, ChatUserMessage } from "@/chat-composer";
+import { ConnectionStatus } from "@/connection-status";
 
 const serverDefault = "server-default";
 const modelOptions = [
@@ -103,6 +104,7 @@ export default function ChatPage({ defaultModelLabel }: { defaultModelLabel: str
         components={{ UserMessage: ChatUserMessage }}
       >
         <AgentInterface.Composer>
+          <ConnectionStatus />
           <ChatComposer model={model || serverDefault} models={[{ id: serverDefault, name: `${defaultModelLabel} (default)` }, ...modelOptions]} selectModel={selectModel} starters={[
             { displayText: "Weather in Tokyo", prompt: "What's the weather like in Tokyo right now?" },
             { displayText: "Try web search", prompt: "Search the web for a recent NASA astronomy discovery and cite your sources." },
