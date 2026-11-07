@@ -1,0 +1,11 @@
+{
+  "coding-core": "https://github.com/KakkoiDev/coding-core",
+  "commit": "e721932d1b1d2d85ca00031e4e99a52806e39689",
+  "files": {
+    "LICENSE": "1d7ff4af1cce526e8f9af767cea412b730a3e4ef38fce3d83469b3894bc5d653",
+    "adopt.py": "c0d943d7e8dd18d1af35ca4dbc9d361f96c1427be87ad6066e48be2906be040f",
+    "js/receipts.mjs": "9ea727bce34042817371fb2cd548628e0ba9b7d660f4dea683d7cd5641be3fdc",
+    "js/sqlite.mjs": "6c79f4a05962acac4af29de114c5fc0dadda15405587d71c1bce4bc97f481498",
+    "js/task-states.mjs": "b1cfd6f038e861dda182172c10c266e2f8a176a672badb8b9f6e1945e4e88bf6"
+  }
+}

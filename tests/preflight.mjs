@@ -396,3 +396,16 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
   const partial = '<button id="p">Piano</button><button id="r">Reset all</button><output id="o">0</output><script>p.onclick = () => {};</script>';
   assert.match(checkArtifactRequest(partial, request) ?? "", /exact labels: "Trumpet", "Drums"/);
 }
+
+// Pinned cores: every file copied from test-core and coding-core matches its manifest (change the core, then re-adopt).
+{
+  const { createHash } = await import("node:crypto");
+  for (const folder of ["test-core", "coding-core"]) {
+    const manifest = JSON.parse(readFileSync(new URL(`../${folder}/MANIFEST.json`, import.meta.url), "utf8"));
+    assert.match(manifest.commit, /^[0-9a-f]{40}$/, `${folder} is pinned to a commit`);
+    for (const [path, digest] of Object.entries(manifest.files)) {
+      const actual = createHash("sha256").update(readFileSync(new URL(`../${folder}/${path}`, import.meta.url))).digest("hex");
+      assert.equal(actual, digest, `${folder}/${path} was edited in place`);
+    }
+  }
+}
