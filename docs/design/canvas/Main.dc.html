@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Kakkoi style</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/232ffe54ef71b53181f68fc03eeda221">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@400..700&amp;family=Noto+Sans+JP:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#595959}
+.m ol{margin:0;padding-left:24px;display:flex;flex-direction:column;gap:10px}
+.m li{padding-left:4px}
+.m table{border-collapse:collapse;width:100%}
+.m th,.m td{text-align:left;vertical-align:top;padding:10px 12px 10px 0;border-bottom:1px solid var(--border);font-size:14px;line-height:1.5}
+.m th{font-weight:600;font-size:13px;border-bottom:1px solid #000}
+</style>
+</helmet>
+<div class="k m" style="width: 1280px; height: 2400px; position: relative; overflow: hidden">
+<header style="display: flex; justify-content: space-between; align-items: center; height: 64px; padding: 0 32px; border-bottom: 1px solid #d4d4d4">
+<img src="/_blob/6d6197910b704da27447594cfc287a37" alt="KAKKOIDEV" style="height: 20px">
+<nav aria-label="Hand-back" style="display: flex; gap: 24px; font-size: 14px"><a href="Tokens.dc.html">Tokens</a><a href="Brand.dc.html">Brand</a><a href="Components.dc.html">States</a><a href="CopyDeck.dc.html">Copy</a></nav>
+</header>
+<img src="/_blob/1ddbb09ccd157443591fee3f29b13516" alt="" aria-hidden="true" style="position: absolute; right: -60px; top: 40px; width: 420px; opacity: 0.12">
+<main style="max-width: 768px; margin: 0 auto; padding: 72px 0 96px; display: flex; flex-direction: column; gap: 48px; position: relative">
+<section style="display: flex; flex-direction: column; gap: 16px">
+<p class="t-label t-muted" style="margin: 0">Hand-back 1 · confirmed against kakkoi.dev, 7 Nov 2026</p>
+<h1 class="t-display">The Kakkoi style</h1>
+<p class="t-small t-muted" lang="ja" style="margin: 0">カッコイイ・スタイル</p>
+<p class="t-statement" style="margin: 0; font-size: 20px; line-height: 1.5">Black text on white paper, set in Bebas Neue and Inter, divided by hairlines. Nothing else is added unless it carries meaning.</p>
+</section>
+<hr class="rule-strong">
+<section style="display: flex; flex-direction: column; gap: 20px">
+<h2 class="t-h2">Twelve rules an agent can apply</h2>
+<ol class="t-body">
+<li><strong>Two colours.</strong> Foreground <code>#000</code> on background <code>#fff</code> (inverted in dark mode). Grey <code>#595959</code> is for secondary text only.</li>
+<li><strong>Colour means state.</strong> Red = error, green = success, amber = warning. Each always comes with a word or an icon. No accent colour, no brand colour.</li>
+<li><strong>Hierarchy comes from type.</strong> Bebas Neue for the wordmark and section titles (capitals only, never sentences). Inter for everything people read. Noto Sans JP for Japanese, including Japanese headings.</li>
+<li><strong>One column.</strong> Content sits in a centred column of 768&nbsp;px at most. Panels (history, Activity, Tasks) sit beside it, never inside it.</li>
+<li><strong>Hairlines, not boxes.</strong> Sections and list rows are separated by a 1&nbsp;px rule. Use a full border only around things you can act on, or around third-party content.</li>
+<li><strong>Square edges.</strong> Radius is 0 everywhere. No shadows, except a 4&nbsp;px hard offset under floating menus so they read as on top.</li>
+<li><strong>Underlined links, outlined buttons.</strong> One filled black button per area: the primary action. Every other action is outlined or plain text.</li>
+<li><strong>44&nbsp;px targets, 8&nbsp;px apart.</strong> Including chips, list rows and the Exit control.</li>
+<li><strong>Focus is a 2&nbsp;px outline with a 2&nbsp;px gap</strong>, in the foreground colour. Hover fills grey or inverts; focus is never a colour change alone.</li>
+<li><strong>Words over icons.</strong> Icons are Lucide outlines and appear next to a label. Icon-only buttons are allowed only for send, stop, close and menu, and always have an accessible name.</li>
+<li><strong>The cube is the only motif.</strong> Use it for the app icon, the empty state and the loading mark. Never behind text people need to read. It stops moving when reduced motion is on.</li>
+<li><strong>Calm motion.</strong> 120&nbsp;ms for state changes, 200&nbsp;ms for panels, nothing that bounces. Waiting is shown as words and elapsed time, not spinners alone.</li>
+</ol>
+</section>
+<hr class="rule">
+<section style="display: flex; flex-direction: column; gap: 16px">
+<h2 class="t-h2">What changed from the observed site</h2>
+<table>
+<thead><tr><th style="width: 22%">Element</th><th style="width: 34%">kakkoi.dev</th><th>Kakkoi system</th></tr></thead>
+<tbody>
+<tr><td>Grey</td><td>Light grey for the line drawing only</td><td>Adds <code>#595959</code> text grey (7:1) and <code>#767676</code> control edge (4.5:1); <code>#d4d4d4</code> for decorative rules</td></tr>
+<tr><td>Dark mode</td><td>None</td><td><strong>Yes, as a straight inversion.</strong> Phones in a classroom at night; the brand survives inversion untouched</td></tr>
+<tr><td>Japanese headings</td><td>Not present</td><td>Noto Sans JP 700, about 75% of the Bebas size, no tracking</td></tr>
+<tr><td>Radius</td><td>Square</td><td>Confirmed: <code>--radius: 0</code></td></tr>
+<tr><td>Body weight</td><td>500 for statements</td><td>400 for reading text, 500 for statements and labels, 600 for buttons</td></tr>
+<tr><td>Icons</td><td>Favicon only</td><td>Cube mark, maskable and mono versions, generated-app template</td></tr>
+</tbody>
+</table>
+</section>
+<hr class="rule">
+<section style="display: flex; flex-direction: column; gap: 16px">
+<h2 class="t-h2">Decisions (hand-back 6)</h2>
+<table>
+<tbody>
+<tr><th style="width: 30%; border-bottom: 1px solid #d4d4d4">Brand hierarchy</th><td><strong>KAKKOI</strong> is the maker brand and owns the cube and the wordmark. <strong>KakkoiSchool</strong> is the programme the classrooms belong to; it is named in text, it has no mark of its own. The product is <strong>Kakkoi Chat</strong> (home-screen label "Kakkoi Chat", 11 characters). "Rich" describes engineering, not what people see.</td></tr>
+<tr><th style="border-bottom: 1px solid #d4d4d4">Dark mode</th><td>Yes. Follows the system setting, with an override in Settings. Straight inversion, one table of values.</td></tr>
+<tr><th style="border-bottom: 1px solid #d4d4d4">Generated apps</th><td>They get the inline subset: black and white, square, 44&nbsp;px controls, system fonts. It reads as Kakkoi but adds no web fonts, so the 32&nbsp;KB budget goes to the app. An app may override any of it.</td></tr>
+<tr><th style="border-bottom: 1px solid #d4d4d4">Students and the model</th><td>Students see which model answered and where it ran (privacy is their business too), but only a teacher can change it. The default is a local model, so nothing leaves the Mac unless a teacher chooses.</td></tr>
+<tr><th>Icons</th><td>Lucide 1.59 (already vendored). New ones needed: maximize, minimize, download, smartphone-plus (install), list (Activity), list-checks (Tasks), rotate-ccw (retry), wifi-off (offline), share (iOS).</td></tr>
+</tbody>
+</table>
+</section>
+<hr class="rule">
+<section style="display: flex; flex-direction: column; gap: 12px">
+<h2 class="t-h2">Fonts and licences</h2>
+<p class="t-small" style="margin: 0">All three are SIL Open Font Licence 1.1, from the google/fonts repository, and can be self-hosted. Licence texts are in <code>kakkoi-theme/fonts/</code>.</p>
+<table>
+<tbody>
+<tr><td style="width: 30%"><span style="font: 400 24px/1 'Bebas Neue'">Bebas Neue</span></td><td>Regular 400 · ofl/bebasneue/BebasNeue-Regular.ttf · © 2010 Dharma Type · Latin only</td></tr>
+<tr><td><span style="font: 600 18px/1 Inter">Inter</span></td><td>Variable 100–900 · ofl/inter · © 2016 The Inter Project Authors · subset to Latin + punctuation</td></tr>
+<tr><td><span style="font: 700 18px/1 'Noto Sans JP'" lang="ja">Noto Sans JP</span></td><td>400 / 500 / 700 · ofl/notosansjp · © 2014–2021 Adobe · ship as unicode-range slices</td></tr>
+</tbody>
+</table>
+</section>
+<hr class="rule">
+<section style="display: flex; flex-direction: column; gap: 12px">
+<h2 class="t-h2">Links and saving to the repos</h2>
+<p class="t-small" style="margin: 0">This canvas: <a href="https://claude.ai/code/artifact/41493272-af23-486c-b807-433f3e10ae3f">claude.ai/code/artifact/41493272…</a> (private until shared from the Share menu). Pages: 1 System · 2 Chat, composer, replies · 3 Activity · 4 Generated apps · 5 Tasks · 6 Connection &amp; edge states · 7 Copy deck.</p>
+<table>
+<thead><tr><th style="width: 30%">Repo</th><th>What goes there</th></tr></thead>
+<tbody>
+<tr><td><code>visual-core/themes/kakkoi/</code></td><td>kakkoi-tokens.json, kakkoi.css, kakkoi-inline.css, svg/, fonts/ (+ Inter and Noto Sans JP variable files from google/fonts), KAKKOI-STYLE.md as README.md</td></tr>
+<tr><td><code>rich-ai-chat/docs/design/</code></td><td>BRIEF.md, HANDOFF.md, copy-deck.json, <code>frames/</code> (PDF or PNG per artboard from Share › Export), <code>canvas/</code> (this canvas's source files)</td></tr>
+</tbody>
+</table>
+<p class="t-small t-muted" style="margin: 0">Step-by-step commands are in HANDOFF.md in kakkoi-theme.zip. The canvas is where designs change; the repos keep dated snapshots. If they disagree, kakkoi-tokens.json wins.</p>
+</section>
+<hr class="rule">
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 class="t-h2">Assumptions to check</h2>
+<p class="t-small" style="margin: 0">The product name "Kakkoi Chat" was confirmed by the owner on 7 Nov 2026. The Japanese copy has not been read by a native speaker.</p>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2400}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

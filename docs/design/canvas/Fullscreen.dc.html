@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Full screen app</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/232ffe54ef71b53181f68fc03eeda221">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@400..700&amp;family=Noto+Sans+JP:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#595959}
+.cap{font:600 13px/1.4 Inter,sans-serif;margin:0 0 12px}
+.strip{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 4px;background:#000;color:#fff}
+.strip .btn{background:#000;color:#fff;border-color:#fff}
+.strip .btn-ghost{border-color:transparent}
+.strip h2{font:600 15px/1.2 Inter,sans-serif;margin:0;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app{flex:1;background:#fff;font:400 15px/1.5 system-ui,-apple-system,sans-serif;display:flex;flex-direction:column;gap:14px;padding:24px}
+.app button{min-height:48px;border:1px solid #000;background:#fff;font:600 16px system-ui;text-align:left;padding:0 16px}
+.ann{font:400 13px/1.45 Inter,sans-serif;color:#595959;margin:12px 0 0;max-width:520px}
+</style>
+</helmet>
+<div class="k" style="width: 1880px; height: 1200px; padding: 48px; display: grid; grid-template-columns: 1040px 390px 1fr; gap: 56px; align-items: start">
+
+<div style="display: flex; flex-direction: column; gap: 40px">
+<figure style="margin: 0">
+<figcaption class="cap">Desktop and iPad · real browser full screen</figcaption>
+<div role="dialog" aria-modal="true" aria-label="Solar system quiz, full screen" style="width: 1040px; height: 600px; border: 1px solid #000; display: flex; flex-direction: column">
+<div class="strip" style="padding: 0 8px">
+<button class="btn is-focus" style="outline-color: #fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"></path></svg>Exit</button>
+<span class="kbd" style="color: #fff; border-color: #8c8c8c">Esc</span>
+<h2>Solar system quiz · v2</h2>
+<button class="btn btn-ghost btn-icon" aria-label="More: download, restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button>
+</div>
+<div class="app" style="padding: 48px 160px">
+<div style="display: flex; justify-content: space-between"><strong>Question 3 of 5</strong><span style="font-variant-numeric: tabular-nums">0:12 left</span></div>
+<div style="height: 4px; background: #e5e5e5"><div style="width: 60%; height: 4px; background: #000"></div></div>
+<p style="margin: 0; font-size: 28px; font-weight: 700">Which is the largest moon in the solar system?</p>
+<button>Titan</button><button style="background: #000; color: #fff">Ganymede</button><button>Europa</button><button>Callisto</button>
+</div>
+</div>
+<p class="ann">Entering: focus moves to Exit; Escape exits (the browser also exits on Esc). The strip is the chat's, outside the app. Exiting keeps the app running with its state and returns focus to the Full screen button.</p>
+</figure>
+
+<figure style="margin: 0">
+<figcaption class="cap">iPhone · landscape overlay · safe areas left and right</figcaption>
+<div role="dialog" aria-modal="true" aria-label="Solar system quiz" style="width: 844px; height: 390px; border: 1px solid #000; display: flex; flex-direction: column">
+<div class="strip" style="padding: 0 47px 0 47px; height: 48px">
+<button class="btn" style="min-height: 44px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>Exit</button>
+<h2>Solar system quiz · v2</h2>
+<button class="btn btn-ghost btn-icon" aria-label="More: download, restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button>
+</div>
+<div class="app" style="padding: 16px 47px 21px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px">
+<div style="grid-column: 1 / -1; display: flex; justify-content: space-between"><strong>Question 3 of 5</strong><span style="font-variant-numeric: tabular-nums">0:12 left</span></div>
+<p style="margin: 0; font-size: 20px; font-weight: 700; grid-row: span 3">Which is the largest moon in the solar system?</p>
+<button>Titan</button><button style="background: #000; color: #fff">Ganymede</button><button>Europa</button>
+</div>
+</div>
+<p class="ann">Rotation keeps the app's state. The strip shrinks to 48&nbsp;px; Exit stays at 44&nbsp;px.</p>
+</figure>
+</div>
+
+<figure style="margin: 0">
+<figcaption class="cap">iPhone · portrait overlay · menu open</figcaption>
+<div role="dialog" aria-modal="true" aria-label="Solar system quiz" style="width: 390px; height: 844px; border: 1px solid #000; display: flex; flex-direction: column; position: relative">
+<div style="height: 47px; flex: none; background: #000"></div>
+<div class="strip">
+<button class="btn" style="min-height: 44px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>Exit</button>
+<h2>Solar system quiz</h2>
+<button class="btn btn-icon" aria-label="More: download, restart" aria-expanded="true" style="background: #fff; color: #000"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button>
+</div>
+<div role="menu" aria-label="More" class="pop" style="position: absolute; right: 8px; top: 107px; width: 220px; display: flex; flex-direction: column; z-index: 2">
+<button role="menuitem" class="btn btn-ghost" style="justify-content: flex-start; border-bottom: 1px solid #d4d4d4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>Download</button>
+<button role="menuitem" class="btn btn-ghost" style="justify-content: flex-start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>Restart</button>
+</div>
+<div class="app" style="padding: 20px 16px">
+<div style="display: flex; justify-content: space-between"><strong>Question 3 of 5</strong><span style="font-variant-numeric: tabular-nums">0:12 left</span></div>
+<div style="height: 4px; background: #e5e5e5"><div style="width: 60%; height: 4px; background: #000"></div></div>
+<p style="margin: 0; font-size: 22px; font-weight: 700">Which is the largest moon in the solar system?</p>
+<button>Titan</button><button style="background: #000; color: #fff">Ganymede</button><button>Europa</button><button>Callisto</button>
+</div>
+<div style="height: 34px; flex: none; background: #fff"></div>
+</div>
+</figure>
+
+<section style="display: flex; flex-direction: column; gap: 16px; padding-top: 28px">
+<h2 class="t-h2">Why an overlay on iPhone</h2>
+<p class="t-small" style="margin: 0">iPhone browsers can't make part of a page full screen. The overlay covers the whole window and the chat behind it is hidden from screen readers (inert).</p>
+<h2 class="t-h2">The strip</h2>
+<ul class="t-small" style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px">
+<li>Black, so it is clearly not part of the app (apps are framed white by default).</li>
+<li>Exit always visible, with a word, 44&nbsp;px or more, first in focus order.</li>
+<li>Focus is kept inside: strip → app → strip.</li>
+<li>Title is the app's name, written by the chat.</li>
+<li>Menu: Download, Restart. Nothing else.</li>
+<li>Top inset follows the safe area; the home indicator area stays clear.</li>
+</ul>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1880,"height":1200}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

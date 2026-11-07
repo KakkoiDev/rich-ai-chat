@@ -11,7 +11,7 @@ Browser and device limits were checked against current vendor documentation (sou
 
 Companion documents:
 
-- [DESIGNER-HANDOFF.md](DESIGNER-HANDOFF.md): the brief for the design agent
+- [design/BRIEF.md](design/BRIEF.md): the brief for the design agent, and [design/HANDOFF.md](design/HANDOFF.md): its hand-back
 - [BENCHMARK-PLAN.md](BENCHMARK-PLAN.md): how the five-model matrix grows with each feature
 
 ## 0. Owner decisions (2026-11-07)
@@ -24,13 +24,28 @@ These override anything below that conflicts with them.
   - hairline rules, a single 768 px column
   - a wireframe-cube motif
 
-  The principle is "the less you add the better". Pages must also work for AI agents driving them through the accessibility tree. The [designer handoff](DESIGNER-HANDOFF.md) is written around this.
+  The principle is "the less you add the better". Pages must also work for AI agents driving them through the accessibility tree. The [designer brief](design/BRIEF.md) is written around this.
 - **Chat shell:** a **new Kakkoi chat shell** replaces OpenUI's stock `AgentInterface` layout. It is built on OpenUI's headless layer (`@openuidev/react-headless` for threads, streaming and storage; `@openuidev/react-lang` for rendering replies), so the chat logic and the 82-component catalogue are kept. Reply components are themed through the token adapters.
 - **Capacitor is deferred.** M8 is out of scope. The phone experience is the chat PWA (M7) over Tailscale.
 - **Component selection gate:** small models get only the components relevant to the request. **Laya** chooses the slice: PLH's typed-decision classifier (`pi-local-harness/harness/laya.py`, laya-mlx with mmBERT-base 322M, multilingual, about 7–13 ms per question, abstains below a confidence threshold). When Laya abstains, the request uses the general path; added to M3.
 - **Complete log:** the owner wants a complete log of what happens, for easy debugging (deepseek-harness was cited as an example; its public docs didn't show the log format when checked). This extends M2 (see below).
 - **Export origin via Caddy.** The host already runs Caddy beside a userspace `tailscaled`. Generated-app PWAs get their own Caddy site on a separate origin; added to M6.
 - **test-core first:** the benchmark engine becomes a shared runner in test-core, together with Schness's strength-evaluation harness (`~/Documents/ChatGPT/Schness`: frozen manifests, single-runner lock, checkpoints, replay verification). The full-screen state and focus test becomes a test-core recipe. Rich AI Chat pins both.
+
+### Design hand-back (2026-11-07)
+
+The designer's frames, style rules, tokens, marks and copy deck are in [design/HANDOFF.md](design/HANDOFF.md). The theme files are in visual-core under `themes/kakkoi/`. Its decisions, and what each means for engineering:
+
+- **Product name "Kakkoi Chat"**, home-screen label "Kakkoi Chat": confirmed by the owner on 2026-11-07. The repository and code paths keep the name `rich-ai-chat`; the visible product name changes with the new shell.
+- **Brand:** KAKKOI owns the cube and wordmark. KakkoiSchool is named in text only.
+- **Dark mode:** a straight inversion that follows the system, with an override. visual-core's `kakkoi.css` provides `.k-light` and `.k-dark` for the override.
+- **Generated apps** get `kakkoi-inline.css` (2.7 KB, system fonts only). The host adds it before the app's own CSS, so apps can override it. It restyles `button`, `input`, `label`, `output` and `table`, which the breadth cases click, fill and read, so the M4 candidate must pass the full matrix with the subset injected before the subset ships.
+- **Model choice:** the designer proposed that only teachers change the model. The owner decided against it on 2026-11-07: **anyone can use any model**, so no roles are needed. The picker still shows which model answered and where it ran, and the default stays local.
+- **Fonts:** Bebas Neue, Inter 4.001 and Noto Sans JP 2.004 are in visual-core's `themes/kakkoi/fonts/` (OFL; hashes in its notices). Subset them to woff2 before serving: Latin for Inter, unicode-range slices for Noto Sans JP. The chat loads them from the host, never from a CDN.
+- **Known gaps found in review:**
+  - `--chart-4` is 1.67:1 on white and 1.93:1 on black, below the 3:1 chart marks need. Charts with four series must also identify series 4 by pattern or direct label.
+  - The Japanese copy will not get a native speaker's read (the owner's decision).
+  - The frames still have to be exported from the canvas into `docs/design/frames/`.
 
 ## 1. Corrections to the handoff
 
@@ -169,19 +184,21 @@ Order: the theme (M4) depends on design decisions, so engineering milestones tha
 - **Demo:** The gallery on a phone and on a desktop. Each model fills a generated form whose submitted values come back in the next reply.
 - **Accept:** gallery e2e covers every interactive control (keyboard and 390 px); `e2e_coverage.py` passes. Model cases: `form-submit-roundtrip`, `editable-table-save`, `native-layout-choice`.
 
-### M4 — Kakkoi theme v0 *(parallel track; needs the designer's deliverables)*
+### M4 — Kakkoi theme v0 *(the designer's deliverables have arrived; see the hand-back above)*
 
 - **visual-core:**
-  - `themes/kakkoi/tokens.json` is the source.
-  - Generated outputs: `kakkoi.css` (Basecoat semantic variables, light and `.dark`), `kakkoi.openui.json` (OpenUI `ThemeProps`), and `kakkoi.inline.css`, a small subset with no Tailwind for generated apps.
-  - Logo and icon SVGs, plus an SVG→PNG icon export command for 16/32/180/192/512 and maskable sizes.
-  - Scenarios and tests under its rules; tag `v0.5.0`.
+  - **Done, merged in visual-core #5:** `themes/kakkoi/` with `kakkoi-tokens.json` as the source, `kakkoi.css` (Basecoat token values in light and dark, plus primitives), `kakkoi-inline.css` and the SVG marks. A scenario keeps the CSS, the inline subset and the contrast claims in step with the tokens. Version 0.5.0.
+  - **Still to do:**
+    - woff2 subsets of the three fonts
+    - derive `kakkoi.openui.json` (OpenUI `ThemeProps`) from the tokens
+    - add an SVG→PNG icon export command for 16/32/180/192/512 and maskable sizes
 - **Rich AI Chat:**
   - Pass `theme={{ mode, lightTheme, darkTheme }}` from the JSON.
   - Replace the hard-coded `.html-artifact` colours.
-  - The host injects `kakkoi.inline.css` into previews and exports. The model never writes it, so it costs nothing against the 32 KB artifact budget.
+  - The host injects `kakkoi-inline.css` into previews and exports. The model never writes it, so it costs nothing against the 32 KB artifact budget.
   - `logoUrl` and favicons.
-- **Accept:** The chat and an exported app reference the same token hash. Contrast checks run in visual-core. Screenshots of light, dark and phone views; no theme definitions copied into Rich AI Chat.
+  - Strings come from `docs/design/copy-deck.json`.
+- **Accept:** The chat and an exported app reference the same token hash. Contrast checks run in visual-core. Screenshots of light, dark and phone views; no theme definitions copied into Rich AI Chat. The full matrix passes with the inline subset injected.
 
 ### M5 — Saved, versioned projects
 

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Full log — desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/232ffe54ef71b53181f68fc03eeda221">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@400..700&amp;family=Noto+Sans+JP:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#595959}
+.lg{border-collapse:collapse;width:100%;font-size:13px}
+.lg th,.lg td{text-align:left;padding:0 12px 0 0;height:36px;border-bottom:1px solid #d4d4d4;vertical-align:middle;white-space:nowrap}
+.lg thead th{border-bottom:1px solid #000;font-weight:600;position:sticky;top:0;background:#fff}
+.lg td.d{white-space:normal;color:#595959}
+.lg .n{font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.lg tr.rh td{background:#f2f2f2;font-weight:600;height:32px}
+.st{display:inline-flex;gap:4px;align-items:center}
+.st svg{width:14px;height:14px}
+</style>
+</helmet>
+<div class="k" style="width: 1280px; height: 800px; display: flex; flex-direction: column; overflow: hidden">
+<header style="height: 64px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; border-bottom: 1px solid #000">
+<div style="display: flex; align-items: center; gap: 16px"><a class="btn btn-ghost" href="ChatDesktop.dc.html" style="text-decoration: none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>Back to chat</a><h1 class="t-h2">Log · Moons of Jupiter</h1></div>
+<div style="display: flex; gap: 8px"><button class="btn btn-danger">Delete log</button><button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>Export log</button></div>
+</header>
+<div style="flex: none; display: flex; align-items: flex-end; gap: 16px; padding: 16px 24px; border-bottom: 1px solid #d4d4d4; flex-wrap: wrap">
+<div class="field" style="width: 260px"><label for="rf">Show</label><select id="rf" class="select"><option>All replies (3)</option><option>Reply 1 · 14:02</option><option>Reply 2 · 14:05</option><option>Reply 3 · 14:09</option></select></div>
+<fieldset style="border: 0; padding: 0; margin: 0; display: flex; gap: 8px; align-items: center"><legend class="lbl" style="margin-bottom: 6px">Events</legend>
+<label class="chip is-selected" style="padding-right: 12px"><input type="checkbox" checked="" style="position: absolute; opacity: 0">All</label>
+<label class="chip" style="padding-right: 12px"><input type="checkbox" style="position: absolute; opacity: 0">Problems only</label>
+</fieldset>
+<span style="flex: 1"></span>
+<p class="t-small t-muted" style="margin: 0">23 events · kept on this Mac · Export saves a .jsonl file</p>
+</div>
+<div role="region" aria-label="Log events" tabindex="0" style="flex: 1; overflow: auto; padding: 0 24px">
+<table class="lg">
+<thead><tr><th scope="col" style="width: 120px">Time</th><th scope="col" style="width: 70px">Reply</th><th scope="col" style="width: 210px">Event</th><th scope="col" style="width: 110px">Status</th><th scope="col">Detail (system text)</th></tr></thead>
+<tbody>
+<tr class="rh"><td colspan="5">Reply 1 · “How many moons does Jupiter have…” · Gemma 4 12B</td></tr>
+<tr><td class="n">14:02:03.104</td><td class="n">1</td><td>Message received</td><td><span class="st">Done</span></td><td class="d">63 characters, 0 files</td></tr>
+<tr><td class="n">14:02:03.512</td><td class="n">1</td><td>Web search started</td><td><span class="st">Sent online</span></td><td class="d">Query “jupiter moons count” sent to the search service</td></tr>
+<tr><td class="n">14:02:04.410</td><td class="n">1</td><td>Web search finished</td><td><span class="st ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></td><td class="d">4 results · science.nasa.gov (2), britannica.com, jpl.nasa.gov · 898 ms</td></tr>
+<tr><td class="n">14:02:04.415</td><td class="n">1</td><td>Model request</td><td><span class="st">Running</span></td><td class="d">Gemma 4 12B · on this Mac · 4 sources attached</td></tr>
+<tr><td class="n">14:02:05.530</td><td class="n">1</td><td>Reply finished</td><td><span class="st ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></td><td class="d">1,115 ms · 4 citations · reasoning summary available</td></tr>
+<tr class="rh"><td colspan="5">Reply 2 · “Make it a quiz” · Gemma 4 12B</td></tr>
+<tr><td class="n">14:05:11.020</td><td class="n">2</td><td>Message received</td><td><span class="st">Done</span></td><td class="d">14 characters, 1 file (moons.txt, 4 KB)</td></tr>
+<tr><td class="n">14:05:11.201</td><td class="n">2</td><td>Model request</td><td><span class="st">Running</span></td><td class="d">Gemma 4 12B · on this Mac</td></tr>
+<tr><td class="n">14:05:33.201</td><td class="n">2</td><td>No answer</td><td><span class="st warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>Retry 1/2</span></td><td class="d">No answer for 22 s, trying again</td></tr>
+<tr><td class="n">14:05:50.640</td><td class="n">2</td><td>App built</td><td><span class="st ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></td><td class="d">Solar system quiz v1 · 19 KB</td></tr>
+<tr><td class="n">14:05:51.902</td><td class="n">2</td><td>App check</td><td><span class="st ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></td><td class="d">Opened in a sandbox, 0 errors</td></tr>
+<tr class="rh"><td colspan="5">Reply 3 · “Add a timer” · Gemma 4 12B</td></tr>
+<tr><td class="n">14:09:40.008</td><td class="n">3</td><td>Model request</td><td><span class="st">Running</span></td><td class="d">Gemma 4 12B · on this Mac</td></tr>
+<tr><td class="n">14:09:57.330</td><td class="n">3</td><td>App check</td><td><span class="st bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>Failed</span></td><td class="d">Error in app: “timer is not defined” (line 88)</td></tr>
+<tr><td class="n">14:09:57.335</td><td class="n">3</td><td>Recovered</td><td><span class="st ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Done</span></td><td class="d">Fixed and rebuilt as v2 · check passed · 21 KB</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

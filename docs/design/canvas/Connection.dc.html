@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Connection states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/232ffe54ef71b53181f68fc03eeda221">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@400..700&amp;family=Noto+Sans+JP:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#595959}
+.ph{width:390px;height:844px;border:1px solid #000;display:flex;flex-direction:column;overflow:hidden}
+.cap{font:600 13px/1.4 Inter,sans-serif;margin:0 0 12px}
+.hd{height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 4px;border-bottom:1px solid #000}
+.hd h2{font:600 16px/1.3 Inter;margin:0}
+.bn{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:center;padding:8px 8px 8px 16px;border-bottom:1px solid #000;font-size:14px;line-height:1.4;min-height:60px}
+.bn svg{width:20px;height:20px}
+.bn small{display:block;color:#595959;font-size:12px}
+.body{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.cmp{border:1px solid #000;margin:0 12px 12px;display:flex;align-items:center;gap:4px;padding:4px 4px 4px 14px;min-height:56px}
+.cmp.off{border-style:dashed;border-color:#767676;color:#595959}
+.you{align-self:flex-end;background:#f2f2f2;padding:10px 14px;max-width:85%}
+</style>
+</helmet>
+<div class="k" style="width: 1400px; height: 2000px; padding: 48px; display: grid; grid-template-columns: repeat(3, 390px); gap: 56px 64px; align-content: start">
+
+<figure style="margin: 0"><figcaption class="cap">Offline · the shell still opens</figcaption>
+<div class="ph"><div style="height: 47px; flex: none"></div>
+<header class="hd"><button class="btn btn-ghost btn-icon" aria-label="Chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button><h2>Moons of Jupiter</h2><span style="width: 44px"></span></header>
+<div class="bn" role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M2 8.82a15 15 0 0 1 4.17-2.65M10.66 5c4.01-.36 8.14.9 11.34 3.76M16.85 11.25a10 10 0 0 1 2.22 1.68M5 13a10 10 0 0 1 5.24-2.76M2 2l20 20"></path></svg><span><strong>This phone is offline.</strong><small>Saved chats can be read. Sending needs a connection.</small></span><span></span></div>
+<div class="body"><div class="you">How many moons does Jupiter have?</div><p style="margin: 0">Jupiter has 95 confirmed moons. The four largest are the Galilean moons…</p></div>
+<div class="cmp off"><span style="flex: 1">Offline. Type now, send later.</span><button class="btn btn-primary btn-icon is-disabled" disabled="" aria-label="Send, unavailable offline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button></div>
+<div style="height: 34px; flex: none"></div></div>
+</figure>
+
+<figure style="margin: 0"><figcaption class="cap">Mac unreachable · retry</figcaption>
+<div class="ph"><div style="height: 47px; flex: none"></div>
+<header class="hd"><button class="btn btn-ghost btn-icon" aria-label="Chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button><h2>Moons of Jupiter</h2><span style="width: 44px"></span></header>
+<div class="bn" role="status" style="border-bottom-width: 2px"><svg viewBox="0 0 24 24" fill="none" stroke="#c4161c" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14"></rect><path d="M8 21h8M12 17v4M2 2l20 20"></path></svg><span><strong>Can't reach the Mac.</strong><small>It may be asleep or off. Next try in <span class="t-num">20 s</span>.</small></span><button class="btn">Try now</button></div>
+<div class="body"><div class="you">Make a times-tables game</div><p class="t-small t-muted" style="margin: 0; display: flex; gap: 6px; align-items: center"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Not sent yet. It will send when the Mac is back.</p></div>
+<div class="cmp off"><span style="flex: 1">Waiting for the Mac</span><button class="btn btn-primary btn-icon is-disabled" disabled="" aria-label="Send, unavailable"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button></div>
+<div style="height: 34px; flex: none"></div></div>
+</figure>
+
+<figure style="margin: 0"><figcaption class="cap">Tailscale is off on this phone</figcaption>
+<div class="ph"><div style="height: 47px; flex: none"></div>
+<header class="hd"><span style="width: 44px"></span><h2>Kakkoi Chat</h2><span style="width: 44px"></span></header>
+<main class="body" style="gap: 16px; padding-top: 32px">
+<h1 class="t-h1">Turn on Tailscale</h1>
+<p style="margin: 0">This phone reaches the Mac through Tailscale, a private network. It's switched off right now.</p>
+<ol style="margin: 0; padding: 0; list-style: none; border-top: 1px solid #000">
+<li style="display: grid; grid-template-columns: 32px 1fr; gap: 8px; padding: 12px 0; border-bottom: 1px solid #d4d4d4"><span style="font: 400 24px/1 'Bebas Neue'">1</span><span>Open the <strong>Tailscale</strong> app.</span></li>
+<li style="display: grid; grid-template-columns: 32px 1fr; gap: 8px; padding: 12px 0; border-bottom: 1px solid #d4d4d4"><span style="font: 400 24px/1 'Bebas Neue'">2</span><span>Turn on the switch at the top. It should say <strong>Connected</strong>.</span></li>
+<li style="display: grid; grid-template-columns: 32px 1fr; gap: 8px; padding: 12px 0; border-bottom: 1px solid #d4d4d4"><span style="font: 400 24px/1 'Bebas Neue'">3</span><span>Come back here and tap <strong>Try again</strong>.</span></li>
+</ol>
+<p class="t-small t-muted" style="margin: 0">No Tailscale app? Ask your teacher to add this phone.</p>
+<span style="flex: 1"></span>
+<a class="btn" href="#">Open Tailscale</a>
+<button class="btn btn-primary">Try again</button>
+</main>
+<div style="height: 34px; flex: none"></div></div>
+</figure>
+
+<figure style="margin: 0"><figcaption class="cap">Reconnecting · during a reply</figcaption>
+<div class="ph"><div style="height: 47px; flex: none"></div>
+<header class="hd"><button class="btn btn-ghost btn-icon" aria-label="Chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button><h2>Volcanoes</h2><span style="width: 44px"></span></header>
+<div class="bn" role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg><span><strong>Reconnecting…</strong><small>The Mac keeps working meanwhile.</small></span><span></span></div>
+<div class="body"><div class="you">Why do volcanoes erupt?</div><p style="margin: 0">Deep under the surface, rock melts into magma. Because magma is lighter than the solid rock around it, it rises and collects in<span class="t-muted"> …</span></p><p class="t-small t-muted" style="margin: 0">Reply paused while reconnecting</p></div>
+<div class="cmp"><span class="t-muted" style="flex: 1">Ask anything</span><button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12"></rect></svg>Stop</button></div>
+<div style="height: 34px; flex: none"></div></div>
+</figure>
+
+<figure style="margin: 0"><figcaption class="cap">Reconnected · interrupted reply labelled</figcaption>
+<div class="ph"><div style="height: 47px; flex: none"></div>
+<header class="hd"><button class="btn btn-ghost btn-icon" aria-label="Chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button><h2>Volcanoes</h2><span style="width: 44px"></span></header>
+<div class="bn" role="status"><svg viewBox="0 0 24 24" fill="none" stroke="#1e7a34" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg><span><strong>Reconnected</strong><small>Hides after 4 s.</small></span><span></span></div>
+<div class="body"><div class="you">Why do volcanoes erupt?</div><p style="margin: 0">Deep under the surface, rock melts into magma. Because magma is lighter than the solid rock around it, it rises and collects in</p>
+<div style="border: 1px solid #000; padding: 12px; display: flex; flex-direction: column; gap: 8px"><span class="status warn" style="font-weight: 600"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"></path></svg>Interrupted</span><span class="t-small">The connection dropped at <span class="t-num">00:09</span>. This reply is incomplete.</span><div style="display: flex; gap: 8px"><button class="btn btn-primary">Ask again</button></div></div></div>
+<div class="cmp"><span class="t-muted" style="flex: 1">Ask anything</span><button class="btn btn-primary btn-icon" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button></div>
+<div style="height: 34px; flex: none"></div></div>
+</figure>
+
+<figure style="margin: 0"><figcaption class="cap">The Mac is loading a model</figcaption>
+<div class="ph"><div style="height: 47px; flex: none"></div>
+<header class="hd"><button class="btn btn-ghost btn-icon" aria-label="Chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button><h2>New chat</h2><span style="width: 44px"></span></header>
+<div class="body" style="justify-content: flex-end"><div class="you">Make a times-tables game</div>
+<div role="status" style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #d4d4d4; padding-top: 14px">
+<img src="/_blob/1ddbb09ccd157443591fee3f29b13516" alt="" aria-hidden="true" style="width: 56px; height: 56px; margin-left: -8px">
+<strong>Loading Gemma 4 12B…</strong>
+<span class="t-small">The first message after a while takes up to a minute while the Mac loads the model. Your message will go as soon as it's ready.</span>
+<span class="t-small t-muted">Waiting <span class="t-num">00:18</span></span>
+</div></div>
+<div class="cmp"><span class="t-muted" style="flex: 1">Ask anything</span><button class="btn">Cancel</button></div>
+<div style="height: 34px; flex: none"></div></div>
+</figure>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":2000}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

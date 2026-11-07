@@ -1,0 +1,422 @@
+{
+ "version": "1.0",
+ "placeholders": [
+  "{n}",
+  "{m}",
+  "{s}",
+  "{time}",
+  "{model}",
+  "{file}",
+  "{size}"
+ ],
+ "strings": [
+  {
+   "area": "Shell",
+   "key": "shell.newChat",
+   "en": "New chat",
+   "ja": "新しいチャット"
+  },
+  {
+   "area": "Shell",
+   "key": "shell.savedApps",
+   "en": "Saved apps",
+   "ja": "保存したアプリ"
+  },
+  {
+   "area": "Shell",
+   "key": "shell.rename",
+   "en": "Rename",
+   "ja": "名前を変更"
+  },
+  {
+   "area": "Shell",
+   "key": "shell.delete.title",
+   "en": "Delete this chat?",
+   "ja": "このチャットを削除しますか？"
+  },
+  {
+   "area": "Shell",
+   "key": "shell.delete.body",
+   "en": "Its messages, saved apps and log are removed from this Mac. This can't be undone.",
+   "ja": "メッセージ、保存したアプリ、ログがこのMacから削除されます。元に戻せません。"
+  },
+  {
+   "area": "Shell",
+   "key": "shell.welcome.title",
+   "en": "What shall we make?",
+   "ja": "何をつくりますか？"
+  },
+  {
+   "area": "Shell",
+   "key": "shell.welcome.body",
+   "en": "Ask a question, or describe a game or tool and play it here.",
+   "ja": "質問するか、ゲームや道具を説明すると、ここで遊べます。"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.placeholder",
+   "en": "Ask anything, or describe an app to build",
+   "ja": "質問や作りたいアプリを入力"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.privacy.local",
+   "en": "Runs on this Mac. Web search sends your search words online.",
+   "ja": "このMacで動きます。Web検索では検索語が外部に送信されます。"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.privacy.hosted",
+   "en": "Hosted: your messages and files are sent to {model}.",
+   "ja": "外部サービス：メッセージとファイルは{model}に送信されます。"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.model.local",
+   "en": "On this Mac",
+   "ja": "このMacで実行"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.model.hosted",
+   "en": "Hosted: text leaves this device",
+   "ja": "外部：テキストが端末の外に送られます"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.model.locked",
+   "en": "Set by your teacher",
+   "ja": "先生が設定しています"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.attach.limit",
+   "en": "Attach · {n} of 3",
+   "ja": "添付 · {n}/3"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.attach.tooBig",
+   "en": "{file} is {size}. Files can be up to 12 KB.",
+   "ja": "{file}は{size}です。12 KBまでのファイルを添付できます。"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.attach.notText",
+   "en": "Only text files can be attached.",
+   "ja": "添付できるのはテキストファイルのみです。"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.answering",
+   "en": "Answering · {time}",
+   "ja": "回答中 · {time}"
+  },
+  {
+   "area": "Composer",
+   "key": "composer.stop",
+   "en": "Stop",
+   "ja": "停止"
+  },
+  {
+   "area": "Dictate",
+   "key": "dictate.waiting",
+   "en": "Waiting for the microphone…",
+   "ja": "マイクの許可を待っています…"
+  },
+  {
+   "area": "Dictate",
+   "key": "dictate.recording",
+   "en": "Recording {time}",
+   "ja": "録音中 {time}"
+  },
+  {
+   "area": "Dictate",
+   "key": "dictate.stop",
+   "en": "Stop recording",
+   "ja": "録音を止める"
+  },
+  {
+   "area": "Dictate",
+   "key": "dictate.transcribing",
+   "en": "Turning speech into text on the Mac…",
+   "ja": "Macで音声を文字にしています…"
+  },
+  {
+   "area": "Dictate",
+   "key": "dictate.error",
+   "en": "Couldn't turn that into text.",
+   "ja": "文字にできませんでした。"
+  },
+  {
+   "area": "Dictate",
+   "key": "dictate.denied",
+   "en": "Microphone blocked.",
+   "ja": "マイクがブロックされています。"
+  },
+  {
+   "area": "Dictate",
+   "key": "dictate.denied.help",
+   "en": "Allow it in Settings › Safari › Microphone, then try again. Typing still works.",
+   "ja": "設定 › Safari › マイク で許可してから、もう一度お試しください。文字入力はそのまま使えます。"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.summary",
+   "en": "{n} search · {s} s",
+   "ja": "検索{n}回 · {s}秒"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.working",
+   "en": "Working · {time}",
+   "ja": "処理中 · {time}"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.direct",
+   "en": "Answered directly · {s} s",
+   "ja": "そのまま回答 · {s}秒"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.search.done",
+   "en": "Searched the web · {n} sources from {m} sites",
+   "ja": "Web検索 · {m}サイトから{n}件"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.sentOnline",
+   "en": "Sent online",
+   "ja": "外部に送信"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.waitingModel",
+   "en": "Waiting for {model}",
+   "ja": "{model}を待っています"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.retry",
+   "en": "No answer for {s} s, trying again",
+   "ja": "{s}秒間応答がないため、再試行します"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.recovered",
+   "en": "Answered from the sources already found",
+   "ja": "取得済みの出典から回答しました"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.failed",
+   "en": "No answer for {s} s. Stopped trying.",
+   "ja": "{s}秒間応答がありません。再試行を終了しました。"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.cancelled",
+   "en": "Stopped. The part already written is kept.",
+   "ja": "停止しました。途中までの回答は残ります。"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.noReasoning",
+   "en": "Reasoning summary not available for this model.",
+   "ja": "このモデルでは考えの要約を表示できません。"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.export",
+   "en": "Export log",
+   "ja": "ログを書き出す"
+  },
+  {
+   "area": "Activity",
+   "key": "activity.deleteLog",
+   "en": "Delete log",
+   "ja": "ログを削除"
+  },
+  {
+   "area": "Apps",
+   "key": "app.frameLabel",
+   "en": "App made in this chat · runs separately",
+   "ja": "このチャットで作ったアプリ · 別に動作"
+  },
+  {
+   "area": "Apps",
+   "key": "app.fullScreen",
+   "en": "Full screen",
+   "ja": "全画面"
+  },
+  {
+   "area": "Apps",
+   "key": "app.exit",
+   "en": "Exit",
+   "ja": "閉じる"
+  },
+  {
+   "area": "Apps",
+   "key": "app.revision.label",
+   "en": "What should change?",
+   "ja": "どこを変えますか？"
+  },
+  {
+   "area": "Apps",
+   "key": "app.revision.send",
+   "en": "Request revision",
+   "ja": "修正を依頼"
+  },
+  {
+   "area": "Apps",
+   "key": "app.downloaded",
+   "en": "Downloaded · one file, {size}. Opens in any browser and works offline.",
+   "ja": "ダウンロードしました · 1ファイル {size}。どのブラウザでも開け、オフラインで動きます。"
+  },
+  {
+   "area": "Apps",
+   "key": "app.install.separate",
+   "en": "It becomes its own app. It opens from its own address and keeps its own data, separate from this chat.",
+   "ja": "独立したアプリになります。専用のアドレスで開き、データもチャットとは別に保存されます。"
+  },
+  {
+   "area": "Apps",
+   "key": "app.install.needsInternet",
+   "en": "Needs the internet. It won't work without a connection.",
+   "ja": "インターネットが必要です。接続がないと動きません。"
+  },
+  {
+   "area": "Apps",
+   "key": "app.install.ios.1",
+   "en": "Tap the Share button",
+   "ja": "共有ボタンをタップ"
+  },
+  {
+   "area": "Apps",
+   "key": "app.install.ios.2",
+   "en": "Choose Add to Home Screen",
+   "ja": "「ホーム画面に追加」を選ぶ"
+  },
+  {
+   "area": "Apps",
+   "key": "app.install.ios.3",
+   "en": "Tap Add",
+   "ja": "「追加」をタップ"
+  },
+  {
+   "area": "Tasks",
+   "key": "tasks.keepsRunning",
+   "en": "Closing this tab doesn't stop the job. Cancel does.",
+   "ja": "タブを閉じても止まりません。止めるときは「中止」を押してください。"
+  },
+  {
+   "area": "Tasks",
+   "key": "tasks.waitingModel",
+   "en": "Waiting for the local model",
+   "ja": "ローカルモデルを待っています"
+  },
+  {
+   "area": "Tasks",
+   "key": "tasks.resumed",
+   "en": "Resumed after the Mac restarted, from the checkpoint at {time}.",
+   "ja": "Macの再起動後、{time}の保存地点から再開しました。"
+  },
+  {
+   "area": "Tasks",
+   "key": "tasks.conflict",
+   "en": "Kakkoi Chat changed this list while you were editing.",
+   "ja": "編集中にKakkoi Chatがこのリストを変更しました。"
+  },
+  {
+   "area": "Tasks",
+   "key": "tasks.cancel.confirm",
+   "en": "Cancel this job? Finished items are kept.",
+   "ja": "このジョブを中止しますか？完了した項目は残ります。"
+  },
+  {
+   "area": "Tasks",
+   "key": "tasks.status",
+   "en": "Queued · Running · Blocked · Done · Failed · Cancelled",
+   "ja": "待機中 · 実行中 · 保留 · 完了 · 失敗 · 中止"
+  },
+  {
+   "area": "Connection",
+   "key": "conn.connected",
+   "en": "Connected to the Mac",
+   "ja": "Macに接続中"
+  },
+  {
+   "area": "Connection",
+   "key": "conn.offline",
+   "en": "This phone is offline. Saved chats can be read. Sending needs a connection.",
+   "ja": "この端末はオフラインです。保存したチャットは読めます。送信には接続が必要です。"
+  },
+  {
+   "area": "Connection",
+   "key": "conn.unreachable",
+   "en": "Can't reach the Mac. It may be asleep or off.",
+   "ja": "Macに接続できません。スリープ中か電源が切れている可能性があります。"
+  },
+  {
+   "area": "Connection",
+   "key": "conn.tailscaleOff",
+   "en": "Turn on Tailscale. This phone reaches the Mac through it.",
+   "ja": "Tailscaleをオンにしてください。この端末はTailscale経由でMacにつながります。"
+  },
+  {
+   "area": "Connection",
+   "key": "conn.reconnecting",
+   "en": "Reconnecting…",
+   "ja": "再接続しています…"
+  },
+  {
+   "area": "Connection",
+   "key": "conn.reconnected",
+   "en": "Reconnected",
+   "ja": "再接続しました"
+  },
+  {
+   "area": "Connection",
+   "key": "conn.interrupted",
+   "en": "Interrupted. The connection dropped at {time}. This reply is incomplete.",
+   "ja": "中断：{time}に接続が切れました。この回答は途中までです。"
+  },
+  {
+   "area": "Connection",
+   "key": "conn.loadingModel",
+   "en": "Loading {model}…",
+   "ja": "{model}を読み込んでいます…"
+  },
+  {
+   "area": "Connection",
+   "key": "conn.loadingModel.help",
+   "en": "The first message after a while takes up to a minute. Your message will go as soon as it's ready.",
+   "ja": "しばらくぶりの最初のメッセージは、最大1分ほどかかります。準備ができしだい送信します。"
+  },
+  {
+   "area": "Errors",
+   "key": "err.generic",
+   "en": "Something went wrong on the Mac. Nothing was lost.",
+   "ja": "Macで問題が起きました。データは失われていません。"
+  },
+  {
+   "area": "Errors",
+   "key": "err.storageFull",
+   "en": "Couldn't save this chat. Storage on this phone is full.",
+   "ja": "チャットを保存できませんでした。この端末の保存容量がいっぱいです。"
+  },
+  {
+   "area": "Errors",
+   "key": "err.tryAgain",
+   "en": "Try again",
+   "ja": "もう一度試す"
+  },
+  {
+   "area": "Errors",
+   "key": "err.details",
+   "en": "Details for your teacher",
+   "ja": "先生向けの詳細"
+  }
+ ]
+}
