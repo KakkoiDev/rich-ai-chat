@@ -1,0 +1,28 @@
+// Copy the visual-core files listed in cores.lock.json from one visual-core commit, byte for byte, and record their
+// hashes. `node tests/preflight.mjs` checks the copies against those hashes, so a hand-edited icon fails the gate.
+//   node scripts/pin-visual-core.mjs <visual-core checkout> [commit]   (default: the commit already pinned)
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const repo = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const [checkout, wanted] = process.argv.slice(2);
+if (!checkout) throw new Error('Usage: node scripts/pin-visual-core.mjs <visual-core checkout> [commit]');
+const lockPath = join(repo, 'cores.lock.json');
+const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
+const pin = lock['visual-core'];
+const git = (...args) => execFileSync('git', ['-C', checkout, ...args], { maxBuffer: 64 << 20 });
+const commit = git('rev-parse', '--verify', `${wanted ?? pin.commit}^{commit}`).toString().trim();
+const changelog = git('show', `${commit}:CHANGELOG.md`).toString();
+for (const [target, entry] of Object.entries(pin.files)) {
+  const bytes = git('show', `${commit}:${entry.from}`);
+  mkdirSync(dirname(join(repo, target)), { recursive: true });
+  writeFileSync(join(repo, target), bytes);
+  entry.sha256 = createHash('sha256').update(bytes).digest('hex');
+}
+pin.commit = commit;
+pin.version = /^## (\d+\.\d+\.\d+)/m.exec(changelog)?.[1] ?? 'unknown';
+writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
+console.log(`visual-core ${pin.version} (${commit.slice(0, 7)}): ${Object.keys(pin.files).length} files pinned.`);

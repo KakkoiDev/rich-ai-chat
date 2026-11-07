@@ -396,3 +396,18 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
   const partial = '<button id="p">Piano</button><button id="r">Reset all</button><output id="o">0</output><script>p.onclick = () => {};</script>';
   assert.match(checkArtifactRequest(partial, request) ?? "", /exact labels: "Trumpet", "Drums"/);
 }
+
+// Pinned cores: every copied file still has the hash recorded when it was pinned (cores.lock.json for visual-core's
+// icons, test-core/MANIFEST.json for test-core), so a hand-edited copy fails here. Re-pin with
+// scripts/pin-visual-core.mjs or test-core's adopt.py --update instead.
+{
+  const { createHash } = await import("node:crypto");
+  const root = new URL("../", import.meta.url);
+  const hash = path => createHash("sha256").update(readFileSync(new URL(path, root))).digest("hex");
+  const lock = JSON.parse(readFileSync(new URL("cores.lock.json", root), "utf8"));
+  assert.match(lock["visual-core"].commit, /^[0-9a-f]{40}$/, "visual-core is pinned to a full commit");
+  for (const [path, { sha256 }] of Object.entries(lock["visual-core"].files)) assert.equal(hash(path), sha256, `${path} matches visual-core's pinned copy`);
+  const manifest = JSON.parse(readFileSync(new URL(lock["test-core"].manifest, root), "utf8"));
+  for (const [path, sha256] of Object.entries(manifest.files)) assert.equal(hash(`test-core/${path}`), sha256, `test-core/${path} matches its manifest`);
+  assert.ok("pwa/pwa.mjs" in manifest.files, "test-core's PWA checks are pinned");
+}

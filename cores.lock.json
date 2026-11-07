@@ -1,0 +1,37 @@
+{
+  "visual-core": {
+    "repository": "https://github.com/KakkoiDev/visual-core",
+    "commit": "b5efb550aefc8a1e1503266c1e506dc639bca451",
+    "version": "0.6.0",
+    "files": {
+      "public/icons/kakkoi-icon-32.png": {
+        "from": "themes/kakkoi/png/kakkoi-icon-32.png",
+        "sha256": "5538d98139ce90901b41a109fb5bb88c7c362bf3c3157fdeb06e807f2dcfe9e5"
+      },
+      "public/icons/kakkoi-icon-180.png": {
+        "from": "themes/kakkoi/png/kakkoi-icon-180.png",
+        "sha256": "5a68d1949f3befc80af25aa49146da9494e9c0b0112451ca1542bb6282b1f032"
+      },
+      "public/icons/kakkoi-icon-192.png": {
+        "from": "themes/kakkoi/png/kakkoi-icon-192.png",
+        "sha256": "a490f9da478fd83c13594ec429f7368d1fa57a1f8d2bf46874d5d503aca7151c"
+      },
+      "public/icons/kakkoi-icon-512.png": {
+        "from": "themes/kakkoi/png/kakkoi-icon-512.png",
+        "sha256": "cb6bf18bfbaf537f83360e5cc60fb9b421f95dd933863405a439c514e30d9e8a"
+      },
+      "public/icons/kakkoi-icon-maskable-192.png": {
+        "from": "themes/kakkoi/png/kakkoi-icon-maskable-192.png",
+        "sha256": "75d2ea7f196d95cacab3f8bbd89a4f5802660ea65c7e447d6b4c3ccbdb974c13"
+      },
+      "public/icons/kakkoi-icon-maskable-512.png": {
+        "from": "themes/kakkoi/png/kakkoi-icon-maskable-512.png",
+        "sha256": "d1f627e490664c4fb73030e74d2131b65ee79cb9e7f61c52f7706e8a3ba3c97d"
+      }
+    }
+  },
+  "test-core": {
+    "repository": "https://github.com/KakkoiDev/test-core",
+    "manifest": "test-core/MANIFEST.json"
+  }
+}
