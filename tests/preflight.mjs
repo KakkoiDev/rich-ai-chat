@@ -397,6 +397,81 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
   assert.match(checkArtifactRequest(partial, request) ?? "", /exact labels: "Trumpet", "Drums"/);
 }
 
+// Install as app: a folder per app with its own id, scope, icons and offline worker; network use is flagged.
+{
+  const { artifactPolicy, exportArtifact } = await import("../src/lib/artifact-export.ts");
+  const app = await import("../src/lib/app-install.ts");
+  const store = await import("../src/lib/app-install-store.ts");
+  const { mkdtempSync, readdirSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const digest = "0123456789abcdef0123456789abcdef";
+
+  assert.equal(app.installedAppId("Tip calculator", digest), "tip-calculator-0123456789ab");
+  assert.equal(app.installedAppId("Café crème!", digest), "cafe-creme-0123456789ab", "Accents fold to ASCII");
+  assert.equal(app.installedAppId("計算機", digest), "app-0123456789ab", "No ASCII letters: a plain id");
+  assert.equal(app.installedAppId("../../etc", digest), "etc-0123456789ab", "No path parts in ids");
+  for (const title of ["Tip calculator", "計算機", "--x--", "A".repeat(80)]) assert.match(app.installedAppId(title, digest), app.installedAppIdPattern);
+  assert.equal(app.installedAppShortName("Tic-tac-toe"), "Tic-tac-toe");
+  assert.equal(app.installedAppShortName("Slingshot Garden starter"), "Slingshot");
+  assert.equal(app.installedAppShortName("Supercalifragilistic"), "Supercalifra");
+
+  assert.deepEqual(app.networkFeatures("<button id=b>+</button><script>b.onclick = () => b.textContent++</script>"), []);
+  assert.deepEqual(app.networkFeatures('<svg xmlns="http://www.w3.org/2000/svg"></svg>'), [], "XML namespaces are not requests");
+  assert.deepEqual(app.networkFeatures("<script>fetch('/x'); new WebSocket('wss://live.example.org/s')</script>"), ["fetch", "WebSocket", "live.example.org"]);
+  assert.deepEqual(app.networkFeatures('<img src="//cdn.example.net/a.png">'), ["protocol-relative link"]);
+  assert.deepEqual(app.networkFeatures('<a href="https://en.wikipedia.org/wiki/Moon">Moon</a>'), ["en.wikipedia.org"]);
+  assert.deepEqual(app.networkFeatures("<script>const x = new XMLHttpRequest()</script>"), ["XMLHttpRequest"]);
+
+  const policy = app.installedAppPolicy(artifactPolicy);
+  assert.match(policy, /img-src 'self' data:/);
+  assert.match(policy, /worker-src 'self'/);
+  assert.match(policy, /manifest-src 'self'$/);
+  assert.match(policy, /connect-src 'none'/, "The installed page still cannot make requests");
+  assert.throws(() => app.installedAppPolicy("default-src 'none'"), /Unexpected/);
+
+  const manifest = JSON.parse(app.installedAppManifest({ id: "tip-calculator-0123456789ab", title: "  Tip   calculator ", network: [] }));
+  assert.equal(manifest.id, "/apps/tip-calculator-0123456789ab/");
+  assert.equal(manifest.name, "Tip calculator");
+  assert.equal(manifest.start_url, "./");
+  assert.equal(manifest.scope, "./");
+  assert.equal(manifest.display, "standalone");
+  assert.deepEqual(manifest.icons.map(icon => `${icon.sizes} ${icon.purpose}`), ["192x192 any", "512x512 any", "192x192 maskable", "512x512 maskable"]);
+  assert.match(manifest.description, /Works offline/);
+  assert.match(JSON.parse(app.installedAppManifest({ id: "x-1", title: "Feed", network: ["fetch"] })).description, /Needs connection: it uses fetch/);
+
+  const worker = app.installedAppWorker("tip-calculator-0123456789ab");
+  assert.doesNotThrow(() => new Function(worker), "The worker is valid JavaScript");
+  assert.ok(worker.includes('"app-tip-calculator-0123456789ab"') && worker.includes('"icons/icon-maskable-512.png"'));
+  assert.ok(!/caches\.delete|caches\.keys/.test(worker), "An app's worker never touches other apps' caches");
+
+  const page = exportArtifact({ title: "Counter", document: "<button>0</button>", policy, head: app.installedAppHead });
+  assert.ok(page.includes('<link rel="manifest" href="manifest.webmanifest">') && page.includes('register("sw.js")'));
+  assert.ok(page.indexOf("Content-Security-Policy") < page.indexOf('rel="manifest"'), "The policy comes first");
+
+  assert.equal(store.exportOrigin("https://host.example:3216/"), "https://host.example:3216");
+  assert.equal(store.exportOrigin("http://127.0.0.1:4000"), "http://127.0.0.1:4000");
+  for (const bad of ["", "ftp://h/", "https://h/apps/", "https://u:p@h/", "https://h/?x=1", "not a url"]) assert.equal(store.exportOrigin(bad), undefined, bad);
+  assert.match(store.exportsDirectory(""), /Rich AI Chat[/\\]exports$/);
+  assert.equal(store.exportsDirectory("/srv/exports"), "/srv/exports");
+
+  const root = mkdtempSync(join(tmpdir(), "rich-chat-install-"));
+  try {
+    const files = { "index.html": page, "icons/icon-32.png": new Uint8Array([1, 2, 3]) };
+    assert.equal(await store.writeInstalledApp(root, "counter-0123456789ab", files), "written");
+    assert.equal(readFileSync(join(root, "apps/counter-0123456789ab/index.html"), "utf8"), page);
+    assert.deepEqual([...readFileSync(join(root, "apps/counter-0123456789ab/icons/icon-32.png"))], [1, 2, 3]);
+    assert.equal(await store.writeInstalledApp(root, "counter-0123456789ab", { "index.html": "other" }), "exists", "Same id, same app: kept");
+    assert.equal(readFileSync(join(root, "apps/counter-0123456789ab/index.html"), "utf8"), page);
+    assert.deepEqual(readdirSync(join(root, "apps")), ["counter-0123456789ab"], "No half-written folders are left");
+    await assert.rejects(store.writeInstalledApp(root, "../escape", files), /Invalid app id/);
+    await assert.rejects(store.writeInstalledApp(root, "ok-1", { "../x.html": "x" }), /Invalid file name/);
+    await assert.rejects(store.writeInstalledApp(root, "ok-1", { ".hidden": "x" }), /Invalid file name/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 // Pinned cores: every copied file still has the hash recorded when it was pinned (cores.lock.json for visual-core's
 // icons, test-core/MANIFEST.json for test-core), so a hand-edited copy fails here. Re-pin with
 // scripts/pin-visual-core.mjs or test-core's adopt.py --update instead.
