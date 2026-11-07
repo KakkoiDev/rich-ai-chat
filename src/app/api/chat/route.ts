@@ -53,6 +53,9 @@ function imageGallery(images: Images) {
   return `root = Card([ImageGallery([${items.join(", ")}]), MarkDownRenderer(${JSON.stringify(links)})])`;
 }
 
+/** Shown under an answer when the web search the person needed failed. */
+const searchNotice = 'root = Card([Callout("warning", "Search unavailable", "The web search failed, so this answer was not checked against sources.")])';
+
 function textCard(text: string) {
   return `root = Card([TextContent(${JSON.stringify(text)})])`;
 }
@@ -599,6 +602,8 @@ export async function POST(req: Request) {
   const toolsDisabled = bundledImage || correctionSummary;
   const searchDisabled = toolsDisabled || Boolean(fileContext) || noSearch;
   let searched = false;
+  // A web search that ran and got nothing usable (provider down, timeout, not configured).
+  let searchFailed = false;
   let clockResult: ReturnType<typeof currentDateTime> = null;
   let mediaReply: string | undefined;
   let searchSources: { title: string; url: string; snippet?: string }[] = [];
@@ -615,10 +620,10 @@ export async function POST(req: Request) {
     searched = true;
     if (!safeSearchQuery(query)) return { error: "Query contains a URL or possible personal data." };
     const key = process.env.BRAVE_SEARCH_API_KEY;
-    if (!key) return { error: "Web search is not configured." };
+    if (!key) { searchFailed = true; return { error: "Web search is not configured." }; }
     try {
       const r = await braveSearch("web", query, key, req.signal);
-      if (!r.ok) return { error: "Search provider unavailable." };
+      if (!r.ok) { searchFailed = true; return { error: "Search provider unavailable." }; }
       const data = await r.json();
       const results = z.array(z.object({ title: z.string(), url: z.string(), description: z.string().optional() })).safeParse(data.web?.results ?? []);
       const untrustedSources = results.success ? results.data
@@ -626,7 +631,7 @@ export async function POST(req: Request) {
         .slice(0, 4).map(x => ({ title: x.title.slice(0, 160), url: x.url, snippet: x.description?.slice(0, 300) })) : [];
       searchSources = untrustedSources;
       return { untrustedSources };
-    } catch { return { error: "Search failed or timed out." }; }
+    } catch { searchFailed = true; return { error: "Search failed or timed out." }; }
   };
   /** Answer only from the search results already found: no tools, no second lookup. */
   const answerFromSources = async (writer: import("ai").UIMessageStreamWriter) => {
@@ -775,6 +780,8 @@ export async function POST(req: Request) {
               }
             }
             writeTextStep(writer, "chat-answer", result.answer);
+            // Whatever the model wrote, say plainly that its answer was not checked against sources.
+            if (searchFailed && !searchSources.length) writeTextStep(writer, "search-notice", searchNotice);
             if (mediaReply) writeTextStep(writer, "media-results", mediaReply);
             writeSources(writer, result.answer);
             writer.write({ type: "finish", finishReason: "stop" });
