@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Copy deck EN / JA</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/232ffe54ef71b53181f68fc03eeda221">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@400..700&amp;family=Noto+Sans+JP:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#595959}
+.cd{display:grid;grid-template-columns:150px 230px 1fr 1fr;gap:16px;padding:7px 0;border-bottom:1px solid #d4d4d4;font-size:13px;line-height:1.5}
+.cd.h{font-weight:600;border-bottom:1px solid #000;padding-top:0}
+.cd code{font-size:12px;color:#595959}
+.ar{font:600 12px/1.4 Inter;color:#595959}
+</style>
+</helmet>
+<div class="k" style="width: 1280px; height: 3100px; padding: 64px; display: flex; flex-direction: column; gap: 20px">
+<header style="display: flex; flex-direction: column; gap: 8px">
+<p class="t-label t-muted" style="margin: 0">Hand-back 5 · copy-deck.json</p>
+<h1 class="t-h1">Copy deck</h1>
+<p class="t-small t-muted" style="margin: 0; max-width: 860px">Every status and error string, in plain words. {n}, {s}, {time} and {model} are filled in by the system. Japanese uses polite form for instructions, plain noun phrases for status.</p>
+</header>
+<div role="table" aria-label="Copy deck">
+<div class="cd h" role="row"><span role="columnheader">Area</span><span role="columnheader">Key</span><span role="columnheader">English</span><span role="columnheader" lang="ja">日本語</span></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="20">
+<div class="cd" role="row"><span class="ar" role="cell">{{r.area}}</span><code role="cell">{{r.id}}</code><span role="cell">{{r.en}}</span><span role="cell" lang="ja" style="font-family: 'Noto Sans JP', sans-serif">{{r.ja}}</span></div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":3100}}'>
+class Component extends DCLogic {
+renderVals() {
+var R = [
+["Shell","shell.newChat","New chat","新しいチャット"],
+["Shell","shell.savedApps","Saved apps","保存したアプリ"],
+["Shell","shell.rename","Rename","名前を変更"],
+["Shell","shell.delete.title","Delete this chat?","このチャットを削除しますか？"],
+["Shell","shell.delete.body","Its messages, saved apps and log are removed from this Mac. This can't be undone.","メッセージ、保存したアプリ、ログがこのMacから削除されます。元に戻せません。"],
+["Shell","shell.welcome.title","What shall we make?","何をつくりますか？"],
+["Shell","shell.welcome.body","Ask a question, or describe a game or tool and play it here.","質問するか、ゲームや道具を説明すると、ここで遊べます。"],
+["Composer","composer.placeholder","Ask anything, or describe an app to build","質問や作りたいアプリを入力"],
+["Composer","composer.privacy.local","Runs on this Mac. Web search sends your search words online.","このMacで動きます。Web検索では検索語が外部に送信されます。"],
+["Composer","composer.privacy.hosted","Hosted: your messages and files are sent to {model}.","外部サービス：メッセージとファイルは{model}に送信されます。"],
+["Composer","composer.model.local","On this Mac","このMacで実行"],
+["Composer","composer.model.hosted","Hosted: text leaves this device","外部：テキストが端末の外に送られます"],
+["Composer","composer.model.locked","Set by your teacher","先生が設定しています"],
+["Composer","composer.attach.limit","Attach · {n} of 3","添付 · {n}/3"],
+["Composer","composer.attach.tooBig","{file} is {size}. Files can be up to 12 KB.","{file}は{size}です。12 KBまでのファイルを添付できます。"],
+["Composer","composer.attach.notText","Only text files can be attached.","添付できるのはテキストファイルのみです。"],
+["Composer","composer.answering","Answering · {time}","回答中 · {time}"],
+["Composer","composer.stop","Stop","停止"],
+["Dictate","dictate.waiting","Waiting for the microphone…","マイクの許可を待っています…"],
+["Dictate","dictate.recording","Recording {time}","録音中 {time}"],
+["Dictate","dictate.stop","Stop recording","録音を止める"],
+["Dictate","dictate.transcribing","Turning speech into text on the Mac…","Macで音声を文字にしています…"],
+["Dictate","dictate.error","Couldn't turn that into text.","文字にできませんでした。"],
+["Dictate","dictate.denied","Microphone blocked.","マイクがブロックされています。"],
+["Dictate","dictate.denied.help","Allow it in Settings › Safari › Microphone, then try again. Typing still works.","設定 › Safari › マイク で許可してから、もう一度お試しください。文字入力はそのまま使えます。"],
+["Activity","activity.summary","{n} search · {s} s","検索{n}回 · {s}秒"],
+["Activity","activity.working","Working · {time}","処理中 · {time}"],
+["Activity","activity.direct","Answered directly · {s} s","そのまま回答 · {s}秒"],
+["Activity","activity.search.done","Searched the web · {n} sources from {m} sites","Web検索 · {m}サイトから{n}件"],
+["Activity","activity.sentOnline","Sent online","外部に送信"],
+["Activity","activity.waitingModel","Waiting for {model}","{model}を待っています"],
+["Activity","activity.retry","No answer for {s} s, trying again","{s}秒間応答がないため、再試行します"],
+["Activity","activity.recovered","Answered from the sources already found","取得済みの出典から回答しました"],
+["Activity","activity.failed","No answer for {s} s. Stopped trying.","{s}秒間応答がありません。再試行を終了しました。"],
+["Activity","activity.cancelled","Stopped. The part already written is kept.","停止しました。途中までの回答は残ります。"],
+["Activity","activity.noReasoning","Reasoning summary not available for this model.","このモデルでは考えの要約を表示できません。"],
+["Activity","activity.export","Export log","ログを書き出す"],
+["Activity","activity.deleteLog","Delete log","ログを削除"],
+["Apps","app.frameLabel","App made in this chat · runs separately","このチャットで作ったアプリ · 別に動作"],
+["Apps","app.fullScreen","Full screen","全画面"],
+["Apps","app.exit","Exit","閉じる"],
+["Apps","app.revision.label","What should change?","どこを変えますか？"],
+["Apps","app.revision.send","Request revision","修正を依頼"],
+["Apps","app.downloaded","Downloaded · one file, {size}. Opens in any browser and works offline.","ダウンロードしました · 1ファイル {size}。どのブラウザでも開け、オフラインで動きます。"],
+["Apps","app.install.separate","It becomes its own app. It opens from its own address and keeps its own data, separate from this chat.","独立したアプリになります。専用のアドレスで開き、データもチャットとは別に保存されます。"],
+["Apps","app.install.needsInternet","Needs the internet. It won't work without a connection.","インターネットが必要です。接続がないと動きません。"],
+["Apps","app.install.ios.1","Tap the Share button","共有ボタンをタップ"],
+["Apps","app.install.ios.2","Choose Add to Home Screen","「ホーム画面に追加」を選ぶ"],
+["Apps","app.install.ios.3","Tap Add","「追加」をタップ"],
+["Tasks","tasks.keepsRunning","Closing this tab doesn't stop the job. Cancel does.","タブを閉じても止まりません。止めるときは「中止」を押してください。"],
+["Tasks","tasks.waitingModel","Waiting for the local model","ローカルモデルを待っています"],
+["Tasks","tasks.resumed","Resumed after the Mac restarted, from the checkpoint at {time}.","Macの再起動後、{time}の保存地点から再開しました。"],
+["Tasks","tasks.conflict","Kakkoi Chat changed this list while you were editing.","編集中にKakkoi Chatがこのリストを変更しました。"],
+["Tasks","tasks.cancel.confirm","Cancel this job? Finished items are kept.","このジョブを中止しますか？完了した項目は残ります。"],
+["Tasks","tasks.status","Queued · Running · Blocked · Done · Failed · Cancelled","待機中 · 実行中 · 保留 · 完了 · 失敗 · 中止"],
+["Connection","conn.connected","Connected to the Mac","Macに接続中"],
+["Connection","conn.offline","This phone is offline. Saved chats can be read. Sending needs a connection.","この端末はオフラインです。保存したチャットは読めます。送信には接続が必要です。"],
+["Connection","conn.unreachable","Can't reach the Mac. It may be asleep or off.","Macに接続できません。スリープ中か電源が切れている可能性があります。"],
+["Connection","conn.tailscaleOff","Turn on Tailscale. This phone reaches the Mac through it.","Tailscaleをオンにしてください。この端末はTailscale経由でMacにつながります。"],
+["Connection","conn.reconnecting","Reconnecting…","再接続しています…"],
+["Connection","conn.reconnected","Reconnected","再接続しました"],
+["Connection","conn.interrupted","Interrupted. The connection dropped at {time}. This reply is incomplete.","中断：{time}に接続が切れました。この回答は途中までです。"],
+["Connection","conn.loadingModel","Loading {model}…","{model}を読み込んでいます…"],
+["Connection","conn.loadingModel.help","The first message after a while takes up to a minute. Your message will go as soon as it's ready.","しばらくぶりの最初のメッセージは、最大1分ほどかかります。準備ができしだい送信します。"],
+["Errors","err.generic","Something went wrong on the Mac. Nothing was lost.","Macで問題が起きました。データは失われていません。"],
+["Errors","err.storageFull","Couldn't save this chat. Storage on this phone is full.","チャットを保存できませんでした。この端末の保存容量がいっぱいです。"],
+["Errors","err.tryAgain","Try again","もう一度試す"],
+["Errors","err.details","Details for your teacher","先生向けの詳細"]
+];
+return { rows: R.map(function (x) { return { area: x[0], id: x[1], en: x[2], ja: x[3] }; }) };
+}
+}
+</script>
+</body>
+</html>

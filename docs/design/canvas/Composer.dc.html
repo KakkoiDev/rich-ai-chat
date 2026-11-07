@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Composer states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/232ffe54ef71b53181f68fc03eeda221">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@400..700&amp;family=Noto+Sans+JP:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#595959}
+.cell{display:flex;flex-direction:column;gap:8px}
+.cap{font:600 13px/1.4 Inter,sans-serif;margin:0;padding-bottom:6px;border-bottom:1px solid #000}
+.note{font:400 13px/1.45 Inter,sans-serif;color:#595959;margin:0}
+.box{border:1px solid #000;display:flex;flex-direction:column}
+.box .tx{padding:14px 16px;min-height:52px;font:400 16px/1.4 Inter,sans-serif}
+.bar{display:flex;align-items:center;gap:6px;padding:0 8px 8px;flex-wrap:wrap}
+.ph{color:#595959}
+.opt{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:start;padding:10px 12px;min-height:56px;border-bottom:1px solid #d4d4d4;font-size:14px}
+.opt b{font-weight:600;display:block}
+.lvl{display:flex;gap:2px;align-items:center;height:20px}
+.lvl i{display:block;width:3px;background:#000}
+</style>
+</helmet>
+<div class="k" style="width: 1280px; height: 1500px; padding: 64px; display: flex; flex-direction: column; gap: 40px">
+<header style="display: flex; flex-direction: column; gap: 8px">
+<p class="t-label t-muted" style="margin: 0">§5.2</p>
+<h1 class="t-h1">Composer</h1>
+<p class="t-small t-muted" style="margin: 0; max-width: 820px">One field, one row of tools, one primary button. Errors sit under the field with an icon. The privacy line under the field always says where the text goes.</p>
+</header>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px 48px">
+
+<div class="cell">
+<p class="cap">Attachments · up to 3 text files, 12 KB each</p>
+<div class="box">
+<div style="display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 10px 0">
+<span class="chip">moons.txt<span class="t-muted t-num" style="font-size: 12px; margin-left: 4px">4 KB</span><button class="btn btn-ghost btn-icon btn-sm" aria-label="Remove moons.txt" style="width: 36px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></span>
+<span class="chip">quiz-notes.md<span class="t-muted t-num" style="font-size: 12px; margin-left: 4px">9 KB</span><button class="btn btn-ghost btn-icon btn-sm" aria-label="Remove quiz-notes.md" style="width: 36px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></span>
+<span class="chip bad" style="border: 2px solid #c4161c">big-notes.txt<span class="t-num" style="font-size: 12px; margin-left: 4px">18 KB</span><button class="btn btn-ghost btn-icon btn-sm" aria-label="Remove big-notes.txt" style="width: 36px; color: #c4161c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></span>
+</div>
+<div class="tx">Make a 5-question quiz from these notes</div>
+<div class="bar"><button class="btn btn-ghost is-disabled" disabled="" style="border-color: transparent">Attach · 3 of 3</button><span style="flex: 1"></span><button class="btn btn-primary btn-icon is-disabled" disabled="" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button></div>
+</div>
+<p class="err" role="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4M12 16h.01"></path></svg>big-notes.txt is 18 KB. Files can be up to 12 KB. Remove it or shorten it to send.</p>
+<p class="note">Only plain text files (.txt, .md, .csv, .json). Other types are refused with: "Only text files can be attached."</p>
+</div>
+
+<div class="cell">
+<p class="cap">Model choice · menu open (teacher)</p>
+<div class="pop" role="listbox" aria-label="Model" style="box-shadow: 4px 4px 0 #000">
+<div class="opt" role="option" aria-selected="false"><span></span><span><b>DeepSeek Flash</b><span class="warn">Hosted: text leaves this device</span></span><span class="t-small">Fastest</span></div>
+<div class="opt" role="option" aria-selected="true" style="background: #f2f2f2"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg><span><b>Gemma 4 12B</b>On this Mac</span><span class="t-small">Steady</span></div>
+<div class="opt" role="option" aria-selected="false"><span></span><span><b>GPT-OSS 20B</b>On this Mac</span><span class="t-small">Slow, careful</span></div>
+<div class="opt" role="option" aria-selected="false"><span></span><span><b>Gemma 4 E4B</b>On this Mac</span><span class="t-small">Quick</span></div>
+<div class="opt" role="option" aria-selected="false" style="border-bottom: 0"><span></span><span><b>Gemma 4 E2B</b>On this Mac</span><span class="t-small">Quickest on Mac</span></div>
+</div>
+<div class="box" style="margin-top: 8px"><div class="bar" style="padding-top: 8px"><button class="btn btn-ghost" style="font-weight: 500" aria-haspopup="listbox" aria-expanded="true"><strong>Gemma 4 12B</strong> · On this Mac<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"></path></svg></button></div></div>
+<p class="note">Speed hints are words, not numbers, since local speed depends on the Mac. Student view: the same button reads "Gemma 4 12B · On this Mac · set by your teacher" and opens nothing.</p>
+</div>
+
+<div class="cell">
+<p class="cap">Hosted model chosen</p>
+<div class="box"><div class="tx ph">Ask anything</div><div class="bar"><button class="btn btn-ghost" style="font-weight: 500"><strong>DeepSeek Flash</strong> · Hosted<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"></path></svg></button><span style="flex: 1"></span><button class="btn btn-primary btn-icon" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button></div></div>
+<p class="status warn" style="margin: 0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4M12 17h.01"></path></svg>Hosted: your messages and files are sent to DeepSeek.</p>
+</div>
+
+<div class="cell">
+<p class="cap">Replying · Send becomes Stop</p>
+<div class="box"><div class="tx ph">Wait for the reply, or stop it</div><div class="bar"><span class="t-small t-muted" role="status">Answering · <span class="t-num">00:14</span></span><span style="flex: 1"></span><button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12"></rect></svg>Stop</button></div></div>
+<p class="note">Stop keeps whatever arrived and labels the reply "Stopped". The field stays editable, so the next message can be written while waiting.</p>
+</div>
+
+<div class="cell" style="grid-column: 1 / -1">
+<p class="cap">Dictate · six states (speech is turned into text on the Mac)</p>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+<div class="cell"><div class="box"><div class="bar" style="padding-top: 8px"><span class="t-small t-muted">Idle</span><span style="flex: 1"></span><button class="btn btn-icon" aria-label="Dictate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12"></rect><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg></button></div></div><p class="note">Icon button named "Dictate".</p></div>
+<div class="cell"><div class="box"><div class="bar" style="padding-top: 8px"><span class="t-small" role="status">Waiting for the microphone…</span><span style="flex: 1"></span><button class="btn btn-icon is-disabled" disabled="" aria-label="Dictate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12"></rect><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg></button></div></div><p class="note">The browser's permission prompt is showing.</p></div>
+<div class="cell"><div class="box" style="border-width: 2px"><div class="bar" style="padding-top: 8px"><span class="status" role="status"><svg viewBox="0 0 24 24" fill="#c4161c" aria-hidden="true"><rect x="6" y="6" width="12" height="12"></rect></svg>Recording <span class="t-num">0:07</span></span><span class="lvl" aria-hidden="true"><i style="height: 6px"></i><i style="height: 14px"></i><i style="height: 20px"></i><i style="height: 10px"></i><i style="height: 16px"></i><i style="height: 6px"></i></span><span style="flex: 1"></span><button class="btn btn-primary">Stop recording</button></div></div><p class="note">Red square plus the word. Level bars freeze with reduced motion.</p></div>
+<div class="cell"><div class="box"><div class="bar" style="padding-top: 8px"><span class="t-small" role="status">Turning speech into text on the Mac…</span><span style="flex: 1"></span><button class="btn btn-ghost">Cancel</button></div></div><p class="note">The text lands in the field to be checked before sending. Never auto-sends.</p></div>
+<div class="cell"><div class="box"><div class="bar" style="padding-top: 8px"><span class="err" style="margin: 0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4M12 16h.01"></path></svg>Couldn't turn that into text.</span><span style="flex: 1"></span><button class="btn">Try again</button></div></div><p class="note">The recording is kept until retried or dismissed.</p></div>
+<div class="cell"><div class="box"><div class="bar" style="padding-top: 8px"><span class="err" style="margin: 0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m2 2 20 20M18.89 13.23A7 7 0 0 0 19 12v-2M5 10v2a7 7 0 0 0 12 5M15 9.34V5a3 3 0 0 0-5.68-1.33M9 9v3a3 3 0 0 0 5.12 2.12M12 19v3"></path></svg>Microphone blocked.</span><span style="flex: 1"></span><button class="btn">How to allow</button></div></div><p class="note">Opens steps: iPhone Settings › Safari › Microphone › Allow. Typing still works.</p></div>
+</div>
+</div>
+
+<div class="cell" style="grid-column: 1 / -1">
+<p class="cap">Disabled · Mac unreachable</p>
+<div class="box" style="border-style: dashed; border-color: #767676"><div class="tx" style="color: #595959">Name the planets in order and give one fact each</div><div class="bar"><button class="btn btn-ghost is-disabled" disabled="" style="border-color: transparent">Attach</button><button class="btn btn-ghost is-disabled" disabled="" style="border-color: transparent">Gemma 4 12B · On this Mac</button><span style="flex: 1"></span><button class="btn btn-primary is-disabled" disabled="" aria-label="Send, unavailable while the Mac is unreachable"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button></div></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 16px"><p class="err" role="status" style="margin: 0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M2 8.82a15 15 0 0 1 4.17-2.65M10.66 5c4.01-.36 8.14.9 11.34 3.76M16.85 11.25a10 10 0 0 1 2.22 1.68M5 13a10 10 0 0 1 5.24-2.76M2 2l20 20"></path></svg>Can't reach the Mac. Your message is kept here and nothing was sent.</p><button class="btn">Try again</button></div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

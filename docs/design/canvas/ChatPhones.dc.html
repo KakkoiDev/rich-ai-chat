@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kakkoi Chat — phone</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/232ffe54ef71b53181f68fc03eeda221">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@400..700&amp;family=Noto+Sans+JP:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#595959}
+.ph{width:390px;height:844px;border:1px solid #000;display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--background);color:var(--foreground)}
+.safe-t{height:47px;flex:none}
+.safe-b{height:34px;flex:none}
+.hd{height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 4px;border-bottom:1px solid var(--rule)}
+.hd h1{font:600 16px/1.3 Inter,"Noto Sans JP",sans-serif;margin:0;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cap{font:600 13px/1.4 Inter,sans-serif;margin:0 0 12px}
+.cmp{border:1px solid var(--foreground);margin:0 12px}
+.cmp textarea{border:0;resize:none;width:100%;min-height:48px;padding:12px 14px;font:400 16px/1.4 Inter,"Noto Sans JP",sans-serif;background:transparent;color:inherit}
+.cmp .bar{display:flex;align-items:center;gap:4px;padding:0 4px 4px}
+.mdl{font:500 13px/1.2 Inter,"Noto Sans JP",sans-serif;padding:0 8px}
+.k-dark .ph{border-color:#fff}
+.k-dark a{color:#fff}
+sup a{font:600 11px/1 Inter;text-decoration:none;border:1px solid currentColor;padding:1px 4px;margin-left:2px}
+.starter{display:flex;align-items:center;justify-content:space-between;min-height:56px;padding:8px 16px;border-top:1px solid #d4d4d4;text-decoration:none;font-size:15px;gap:12px}
+</style>
+</helmet>
+<div class="k" style="width: 1840px; height: 1000px; padding: 48px; display: flex; gap: 40px; align-items: flex-start; background: #fff">
+
+<figure style="margin: 0">
+<figcaption class="cap">Welcome · EN · empty state</figcaption>
+<div class="ph" lang="en">
+<div class="safe-t"></div>
+<header class="hd"><button class="btn btn-ghost btn-icon" aria-label="Chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button><h1>New chat</h1><button class="btn btn-ghost btn-icon" aria-label="Tasks, none running"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m3 7 2 2 4-4M3 17l2 2 4-4M13 6h8M13 12h8M13 18h8"></path></svg></button></header>
+<main style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden">
+<div style="display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 0 16px 24px">
+<img src="/_blob/1ddbb09ccd157443591fee3f29b13516" alt="" aria-hidden="true" style="width: 96px; height: 96px; margin-left: -12px">
+<h2 class="t-h1">What shall we make?</h2>
+<p class="t-small t-muted" style="margin: 0">Ask a question, or describe a game or tool and play it here.</p>
+</div>
+<nav aria-label="Starter prompts" style="border-bottom: 1px solid #d4d4d4; margin-bottom: 12px">
+<a class="starter" href="#">Explain photosynthesis with a diagram<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg></a>
+<a class="starter" href="#">Make a times-tables game<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg></a>
+<a class="starter" href="#">Chart Tokyo's rainfall by month<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg></a>
+</nav>
+</main>
+<form class="cmp" aria-label="Message">
+<textarea aria-label="Message" placeholder="Ask anything" rows="1"></textarea>
+<div class="bar"><button type="button" class="btn btn-ghost btn-icon" aria-label="Attach a text file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg></button><button type="button" class="btn btn-ghost mdl" aria-haspopup="listbox" aria-label="Model: Gemma 4 12B, on this Mac">Gemma 4 12B · Mac</button><span style="flex: 1"></span><button type="button" class="btn btn-ghost btn-icon" aria-label="Dictate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="2" width="6" height="12"></rect><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg></button><button type="submit" class="btn btn-primary btn-icon" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button></div>
+</form>
+<p role="status" class="status t-muted" style="margin: 6px 16px 0; font-size: 12px"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width: 10px; height: 10px"><rect x="4" y="4" width="16" height="16"></rect></svg>Connected to the Mac</p>
+<div class="safe-b"></div>
+</div>
+</figure>
+
+<figure style="margin: 0">
+<figcaption class="cap">Sourced answer · JA</figcaption>
+<div class="ph" lang="ja">
+<div class="safe-t"></div>
+<header class="hd"><button class="btn btn-ghost btn-icon" aria-label="チャット一覧"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button><h1>木星の衛星</h1><button class="btn btn-ghost btn-icon" aria-label="タスク（実行中1件）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m3 7 2 2 4-4M3 17l2 2 4-4M13 6h8M13 12h8M13 18h8"></path></svg></button></header>
+<main style="flex: 1; overflow: hidden; padding: 16px; display: flex; flex-direction: column; gap: 20px; font-family: 'Noto Sans JP', sans-serif">
+<section aria-label="あなた" style="align-self: flex-end; max-width: 85%; background: #f2f2f2; padding: 10px 14px"><p style="margin: 0; line-height: 1.7">木星の衛星はいくつ？一番大きいのは？</p></section>
+<article aria-label="Kakkoi Chat の回答" style="display: flex; flex-direction: column; gap: 12px; line-height: 1.8">
+<p style="margin: 0">木星には<strong>95個の衛星</strong>が確認されています<sup><a href="#">1</a></sup>。大きい4つは「ガリレオ衛星」と呼ばれ、1610年にガリレオが発見しました<sup><a href="#">2</a></sup>。</p>
+<ul style="margin: 0; padding-left: 20px">
+<li><strong>ガニメデ</strong>：太陽系で最大の衛星。水星より大きい<sup><a href="#">3</a></sup></li>
+<li><strong>カリスト</strong>：クレーターだらけ</li>
+<li><strong>イオ</strong>：火山活動が最も活発</li>
+<li><strong>エウロパ</strong>：氷の下に海がある<sup><a href="#">4</a></sup></li>
+</ul>
+<section style="border-top: 1px solid #d4d4d4; padding-top: 8px">
+<h3 style="font: 700 13px/1.4 'Noto Sans JP'; margin: 0 0 4px">出典</h3>
+<ol style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.6">
+<li><a href="#">Jupiter moons</a> <span class="t-muted">· science.nasa.gov</span></li>
+<li><a href="#">Galilean moons</a> <span class="t-muted">· britannica.com</span></li>
+<li><span class="t-muted">ほか2件</span></li>
+</ol>
+</section>
+<button class="btn btn-ghost" aria-expanded="false" style="justify-content: flex-start; padding: 0; font: 500 14px/1.3 'Noto Sans JP'; border-top: 1px solid #d4d4d4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>アクティビティ：検索1回 · <span class="t-num">2.4秒</span></button>
+</article>
+</main>
+<form class="cmp" aria-label="メッセージ">
+<textarea aria-label="メッセージ" placeholder="質問や作りたいアプリを入力" rows="1"></textarea>
+<div class="bar"><button type="button" class="btn btn-ghost btn-icon" aria-label="テキストファイルを添付"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg></button><button type="button" class="btn btn-ghost mdl" aria-haspopup="listbox" style="font-family: 'Noto Sans JP'">Gemma 4 12B · Mac</button><span style="flex: 1"></span><button type="button" class="btn btn-ghost btn-icon" aria-label="音声入力"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="2" width="6" height="12"></rect><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg></button><button type="submit" class="btn btn-primary btn-icon" aria-label="送信"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button></div>
+</form>
+<div class="safe-b"></div>
+</div>
+</figure>
+
+<figure style="margin: 0">
+<figcaption class="cap">Keyboard open · composer stays above it</figcaption>
+<div class="ph" lang="en">
+<div class="safe-t"></div>
+<header class="hd"><button class="btn btn-ghost btn-icon" aria-label="Chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button><h1>Moons of Jupiter</h1><button class="btn btn-ghost btn-icon" aria-label="Tasks, 1 running"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m3 7 2 2 4-4M3 17l2 2 4-4M13 6h8M13 12h8M13 18h8"></path></svg></button></header>
+<main style="flex: 1; overflow: hidden; padding: 0 16px; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px">
+<p style="margin: 0; color: #595959">…the Galilean moons, found by Galileo in 1610. Europa has an ice shell over a salty ocean.</p>
+<p class="t-small" style="margin: 0 0 8px; border-top: 1px solid #d4d4d4; padding-top: 6px">Activity: 1 search · <span class="t-num">2.4 s</span></p>
+</main>
+<div style="padding: 0 12px 8px; display: flex; flex-wrap: wrap; gap: 8px"><span class="chip">moons.txt<button class="btn btn-ghost btn-icon" aria-label="Remove moons.txt" style="min-height: 40px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></span></div>
+<form class="cmp" aria-label="Message" style="outline: 2px solid #000; outline-offset: 2px">
+<textarea aria-label="Message" rows="2" style="min-height: 72px">Make a quiz from this file about Jupiter's moons, 5 questions</textarea>
+<div class="bar"><button type="button" class="btn btn-ghost btn-icon" aria-label="Attach a text file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg></button><button type="button" class="btn btn-ghost mdl">Gemma 4 12B · Mac</button><span style="flex: 1"></span><button type="button" class="btn btn-ghost btn-icon" aria-label="Dictate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="2" width="6" height="12"></rect><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg></button><button type="submit" class="btn btn-primary btn-icon" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button></div>
+</form>
+<div aria-hidden="true" style="height: 291px; flex: none; margin-top: 8px; background: #d4d4d4; display: flex; align-items: center; justify-content: center; font: 500 13px/1 Inter; color: #595959">System keyboard</div>
+</div>
+</figure>
+
+<figure class="k-dark" style="margin: 0; background: #000; color: #fff; padding: 16px; margin-top: -16px">
+<figcaption class="cap">Dark · chat list open</figcaption>
+<div class="ph" lang="en">
+<div class="safe-t"></div>
+<header class="hd"><h1 style="text-align: left; padding-left: 12px"><img src="/_blob/c3163b77ac4b5aa8e453e150f0cddd17" alt="Kakkoi" style="height: 18px; filter: invert(1)"></h1><button class="btn btn-ghost btn-icon" aria-label="Close chats" style="color: #fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></header>
+<nav aria-label="Chats" style="flex: 1; display: flex; flex-direction: column; padding: 12px">
+<a class="btn" href="#" style="justify-content: flex-start; margin-bottom: 12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New chat</a>
+<p style="font: 600 12px/1 Inter; color: #a6a6a6; margin: 12px 0 8px">Today</p>
+<a href="#" aria-current="page" style="display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 0 12px; background: #fff; color: #000; font-weight: 600; text-decoration: none">Moons of Jupiter<span style="font-size: 12px; font-weight: 400">now</span></a>
+<a href="#" style="display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 0 12px; text-decoration: none; border-bottom: 1px solid #333">Solar system quiz<span class="badge" style="font-size: 11px">App v2</span></a>
+<a href="#" style="display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 0 12px; text-decoration: none; border-bottom: 1px solid #333">Volcano diagram<span class="t-num" style="font-size: 12px; color: #a6a6a6">11:20</span></a>
+<p style="font: 600 12px/1 Inter; color: #a6a6a6; margin: 20px 0 8px">This week</p>
+<a href="#" style="display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 0 12px; text-decoration: none; border-bottom: 1px solid #333">Times tables game<span style="font-size: 12px; color: #a6a6a6">Thu</span></a>
+<a href="#" lang="ja" style="display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 0 12px; text-decoration: none; border-bottom: 1px solid #333">漢字の書き順<span style="font-size: 12px; color: #a6a6a6">Wed</span></a>
+<span style="flex: 1"></span>
+<a href="#" style="display: flex; align-items: center; min-height: 48px; padding: 0 12px; border-top: 1px solid #333">Saved apps · 7</a>
+<a href="#" style="display: flex; align-items: center; min-height: 48px; padding: 0 12px">Settings</a>
+<p role="status" class="status" style="margin: 8px 12px 0; color: #a6a6a6"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width: 10px; height: 10px"><rect x="4" y="4" width="16" height="16"></rect></svg>Connected to the Mac</p>
+</nav>
+<div class="safe-b"></div>
+</div>
+</figure>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1840,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
