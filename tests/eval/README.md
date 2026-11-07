@@ -43,14 +43,18 @@ RICH_CHAT_BUILD_DIR=.next-local/bench EVAL_REVISION="$(git rev-parse HEAD)" \
   EVAL_DIR=/path/to/new-report-directory node tests/eval/matrix.cjs
 ```
 
-The matrix runs the basic and breadth suites serially for each model. A skipped, failed, or missing case ends the streak after the current round finishes. On a frozen build, ten perfect rounds across all models trigger one final regression round. After a fix, rebuild and use a fresh directory so prior failures remain available for comparison.
+The matrix runs the basic, breadth and features suites serially for each model: 14 + 13 + 2 = 29 cases, so 145 checks per round across the five models. A skipped, failed, or missing case ends the streak after the current round finishes.
+
+The features suite (`features/run-features.cjs`) grows with each milestone ([benchmark plan](../../docs/BENCHMARK-PLAN.md)). Its prompts come from `features/prompts.cjs`, seeded by round, model and case: the wording and data vary, and the same key always reproduces the same prompt, which is saved in the report. Preflight checks that every prompt stays outside the app's tested layouts, so the model's own code is what gets tested. `run-features.cjs --list` prints the case ids, and the matrix refuses to start if its expected count differs. The M1 cases build a varied app, use it, open it full screen, then download its source and replay the same actions on the file in an offline browser. One case does this after a revision and checks that the first version is unchanged.
+
+The deterministic full-screen and export checks need no model: `CHAT_URL=http://127.0.0.1:<port>/ node tests/e2e/fullscreen-export.cjs` (Playwright via `NODE_PATH`). They cover the Fullscreen API on desktop, the full-window fallback on a phone (including Escape pressed inside the sandboxed app), and offline downloads of a plain app and of a LittleJS game. On a frozen build, ten perfect rounds across all models trigger one final regression round. After a fix, rebuild and use a fresh directory so prior failures remain available for comparison.
 
 The matrix runs on test-core's pinned benchmark runner (`test-core/bench`; the pin is in `test-core/MANIFEST.json`, checked with `python3 test-core/adopt.py --verify test-core`). One task is one model in one round. The report directory holds:
 
 - `manifest.json`: the revision, plan, frozen files with their hashes (the harness scripts, `package-lock.json`, the build's `BUILD_ID`) and the configuration
 - `state.json`: the state, PID, active task and a running summary, refreshed while the run is alive
 - `tasks/rNN-<model>.json`: each finished task's verdict, checks and duration
-- `tasks/rNN-<model>/{basic,breadth}.json`: the suite reports with per-case durations
+- `tasks/rNN-<model>/{basic,breadth,features}.json`: the suite reports with per-case durations
 - `matrix.json`: a short final summary
 
 Failed and interrupted reports are kept. `EVAL_RESUME=1` continues an interrupted run in the same directory without repeating finished tasks. It refuses if a frozen file, the plan or the revision changed. A run fails as `secret-leak` if a configured API key appears anywhere in its reports. `EVAL_REQUIRED` and `EVAL_REGRESSION` (default 10 and 1) shorten a run for parity and focused checks. Only the full 10 + 1 run counts toward a release, whatever its final state is called.

@@ -17,6 +17,24 @@ body {
 .artifact-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 10px; }
 .artifact-controls button { font: inherit; color: inherit; background: transparent; border: 1px solid #8888; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
 .html-artifact iframe { display: block; width: 100%; height: min(660px, 72vh); background: white; border: 1px solid #8885; border-radius: 8px; }
+/* Full screen restyles the stage around the iframe; the iframe itself never moves, so the app keeps its state. */
+.artifact-stage:fullscreen,
+.artifact-stage[data-view="full-window"] {
+  display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;
+  background: var(--openui-background, Canvas); color: var(--openui-text-neutral-primary, CanvasText);
+}
+.artifact-stage:fullscreen { padding: 8px; }
+.artifact-stage[data-view="full-window"] {
+  position: fixed; inset: 0; z-index: 1000; height: 100dvh;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+.artifact-stage:fullscreen iframe,
+.artifact-stage[data-view="full-window"] iframe { flex: 1; height: auto; min-height: 0; }
+.artifact-stage__bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.artifact-stage__bar strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.artifact-stage__bar button { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 8px; min-height: 44px; padding: 0 16px; cursor: pointer; }
+body.artifact-full-window-open { overflow: hidden; }
 .html-artifact pre { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .artifact-feedback { display: grid; gap: 6px; margin-top: 12px; }
 .artifact-feedback textarea { font: inherit; color: inherit; background: transparent; border: 1px solid #8888; border-radius: 8px; padding: 8px; resize: vertical; }

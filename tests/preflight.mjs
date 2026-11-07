@@ -225,3 +225,58 @@ for (const [label, operation, operand, expected] of [
 }
 assert.equal(addCalculatorAction(calculatorSource, "Bad divisor", "divide", 0), undefined);
 assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), undefined);
+
+// Exported apps: the preview's policy, no monitor, the engine only with its marker, stable bytes and safe names.
+{
+  const { artifactPolicy, exportArtifact, exportFilename } = await import("../src/lib/artifact-export.ts");
+  const { createHash } = await import("node:crypto");
+  const app = "<html><body><button id='b'>0</button><script>b.onclick=()=>b.textContent=+b.textContent+1</script></body></html>";
+  const exported = exportArtifact({ title: "Counter", document: app });
+  assert.ok(exported.startsWith("<!doctype html>\n"), "Export is a standalone document");
+  assert.ok(exported.includes(`content="${artifactPolicy}"`), "Export keeps the preview's content policy");
+  assert.ok(exported.includes("<title>Counter</title>") && exported.includes(app), "Export adds a title and keeps the source");
+  assert.ok(!exported.includes("rich-chat-preview") && !exported.includes("postMessage"), "Export leaves out the preview monitor");
+  assert.ok(!/littlejs/i.test(exported), "No engine without the marker");
+  assert.equal(exportArtifact({ title: "Counter", document: app }), exported, "Same app, same bytes");
+  assert.ok(!exportArtifact({ title: "X", document: "<title>Own</title><p>x</p>" }).includes("<title>X</title>"), "An app's own title wins");
+  assert.ok(exportArtifact({ title: "<b>&\"", document: "<p>x</p>" }).includes("<title>&lt;b&gt;&amp;&quot;</title>"), "Title is escaped");
+  assert.ok(exportArtifact({ title: "x", document: "<button onclick=\\\"go()\\\">Go</button>" }).includes('<button onclick="go()">Go</button>'),
+    "Export applies the preview's source clean-up");
+
+  const engine = readFileSync(new URL("../public/vendor/littlejs-1.27.0.min.js", import.meta.url), "utf8");
+  const license = readFileSync(new URL("../public/vendor/LICENSE.littlejs", import.meta.url), "utf8");
+  const slingshot = readFileSync(new URL("../src/starters/slingshot.html", import.meta.url), "utf8");
+  const game = exportArtifact({ title: "Slingshot", document: slingshot, engine, engineLicense: license });
+  assert.ok(game.includes("Frank Force") && game.includes("MIT License"), "Engine export carries its licence");
+  assert.equal((game.match(/<\/script/gi) ?? []).length, (slingshot.match(/<\/script/gi) ?? []).length + 1, "Inlined engine cannot close its script tag early");
+  assert.throws(() => exportArtifact({ title: "Slingshot", document: slingshot }), /LittleJS/, "Engine apps need the engine");
+
+  const digest = createHash("sha256").update(exported).digest("hex");
+  assert.equal(exportFilename("Tip calculator", digest), `tip-calculator-${digest.slice(0, 8)}.html`);
+  assert.equal(exportFilename("計算機 v2", digest), `計算機-v2-${digest.slice(0, 8)}.html`);
+  assert.equal(exportFilename("../../etc/passwd", digest), `etc-passwd-${digest.slice(0, 8)}.html`, "No path parts in names");
+  assert.equal(exportFilename("!!!", digest), `app-${digest.slice(0, 8)}.html`);
+}
+
+// Features-suite prompts: varied per round and model, always on the general build path (no tested layout or starter).
+{
+  const { createRequire } = await import("node:module");
+  const { featurePrompt, caseIds } = createRequire(import.meta.url)("./eval/features/prompts.cjs");
+  const { basicRecipe } = await import("../src/lib/basic-recipes.ts");
+  const { isSequenceGame, wantsShuffleBag } = await import("../src/lib/artifact-build.ts");
+  const models = ["deepseek-flash", "gpt-oss:20b", "gemma4:12b-mlx", "gemma4:e4b-mlx", "gemma4:e2b-mlx"];
+  for (const id of caseIds) {
+    const prompts = new Set();
+    for (let round = 1; round <= 20; round++) for (const model of models) {
+      const spec = featurePrompt(id, round, model);
+      assert.deepEqual(featurePrompt(id, round, model), spec, "Same key, same prompt");
+      for (const request of [spec.prompt, spec.revision].filter(Boolean)) {
+        assert.ok(!basicRecipe(request) && !basicKeypadSpec(request) && !basicTakeAwaySpec(request) && !basicExpenseSpec(request)
+          && !isSequenceGame(request) && !wantsShuffleBag(request), `Outside the tested layouts: ${request}`);
+      }
+      assert.ok(artifactBuildGuide(spec.prompt), `Takes the app build path: ${spec.prompt}`);
+      prompts.add(spec.prompt);
+    }
+    assert.ok(prompts.size >= 40, `${id} varies its prompts (${prompts.size} distinct)`);
+  }
+}

@@ -21,9 +21,14 @@ const regression = Number(process.env.EVAL_REGRESSION ?? 1);
 const suites = [
   ['basic', path.join(__dirname, 'run.cjs'), 14],
   ['breadth', path.join(__dirname, 'breadth/run-breadth.cjs'), 13],
+  ['features', path.join(__dirname, 'features/run-features.cjs'), 2],
 ];
+// A case added to the features suite must also raise its expected count here, or the run refuses to start.
+const listed = require('node:child_process').execFileSync(process.execPath, [suites[2][1], '--list'], { encoding: 'utf8' }).trim().split('\n');
+assert.equal(listed.length, suites[2][2], `features lists ${listed.length} cases; update its expected count`);
 const root = path.resolve(__dirname, '../..');
 const frozen = ['tests/eval/matrix.cjs', 'tests/eval/run.cjs', 'tests/eval/breadth/run-breadth.cjs',
+  'tests/eval/features/run-features.cjs', 'tests/eval/features/prompts.cjs',
   ...fs.readdirSync(path.join(root, 'tests/e2e')).map(name => 'tests/e2e/' + name),
   'test-core/bench/bench.mjs', 'package-lock.json', path.join(RICH_CHAT_BUILD_DIR, 'BUILD_ID')];
 

@@ -34,6 +34,20 @@ No new cases have been run yet. Results per model for the expanded matrix will b
   - The known gpt-oss tool-choice violation appeared once and was recovered.
   - The run is recorded as `stable-and-regression-passed` because it was configured as 1 round with no regression round. It is a parity check, not a release streak.
 
+### M1 trial round (2026-11-07, uncommitted candidate)
+
+The M1 candidate added full screen, source download and the `features` suite with its first two cases. One trial round (report `reports/m1-trial.202611071827`) passed **145/145**: every model scored 29/29 with an empty error log.
+
+| Model | Checks | `export-novel-app` | `export-after-revision` | Whole task |
+| --- | --- | --- | --- | --- |
+| DeepSeek Flash | 29/29 | 4.0 s | 6.0 s | 68 s |
+| GPT-OSS 20B | 29/29 | 14.3 s | 30.8 s | 189 s |
+| Gemma 4 12B | 29/29 | 17.4 s | 33.4 s | 159 s |
+| Gemma 4 E4B | 29/29 | 5.9 s | 9.6 s | 66 s |
+| Gemma 4 E2B | 29/29 | 2.3 s | 5.3 s | 42 s |
+
+This is a trial on an unfrozen working tree. It doesn't count toward the gate. The release streak (ten rounds plus one regression round at 145/145, so 1,595 checks) needs a committed, frozen revision.
+
 ## 2. Rules (unchanged, restated)
 
 - **Stable** means ten consecutive perfect rounds on the expanded matrix, then one full regression round on the same frozen revision. Failures, skips, changed expectations and mixed revisions all reset the streak.
