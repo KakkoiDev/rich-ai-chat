@@ -18,13 +18,15 @@ import { gatePlan, sliceAsk, sliceSpec, type GatePrompt, type PromptSlice } from
 import { layaGateEnabled, sharedLayaGate } from "@/lib/laya-gate";
 import { braveSearch, currentDateTime, explicitSearchQuery, findImages, findVideos, safeSearchQuery } from "@/lib/local-tools";
 import { createActivity, toolSummary, type ActivityPath, type ActivityTool } from "@/lib/activity";
-import { debugCapture, logActivity } from "@/lib/activity-log";
+import { debugCapture, logActivity, logDetail } from "@/lib/activity-log";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createUIMessageStream, createUIMessageStreamResponse, generateText, Output, stepCountIs, streamText, tool } from "ai";
 import { z } from "zod";
 
 const turn = z.object({
   model: z.enum(chatModelIds).optional(),
+  /** "Debug this chat": the request also records full text (see activity.ts `detail`). */
+  debug: z.boolean().optional(),
   messages: z.array(z.object({
     role: z.enum(["user", "assistant"]),
     parts: z.array(z.object({ type: z.string(), text: z.string().max(68000).optional(), mediaType: z.string().optional(), url: z.string().max(chatFilePrefix.length + Math.ceil(maxChatFileBytes / 3) * 4).optional(), filename: z.string().max(120).optional() })).max(40),
@@ -98,20 +100,28 @@ export async function POST(req: Request) {
       return new Response("Invalid file. Attach UTF-8 text files up to 12 KB each.", { status: 400 });
     }
   }
-  const activity = createActivity(logActivity);
+  const activity = createActivity(logActivity, { debug: parsed.data.debug === true, logDetail });
   const requestModel = parsed.data.model || defaultChatModelId();
   /** Every reply goes through here: the stream starts, Activity is attached, and the outcome is always recorded. */
   const respond = (path: ActivityPath, run: (writer: import("ai").UIMessageStreamWriter) => Promise<"done" | "failed" | void>) =>
     createUIMessageStreamResponse({
       stream: createUIMessageStream({
-        async execute({ writer }) {
-          writer.write({ type: "start" });
-          activity.attach(writer);
+        async execute({ writer: stream }) {
+          stream.write({ type: "start" });
+          activity.attach(stream);
           activity.record({ type: "request", path, model: requestModel });
+          activity.detail("user message", latest.content + (fileContext ? "\n\n[with attached files]" + fileContext : ""));
+          // In debug mode, keep the reply text as it was sent, to record it beside the prompts and drafts.
+          let replyText = "";
+          const writer: typeof stream = !activity.debug ? stream : { ...stream, write(part) {
+            if (part.type === "text-delta") replyText += part.delta;
+            stream.write(part);
+          } };
           let status: "done" | "failed" = "failed";
           try {
             status = (await run(writer)) || "done";
           } finally {
+            if (replyText) activity.detail("reply as sent", replyText);
             activity.record({ type: "reply", status: req.signal.aborted ? "cancelled" : status });
           }
         },
@@ -120,8 +130,9 @@ export async function POST(req: Request) {
   const directReply = (path: ActivityPath, markup: string | Promise<string>) =>
     respond(path, async writer => writeReply(writer, await markup));
   /** Record a tool where it actually runs, so a retry can never look like a second execution. */
-  const executed = async <T,>(tool: ActivityTool, toolCallId: string, run: () => Promise<T>) => {
+  const executed = async <T,>(tool: ActivityTool, toolCallId: string, run: () => Promise<T>, input?: unknown) => {
     activity.record({ type: "tool-start", toolCallId, tool });
+    if (input !== undefined) activity.detail(`${tool} input`, JSON.stringify(input, null, 2));
     const begun = performance.now();
     let result: T | { error: string } = { error: "The tool failed." };
     try {
@@ -129,6 +140,7 @@ export async function POST(req: Request) {
       return result as T;
     } finally {
       activity.record({ type: "tool-end", toolCallId, tool, elapsedMs: Math.round(performance.now() - begun), ...toolSummary(tool, result) });
+      activity.detail(`${tool} output`, JSON.stringify(result, null, 2) ?? "");
     }
   };
   const messages = parsed.data.messages.map(({ role, parts }) => ({
@@ -145,12 +157,12 @@ export async function POST(req: Request) {
   }
   const pictureRequest = /^(?:please\s+)?(?:can you\s+)?(?:show(?: me)?|find(?: me)?|search for)\s+(?:(?:some|an?|the)\s+)?(?:pictures?|photos?|images?)\s+of\s+([^\r\n]+?)[?!. ]*$/i.exec(latest.content.trim());
   if (pictureRequest && !fileContext && !noSearch) {
-    return directReply("image-search", executed("image_search", "direct-image-search", () => findImages(pictureRequest[1], req.signal))
+    return directReply("image-search", executed("image_search", "direct-image-search", () => findImages(pictureRequest[1], req.signal), { query: pictureRequest[1] })
       .then(result => result.images ? imageGallery(result.images) : textCard(result.error)));
   }
   const videoRequest = /^(?:please\s+)?(?:(?:can|could) you\s+)?(?:show(?: me)?|find(?: me)?|search for|look up)\s+(?:(?:some|an?|the)\s+)?(?:videos?|clips?)\s+(?:of|about|on|from)\s+([^\r\n]+?)[?!. ]*$/i.exec(latest.content.trim());
   if (videoRequest && !fileContext && !noSearch) {
-    return directReply("video-search", executed("video_search", "direct-video-search", () => findVideos(videoRequest[1], req.signal))
+    return directReply("video-search", executed("video_search", "direct-video-search", () => findVideos(videoRequest[1], req.signal), { query: videoRequest[1] })
       .then(result => result.videos ? videoResults(result.videos) : textCard(result.error)));
   }
   const revision = artifactRevision(latest.content);
@@ -401,6 +413,7 @@ export async function POST(req: Request) {
               const problem = !edited ? "The edits did not match the source." : candidate?.error
                 ?? (candidate?.document ? checkArtifactRequest(candidate.document, request) : "No HTML document was produced.");
               debugCapture(activity.requestId, "exact-edits", problem ?? "", edited ?? proposed);
+              activity.detail("exact edits", `${problem ? "Rejected: " + problem : "Accepted"}\n\n${edited ?? proposed}`);
               if (!problem && candidate?.document) {
                 output = artifactMarkup(candidate.title, candidate.document);
                 method = "Applied the model's exact edits";
@@ -529,6 +542,7 @@ export async function POST(req: Request) {
                 break;
               }
               debugCapture(activity.requestId, `attempt-${attempt + 1}`, failure, document);
+              activity.detail(`rejected draft, attempt ${attempt + 1}`, `${failure}\n\n${document}`);
               activity.record({ type: "check", attempt: attempt + 1, passed: false, reason: failure });
               activity.record({ type: "attempt-end", attempt: attempt + 1, outcome: attempt ? "gave-up" : "retry", reason: "check-failed" });
             } catch (error) {
@@ -675,10 +689,7 @@ export async function POST(req: Request) {
   const gateEligible = gemmaOllama && !correctionSummary && !nativeTable && !bundledImage && layaGateEnabled();
   const startChat = (history: typeof recent, guard: AbortController, recovery: boolean) => {
     const repeats = thoughtWatch();
-    return streamText({
-    temperature: 0.15,
-    model,
-    system: (correctionSummary
+    const system = (correctionSummary
       ? smallestOllama
         ? "Update the earlier facts, then state the final facts" + (summaryLanguage ? " in " + summaryLanguage : " in the requested language") + ". Translate all field labels and common words; keep proper names as written. Include the actual value of every unchanged field. Do not repeat the instructions or mention old values."
         : "Summarize only the current facts from this conversation. Use the latest stated value for each field and retain any unchanged details. Copy only proper names, room names, and identifiers verbatim. Translate common words, weekdays, field labels and time notation into the requested language. Read the earlier user messages to recover any unchanged details; include their actual values, not a phrase like “unchanged”. Prefer the user’s own wording over any assistant paraphrase. Never list, quote, or explain superseded values. Output only the concise summary in the user-requested language, including every label. Do not search or add unrelated information."
@@ -690,7 +701,12 @@ export async function POST(req: Request) {
       : cloudInstructions(classroomRules +
       (bundledImage ? ' The requested asset already exists locally. Show it as root = Card([ImageBlock("/water-cycle.svg", "Water cycle illustration")]). Keep the local path exactly as shown.' : "") +
       (nativeTable ? ' Use the native Table component. Aggregate any duplicate groups before rendering. Use one Col per header and put literal arrays of equal length in each Col. Example syntax: root = Card([Table([Col("Group", ["A", "B"]), Col("Count", ["2", "3"])])]). Use the actual requested data and headers.' : ""))) +
-      (recovery ? "\nThe previous attempt was interrupted. Answer the original request directly and finish the complete response." : ""),
+      (recovery ? "\nThe previous attempt was interrupted. Answer the original request directly and finish the complete response." : "");
+    activity.detail(`system prompt${recovery ? ", recovery attempt" : ""}`, system);
+    return streamText({
+    temperature: 0.15,
+    model,
+    system,
     ...(toolsDisabled
       ? { activeTools: [], toolChoice: "none" as const }
       : searchDisabled
@@ -715,7 +731,7 @@ export async function POST(req: Request) {
         execute: ({ timeZone, daysFromToday }, { toolCallId }) => executed("current_datetime", toolCallId, async () => {
           clockResult = currentDateTime(timeZone ?? localClock.timeZone, daysFromToday);
           return clockResult ?? { error: "Invalid time zone. Use a named IANA time zone, such as Asia/Tokyo." };
-        }),
+        }, { timeZone, daysFromToday }),
       }),
       image_search: tool({
         description: "Find public pictures for a topic when the user asks to see pictures. The app displays thumbnails with links. Never search private or personal data.",
@@ -730,7 +746,7 @@ export async function POST(req: Request) {
             return { count: result.images.length, display: "The app will render the gallery with source links." };
           }
           return { error: result.error };
-        }),
+        }, { query }),
       }),
       video_search: tool({
         description: "Find public videos for a topic when the user asks to watch a video. The app displays previews with links to watch. Never search private or personal data.",
@@ -746,12 +762,12 @@ export async function POST(req: Request) {
           }
           mediaReply = textCard(result.error);
           return { error: result.error };
-        }),
+        }, { query }),
       }),
       web_search: tool({
         description: "Search the public web once per turn. Combine related facts into a single short query. Never send personal data.",
         inputSchema: z.object({ query: z.string().trim().min(3).max(160) }).strict(),
-        execute: ({ query }, { toolCallId }) => executed("web_search", toolCallId, () => webSearch(query)),
+        execute: ({ query }, { toolCallId }) => executed("web_search", toolCallId, () => webSearch(query), { query }),
       }),
     },
     prepareStep: ({ stepNumber }) => stepNumber > 0 ? { activeTools: [], toolChoice: "none" } : {},
@@ -792,7 +808,7 @@ export async function POST(req: Request) {
             const requested = explicitSearch && !explicitImageSearch && !explicitVideoSearch && !searched && !searchDisabled
               ? explicitSearchQuery(latest.content) : undefined;
             if (requested) {
-              await executed("web_search", "requested-web-search", () => webSearch(requested));
+              await executed("web_search", "requested-web-search", () => webSearch(requested), { query: requested });
               if (req.signal.aborted) return;
               if (searchSources.length) {
                 activity.record({ type: "recovery", method: "requested-search" });

@@ -563,3 +563,128 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
   assert.deepEqual(written.map(chunk => [chunk.type, chunk.data.type, chunk.transient]), [["data-activity", "gate", true], ["data-activity", "gate", true]]);
 }
 console.log("PASS: Laya component gate (slices, sidecar client, sidecar pin, activity)");
+// Install as app: a folder per app with its own id, scope, icons and offline worker; network use is flagged.
+{
+  const { artifactPolicy, exportArtifact } = await import("../src/lib/artifact-export.ts");
+  const app = await import("../src/lib/app-install.ts");
+  const store = await import("../src/lib/app-install-store.ts");
+  const { mkdtempSync, readdirSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const digest = "0123456789abcdef0123456789abcdef";
+
+  assert.equal(app.installedAppId("Tip calculator", digest), "tip-calculator-0123456789ab");
+  assert.equal(app.installedAppId("Café crème!", digest), "cafe-creme-0123456789ab", "Accents fold to ASCII");
+  assert.equal(app.installedAppId("計算機", digest), "app-0123456789ab", "No ASCII letters: a plain id");
+  assert.equal(app.installedAppId("../../etc", digest), "etc-0123456789ab", "No path parts in ids");
+  for (const title of ["Tip calculator", "計算機", "--x--", "A".repeat(80)]) assert.match(app.installedAppId(title, digest), app.installedAppIdPattern);
+  assert.equal(app.installedAppShortName("Tic-tac-toe"), "Tic-tac-toe");
+  assert.equal(app.installedAppShortName("Slingshot Garden starter"), "Slingshot");
+  assert.equal(app.installedAppShortName("Supercalifragilistic"), "Supercalifra");
+
+  assert.deepEqual(app.networkFeatures("<button id=b>+</button><script>b.onclick = () => b.textContent++</script>"), []);
+  assert.deepEqual(app.networkFeatures('<svg xmlns="http://www.w3.org/2000/svg"></svg>'), [], "XML namespaces are not requests");
+  assert.deepEqual(app.networkFeatures("<script>fetch('/x'); new WebSocket('wss://live.example.org/s')</script>"), ["fetch", "WebSocket", "live.example.org"]);
+  assert.deepEqual(app.networkFeatures('<img src="//cdn.example.net/a.png">'), ["protocol-relative link"]);
+  assert.deepEqual(app.networkFeatures('<a href="https://en.wikipedia.org/wiki/Moon">Moon</a>'), ["en.wikipedia.org"]);
+  assert.deepEqual(app.networkFeatures("<script>const x = new XMLHttpRequest()</script>"), ["XMLHttpRequest"]);
+
+  const policy = app.installedAppPolicy(artifactPolicy);
+  assert.match(policy, /img-src 'self' data:/);
+  assert.match(policy, /worker-src 'self'/);
+  assert.match(policy, /manifest-src 'self'$/);
+  assert.match(policy, /connect-src 'none'/, "The installed page still cannot make requests");
+  assert.throws(() => app.installedAppPolicy("default-src 'none'"), /Unexpected/);
+
+  const manifest = JSON.parse(app.installedAppManifest({ id: "tip-calculator-0123456789ab", title: "  Tip   calculator ", network: [] }));
+  assert.equal(manifest.id, "/apps/tip-calculator-0123456789ab/");
+  assert.equal(manifest.name, "Tip calculator");
+  assert.equal(manifest.start_url, "./");
+  assert.equal(manifest.scope, "./");
+  assert.equal(manifest.display, "standalone");
+  assert.deepEqual(manifest.icons.map(icon => `${icon.sizes} ${icon.purpose}`), ["192x192 any", "512x512 any", "192x192 maskable", "512x512 maskable"]);
+  assert.match(manifest.description, /Works offline/);
+  assert.match(JSON.parse(app.installedAppManifest({ id: "x-1", title: "Feed", network: ["fetch"] })).description, /Needs connection: it uses fetch/);
+
+  const worker = app.installedAppWorker("tip-calculator-0123456789ab");
+  assert.doesNotThrow(() => new Function(worker), "The worker is valid JavaScript");
+  assert.ok(worker.includes('"app-tip-calculator-0123456789ab"') && worker.includes('"icons/icon-maskable-512.png"'));
+  assert.ok(!/caches\.delete|caches\.keys/.test(worker), "An app's worker never touches other apps' caches");
+
+  const page = exportArtifact({ title: "Counter", document: "<button>0</button>", policy, head: app.installedAppHead });
+  assert.ok(page.includes('<link rel="manifest" href="manifest.webmanifest">') && page.includes('register("sw.js")'));
+  assert.ok(page.indexOf("Content-Security-Policy") < page.indexOf('rel="manifest"'), "The policy comes first");
+
+  assert.equal(store.exportOrigin("https://host.example:3216/"), "https://host.example:3216");
+  assert.equal(store.exportOrigin("http://127.0.0.1:4000"), "http://127.0.0.1:4000");
+  for (const bad of ["", "ftp://h/", "https://h/apps/", "https://u:p@h/", "https://h/?x=1", "not a url"]) assert.equal(store.exportOrigin(bad), undefined, bad);
+  assert.match(store.exportsDirectory(""), /Rich AI Chat[/\\]exports$/);
+  assert.equal(store.exportsDirectory("/srv/exports"), "/srv/exports");
+
+  const root = mkdtempSync(join(tmpdir(), "rich-chat-install-"));
+  try {
+    const files = { "index.html": page, "icons/icon-32.png": new Uint8Array([1, 2, 3]) };
+    assert.equal(await store.writeInstalledApp(root, "counter-0123456789ab", files), "written");
+    assert.equal(readFileSync(join(root, "apps/counter-0123456789ab/index.html"), "utf8"), page);
+    assert.deepEqual([...readFileSync(join(root, "apps/counter-0123456789ab/icons/icon-32.png"))], [1, 2, 3]);
+    assert.equal(await store.writeInstalledApp(root, "counter-0123456789ab", { "index.html": "other" }), "exists", "Same id, same app: kept");
+    assert.equal(readFileSync(join(root, "apps/counter-0123456789ab/index.html"), "utf8"), page);
+    assert.deepEqual(readdirSync(join(root, "apps")), ["counter-0123456789ab"], "No half-written folders are left");
+    await assert.rejects(store.writeInstalledApp(root, "../escape", files), /Invalid app id/);
+    await assert.rejects(store.writeInstalledApp(root, "ok-1", { "../x.html": "x" }), /Invalid file name/);
+    await assert.rejects(store.writeInstalledApp(root, "ok-1", { ".hidden": "x" }), /Invalid file name/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+// The chat's connection line tells offline, Tailscale off and an unreachable host apart (best effort).
+{
+  const { checkConnection, classifyConnection, isTailnetHost } = await import("../src/lib/connection.ts");
+  assert.equal(isTailnetHost("mac.tail0000.ts.net"), true);
+  assert.equal(isTailnetHost("100.101.1.2"), true);
+  assert.equal(isTailnetHost("100.200.1.2"), false, "Outside 100.64.0.0/10");
+  assert.equal(isTailnetHost("127.0.0.1"), false);
+  const tailnet = "mac.tail0000.ts.net";
+  assert.equal(classifyConnection({ online: false, status: 200, elapsedMs: 5, hostname: tailnet }), "offline");
+  assert.equal(classifyConnection({ online: true, status: 200, elapsedMs: 5, hostname: tailnet }), "online");
+  assert.equal(classifyConnection({ online: true, status: 502, elapsedMs: 5, hostname: tailnet }), "unreachable", "Serve answers, the chat server is down");
+  assert.equal(classifyConnection({ online: true, elapsedMs: 40, hostname: tailnet }), "tailscale", "The name stopped resolving");
+  assert.equal(classifyConnection({ online: true, elapsedMs: 6000, hostname: tailnet }), "unreachable", "Nothing answered in time");
+  assert.equal(classifyConnection({ online: true, elapsedMs: 40, hostname: "127.0.0.1" }), "unreachable", "Refused on a local address");
+
+  let clock = 0;
+  const now = () => clock;
+  const asked = [];
+  const answer = status => async (url, init) => { asked.push([url, init.cache]); clock += 10; return new Response(null, { status }); };
+  assert.equal(await checkConnection({ fetcher: answer(200), online: true, hostname: tailnet, now }), "online");
+  assert.deepEqual(asked[0], ["/api/health", "no-store"]);
+  assert.equal(await checkConnection({ fetcher: answer(502), online: true, hostname: tailnet, now }), "unreachable");
+  assert.equal(await checkConnection({ fetcher: async () => { clock += 20; throw new TypeError("Failed to fetch"); }, online: true, hostname: tailnet, now }), "tailscale");
+  assert.equal(await checkConnection({ fetcher: answer(200), online: false, hostname: tailnet, now }), "offline", "Offline: no request at all");
+  assert.equal(asked.length, 2);
+  const hang = (_url, init) => new Promise((_, reject) => init.signal.addEventListener("abort", () => { clock += 6000; reject(new DOMException("aborted", "AbortError")); }));
+  assert.equal(await checkConnection({ fetcher: hang, online: true, hostname: tailnet, now, timeoutMs: 20 }), "unreachable", "A host that never answers times out");
+}
+
+// The shell worker never answers or caches /api/* and keeps only the page and build files.
+{
+  const worker = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
+  assert.match(worker, /url\.pathname\.startsWith\('\/api\/'\)\) return;/, "API requests pass straight through");
+  assert.doesNotThrow(() => new Function(worker), "The worker is valid JavaScript");
+}
+
+// Pinned cores: every copied file still has the hash recorded when it was pinned (cores.lock.json for visual-core's
+// icons, test-core/MANIFEST.json for test-core), so a hand-edited copy fails here. Re-pin with
+// scripts/pin-visual-core.mjs or test-core's adopt.py --update instead.
+{
+  const { createHash } = await import("node:crypto");
+  const root = new URL("../", import.meta.url);
+  const hash = path => createHash("sha256").update(readFileSync(new URL(path, root))).digest("hex");
+  const lock = JSON.parse(readFileSync(new URL("cores.lock.json", root), "utf8"));
+  assert.match(lock["visual-core"].commit, /^[0-9a-f]{40}$/, "visual-core is pinned to a full commit");
+  for (const [path, { sha256 }] of Object.entries(lock["visual-core"].files)) assert.equal(hash(path), sha256, `${path} matches visual-core's pinned copy`);
+  const manifest = JSON.parse(readFileSync(new URL(lock["test-core"].manifest, root), "utf8"));
+  for (const [path, sha256] of Object.entries(manifest.files)) assert.equal(hash(`test-core/${path}`), sha256, `test-core/${path} matches its manifest`);
+  assert.ok("pwa/pwa.mjs" in manifest.files, "test-core's PWA checks are pinned");
+}

@@ -117,6 +117,20 @@ export const activityStore = {
     for (const entry of memory.values()) if (entry.threadId === threadId) merged.set(entry.userMessageId, entry);
     return [...merged.values()].sort((a, b) => a.startedAt - b.startedAt);
   },
+  /** Every request recorded in this browser, newest first. */
+  async all() {
+    const db = await open();
+    const stored = db ? await run<ActivityEntry[]>(db, "readonly", store => store.getAll()) ?? [] : [];
+    const merged = new Map(stored.map(entry => [entry.userMessageId, entry]));
+    for (const entry of memory.values()) merged.set(entry.userMessageId, entry);
+    return [...merged.values()].sort((a, b) => b.startedAt - a.startedAt);
+  },
+  /** Delete every Activity record in this browser (the chats themselves stay). */
+  async clear() {
+    for (const id of [...memory.keys()]) { memory.delete(id); loading.delete(id); notify(id); }
+    const db = await open();
+    if (db) await run(db, "readwrite", store => store.clear());
+  },
   async deleteThread(threadId: string) {
     for (const [id, entry] of memory) if (entry.threadId === threadId) { memory.delete(id); loading.delete(id); notify(id); }
     const db = await open();

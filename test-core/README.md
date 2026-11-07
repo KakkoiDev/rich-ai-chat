@@ -11,6 +11,9 @@ the files under `tools/` and `functional/` here: change test-core, then run its 
   Read `functional/README.md`.
 - `functional/blocks/`: test blocks generated from Pi Workbench's App Blocks (LogIn, DataTable, EditForm, EmptyState,
   Toasts, KpiTile, BarChart, SidePanel): their steps, a page object each, their states and a self-test.
+- `pwa/`: checks for installable web apps in Playwright (`pwa.mjs`): service worker control, CacheStorage contents,
+  offline reload, Chromium installability. `tests/e2e/export-install.cjs` and `tests/e2e/chat-pwa.cjs` use them
+  (test-core recipe `pwa-offline`).
 - `tools/`: `vocab.py` (scenarios use known steps), `scenarios.py` (each scenario has its test), `e2e_coverage.py`
   (every control has an e2e step; a removed control fails its test), `flaky_lint.py` (no fixed waits),
   `blocks_from_app_blocks.py` (regenerate the blocks from a Pi Workbench folder).

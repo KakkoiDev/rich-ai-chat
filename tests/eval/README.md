@@ -75,7 +75,11 @@ node test-core/bench/cli.mjs watch "$(cat ~/Library/Application\ Support/Rich\ A
 2. It freezes the commit into `builds/<sha>`: committed files only, `node_modules` as clones, and a link to the
    Playwright folder (`RICH_CHAT_BENCH_MODULES`, default `<root>/bench-modules`).
 3. It builds there.
-4. It runs the deterministic checks on that build: Activity against a stub model, then full screen and export.
+4. It runs the deterministic checks on that build: Activity against a stub model, installable apps on a throwaway
+   Caddy export origin (`tests/e2e/export-install.cjs`), the chat as an offline-capable app
+   (`tests/e2e/chat-pwa.cjs`), then full screen and export. The two app checks need full Chromium for Playwright's
+   version (`npx playwright install chromium`) and a Caddy binary (`RICH_CHAT_CADDY`, `caddy` on the PATH, or the
+   host's copy beside tailscaled).
 5. It launches the matrix as a launchd job that survives this process and the desktop app.
 
 The job gets settings only. Secrets stay in the env file (`RICH_CHAT_ENV_FILE`), which the run reads itself. Rejected

@@ -34,6 +34,8 @@ async function fetchText(url: string, signal?: AbortSignal) {
 }
 
 type Screen = "inline" | "fullscreen" | "full-window";
+type Install = { state: "idle" | "working" } | { state: "failed"; message: string }
+  | { state: "ready"; url: string; network: string[] };
 
 function Preview({ title, document }: { title: string; document: string }) {
   const [view, setView] = useState<"closed" | "preview" | "source">("closed");
@@ -47,6 +49,7 @@ function Preview({ title, document }: { title: string; document: string }) {
   const [feedback, setFeedback] = useState("");
   const [screen, setScreen] = useState<Screen>("inline");
   const [saved, setSaved] = useState("");
+  const [install, setInstall] = useState<Install>({ state: "idle" });
   const frame = useRef<HTMLIFrameElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const exitButton = useRef<HTMLButtonElement>(null);
@@ -163,6 +166,20 @@ function Preview({ title, document }: { title: string; document: string }) {
     }
   }
 
+  async function installApp() {
+    setInstall({ state: "working" });
+    try {
+      const response = await fetch("/api/exports", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, document }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || typeof result.url !== "string") throw new Error(typeof result.error === "string" ? result.error : "");
+      setInstall({ state: "ready", url: result.url, network: Array.isArray(result.network) ? result.network.map(String) : [] });
+    } catch (cause) {
+      setInstall({ state: "failed", message: cause instanceof Error && cause.message ? cause.message : "Could not prepare the app. Try again." });
+    }
+  }
+
   function requestRevision() {
     const note = feedback.trim();
     const context = [
@@ -192,8 +209,19 @@ function Preview({ title, document }: { title: string; document: string }) {
           {view === "source" ? "Hide source" : "View source"}
         </button>
         <button type="button" disabled={incomplete} onClick={() => void downloadSource()}>Download source</button>
+        <button type="button" disabled={incomplete || install.state === "working"} onClick={() => void installApp()}>Install as app</button>
       </div>
       <p className="artifact-hint" role="status">{saved}</p>
+      <div className="artifact-install" role="status">
+        {install.state === "working" && <p>Preparing the app…</p>}
+        {install.state === "failed" && <p>{install.message}</p>}
+        {install.state === "ready" && <>
+          {install.network.length > 0 && <p><strong className="artifact-tag">Needs connection</strong> It uses {install.network.slice(0, 3).join(", ")}.
+            The installed copy blocks network access, as the preview does, so those parts will not work.</p>}
+          <p>Ready to install: <a href={install.url} target="_blank" rel="noopener noreferrer">{install.url}</a></p>
+          <p className="artifact-hint">Open it on the phone or computer. Chrome: Install app in the menu. iPhone: Share, then Add to Home Screen.</p>
+        </>}
+      </div>
       {engineError && <p role="status">Could not load the bundled LittleJS engine.</p>}
       {running && (
         <>

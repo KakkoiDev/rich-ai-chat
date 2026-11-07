@@ -153,7 +153,7 @@ Order: the theme (M4) depends on design decisions, so engineering milestones tha
 
 ### M2 — Reply Activity and synthetic run capture
 
-**Status (2026-11-07):** built and under its release streak at 155 checks per round. Done:
+**Status (2026-11-08):** released. The streak at `6c935ab` passed (1,705/1,705) and M1 + M2 are on `main`. Done:
 - server events
 - the browser store (IndexedDB) with export and deletion
 - the Activity line under each request
@@ -163,7 +163,10 @@ Order: the theme (M4) depends on design decisions, so engineering milestones tha
 
 Differences from the plan:
 - Activity attaches through the user-message slot and shows above the reply it describes. OpenUI doesn't export its assistant-message renderer, so the line moves under the reply when the Kakkoi shell is rebuilt on the headless layer (M4).
-- The per-chat "Debug this chat" switch and the full log view are not built yet. Today there is export from the browser, plus `RICH_CHAT_DEBUG_CAPTURE` for benchmark servers.
+- **Added after the streak:**
+  - The per-chat **Debug** switch, beside the model picker. It is off by default, and a new chat keeps it from its first message. A debugged request adds `detail` events with full text: the message, the system prompt, each tool's input and output, rejected drafts and exact edits, and the reply as sent. These events appear under "Debug details" in that reply's Activity. The server writes them to `debug-<day>.jsonl`, kept 7 days. The always-on `activity-<day>.jsonl` stays free of text.
+  - The **full log view** at `/log` lists every request this browser sent, newest first, with its question, its reply and its events. It filters to requests with problems or to debugged chats, and exports with or without chat text.
+  - Two e2e checks were added to `tests/e2e/activity.cjs`, which now has 10.
 
 - **Server** (`route.ts`, `chat-attempt.ts`):
   - Assign a `requestId` per POST, an `attemptId` per attempt and a `toolCallId` per execution.
