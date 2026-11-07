@@ -396,3 +396,170 @@ assert.equal(addCalculatorAction(calculatorSource, "Clear", "negate", null), und
   const partial = '<button id="p">Piano</button><button id="r">Reset all</button><output id="o">0</output><script>p.onclick = () => {};</script>';
   assert.match(checkArtifactRequest(partial, request) ?? "", /exact labels: "Trumpet", "Drums"/);
 }
+
+// M3 Laya component gate: slices make smaller prompts with only their components, notes, examples and rules.
+{
+  const { classroomRules, loadPromptSpec, promptFromSpec } = await import("../src/lib/cloud-prompt.ts");
+  const { gatePlan, promptSlices, sliceAsk, sliceComponents, sliceOptions, sliceSpec, baseComponents } = await import("../src/lib/prompt-slices.ts");
+  const spec = loadPromptSpec();
+  const full = promptFromSpec(spec, classroomRules);
+  assert.equal(full, cloudInstructions(classroomRules), "The general path's prompt is unchanged");
+  for (const slice of promptSlices)
+    for (const name of sliceComponents[slice]) assert.ok(spec.components[name], `${slice} names a real component: ${name}`);
+  const chart = sliceSpec(spec, ["chart"]);
+  assert.deepEqual(Object.keys(chart.components).sort(), [...baseComponents, ...sliceComponents.chart].sort());
+  const chartPrompt = promptFromSpec(chart, classroomRules);
+  assert.match(chartPrompt, /^BarChart\(/m);
+  assert.match(chartPrompt, /^PieChart\(/m);
+  assert.doesNotMatch(chartPrompt, /^(?:Form|Table|HtmlArtifact|Tabs)\(/m, "No other slice's components");
+  assert.match(chartPrompt, /Example 2 — Bar chart/);
+  assert.doesNotMatch(chartPrompt, /Example 1 — Table|Example 3 — Form/);
+  assert.match(chartPrompt, /Use native charts for charts/, "The chart rule rides with charts");
+  assert.doesNotMatch(chartPrompt, /HtmlArtifact\(\.\.\.\)|@ToAssistant\(\.\.\.\)|@Reset\(/, "App and form rules don't");
+  assert.match(chartPrompt, /When asked about data, generate realistic/, "Rules naming no component stay");
+  assert.ok(chartPrompt.endsWith(classroomRules), "Classroom rules come last, as on the general path");
+  const formPrompt = promptFromSpec(sliceSpec(spec, ["form"]), classroomRules);
+  assert.match(formPrompt, /A Form's submit button must send the entries to you/);
+  assert.match(formPrompt, /Example 3 — Form with validation/);
+  assert.match(formPrompt, /## Action/, "Buttons bring the action section");
+  const appPrompt = promptFromSpec(sliceSpec(spec, ["app"]), classroomRules);
+  assert.match(appPrompt, /^HtmlArtifact\(/m);
+  assert.match(appPrompt, /always use root = Card\(\[HtmlArtifact/);
+  assert.doesNotMatch(appPrompt, /Use native charts/);
+  for (const slice of promptSlices.filter(slice => !["text", "sources"].includes(slice)))
+    assert.ok(promptFromSpec(sliceSpec(spec, [slice]), classroomRules).length < full.length * 0.55, `${slice} is well under the full prompt`);
+  const both = sliceSpec(spec, ["table", "form", "layout"]);
+  assert.ok(both.promptOptions.examples.some(example => example.includes("Editable table and a selection form")), "Slices combine");
+
+  // The question, and what each decision does. Anything but a confident known slice keeps today's path.
+  const ask = sliceAsk("Make a bar chart of rainfall.");
+  assert.deepEqual(ask, { kind: "choice", state: { message: "Make a bar chart of rainfall." }, question: "Which kind of reply does the request need?",
+    options: promptSlices.map(slice => sliceOptions[slice]), minConfidence: 0.99 });
+  assert.equal(sliceAsk("x".repeat(9000)).state.message.length, 4000);
+  assert.deepEqual(gatePlan({ outcome: "chosen", option: "chart_or_graph", confidence: 0.995, elapsedMs: 5 }), { prompt: "sliced", slices: ["chart"] });
+  assert.deepEqual(gatePlan({ outcome: "chosen", option: "explanation_in_words", elapsedMs: 5 }), { prompt: "concise", slices: ["text"] });
+  assert.deepEqual(gatePlan({ outcome: "chosen", option: "current_facts_from_the_web", elapsedMs: 5 }), { prompt: "concise", slices: ["sources"] });
+  assert.deepEqual(gatePlan({ outcome: "chosen", option: "invented", elapsedMs: 5 }), { prompt: "general", slices: [] });
+  for (const outcome of ["abstained", "timeout", "unavailable", "error"])
+    assert.deepEqual(gatePlan({ outcome, confidence: 0.6, elapsedMs: 5 }), { prompt: "general", slices: [] }, `${outcome} keeps the general path`);
+}
+
+// The sidecar client: answers, abstains, times out, survives a crash and reports a missing sidecar, never throwing.
+{
+  const { createLayaGate, layaGateEnabled, layaSidecarLaunch } = await import("../src/lib/laya-gate.ts");
+  const { sliceAsk } = await import("../src/lib/prompt-slices.ts");
+  const stub = mode => () => ({ command: process.execPath, args: ["tests/stubs/laya-sidecar.mjs", mode], env: { PATH: process.env.PATH } });
+  const answering = createLayaGate({ launch: stub("answer"), timeoutMs: 3000 });
+  try {
+    const chosen = await answering.ask(sliceAsk("Plot the scores."));
+    assert.equal(chosen.outcome, "chosen");
+    assert.equal(chosen.option, "chart_or_graph");
+    assert.equal(chosen.confidence, 0.995);
+    assert.equal(typeof chosen.elapsedMs, "number");
+    const abstained = await answering.ask(sliceAsk("I'm unsure what I want."));
+    assert.equal(abstained.outcome, "abstained");
+    assert.equal(abstained.confidence, 0.61);
+    assert.equal(abstained.option, undefined);
+  } finally {
+    answering.stop();
+  }
+  const stopped = createLayaGate({ launch: stub("answer"), timeoutMs: 3000 });
+  stopped.stop();
+  assert.equal((await stopped.ask(sliceAsk("Plot the scores."))).outcome, "chosen", "Stopping is not permanent: the next question restarts it");
+  stopped.stop();
+
+  const silent = createLayaGate({ launch: stub("silent"), timeoutMs: 150 });
+  let begun = performance.now();
+  assert.equal((await silent.ask(sliceAsk("Plot the scores."))).outcome, "timeout", "A sidecar that never answers times out");
+  assert.ok(performance.now() - begun < 1000, "and the reply is not held up");
+  silent.stop();
+
+  const mute = createLayaGate({ launch: stub("mute"), timeoutMs: 150 });
+  assert.equal((await mute.ask(sliceAsk("Plot the scores."))).outcome, "timeout", "A sidecar that never starts times out");
+  mute.stop();
+
+  const absent = createLayaGate({ launch: () => ({ unavailable: "not-installed" }), timeoutMs: 150 });
+  assert.deepEqual(await absent.ask(sliceAsk("Plot the scores.")).then(({ outcome, reason }) => ({ outcome, reason })), { outcome: "unavailable", reason: "not-installed" });
+  const missing = createLayaGate({ launch: () => ({ command: "/nonexistent/laya-python", args: [], env: {} }), timeoutMs: 1000 });
+  assert.equal((await missing.ask(sliceAsk("Plot the scores."))).outcome, "unavailable", "A sidecar that can't start is unavailable");
+  const uninstalled = createLayaGate({ launch: stub("not-installed"), timeoutMs: 3000 });
+  assert.deepEqual(await uninstalled.ask(sliceAsk("Plot the scores.")).then(({ outcome, reason }) => ({ outcome, reason })),
+    { outcome: "unavailable", reason: "not-installed" });
+  let launches = 0;
+  const later = createLayaGate({ launch: () => (launches++, { unavailable: "not-installed" }), timeoutMs: 150, retryAfterMs: 60000 });
+  await later.ask(sliceAsk("a"));
+  await later.ask(sliceAsk("b"));
+  assert.equal(launches, 1, "An unavailable sidecar is not relaunched on every request");
+
+  let crashLaunches = 0;
+  const crashing = createLayaGate({ launch: () => (crashLaunches++, stub("crash")()), timeoutMs: 3000 });
+  assert.equal((await crashing.ask(sliceAsk("Plot the scores."))).outcome, "chosen");
+  await new Promise(resolve => setTimeout(resolve, 200)); // it exits after answering
+  assert.equal((await crashing.ask(sliceAsk("Plot the scores."))).outcome, "chosen", "A dead sidecar is restarted");
+  assert.equal(crashLaunches, 2);
+  crashing.stop();
+
+  // Launching the real sidecar: never without the installed runtime and model, a minimal environment, the pinned hash.
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const home = mkdtempSync(join(tmpdir(), "laya-home-"));
+  assert.deepEqual(layaSidecarLaunch({ HOME: home, PATH: "/usr/bin" }), { unavailable: "not-installed" });
+  const data = join(home, "pi-local-harness-data");
+  mkdirSync(join(data, "toolchain/laya/runtime/bin"), { recursive: true });
+  mkdirSync(join(data, "toolchain/laya/model"), { recursive: true });
+  writeFileSync(join(data, "toolchain/laya/runtime/bin/python"), "");
+  writeFileSync(join(data, "toolchain/laya/model/model.safetensors"), "");
+  assert.deepEqual(layaSidecarLaunch({ HOME: home, PATH: "/usr/bin" }), { unavailable: "no-harness" });
+  const plh = join(home, "plh");
+  mkdirSync(join(plh, "harness"), { recursive: true });
+  writeFileSync(join(plh, "harness/laya.py"), "");
+  const launch = layaSidecarLaunch({ HOME: home, PATH: "/usr/bin", RICH_CHAT_PLH_DIR: plh, MODEL_API_KEY: "secret", BRAVE_SEARCH_API_KEY: "secret" });
+  const lock = JSON.parse(readFileSync("cores.lock.json", "utf8"))["pi-local-harness"];
+  assert.equal(launch.command, join(data, "toolchain/laya/runtime/bin/python"));
+  assert.deepEqual(launch.args.slice(2), ["--plh", plh, "--sha256", lock.files["harness/laya.py"], "--data", data]);
+  assert.equal(launch.args[0], "-I");
+  assert.ok(launch.args[1].endsWith("scripts/laya-sidecar.py"));
+  assert.ok(!JSON.stringify(launch.env).includes("secret"), "The sidecar never gets the server's keys");
+  assert.equal(launch.env.HF_HUB_OFFLINE, "1");
+  assert.match(lock.commit, /^[0-9a-f]{40}$/);
+
+  // The Python sidecar refuses a harness/laya.py that isn't the pinned one, and otherwise relays its answers.
+  const { spawnSync } = await import("node:child_process");
+  const { createHash } = await import("node:crypto");
+  const fake = "class Classifier:\n    def __init__(self, data=None): pass\n    def available(self): return True\n" +
+    "    def ask(self, kind, state, question, options=None, min_confidence=.95):\n" +
+    "        return {'answer': options[2], 'confidence': .995, 'abstained': False}\n";
+  writeFileSync(join(plh, "harness/laya.py"), fake);
+  const question = JSON.stringify({ id: 7, ...{ kind: "choice", state: { message: "zebra-7731" }, question: "Which?", options: ["a", "b", "c"], min_confidence: .99 } }) + "\n";
+  const sidecar = sha => spawnSync("python3", ["-I", "scripts/laya-sidecar.py", "--plh", plh, "--sha256", sha], { input: question, encoding: "utf8" });
+  const pinned = sidecar(createHash("sha256").update(fake).digest("hex"));
+  assert.equal(pinned.status, 0, pinned.stderr);
+  const [hello, reply] = pinned.stdout.trim().split("\n").map(line => JSON.parse(line));
+  assert.deepEqual(hello, { ready: true, installed: true, pinned: true });
+  assert.equal(reply.id, 7);
+  assert.equal(reply.answer, "c");
+  assert.equal(reply.abstained, false);
+  assert.ok(!pinned.stdout.includes("zebra-7731"), "The sidecar never echoes the request");
+  const unpinned = sidecar("0".repeat(64)).stdout.trim().split("\n").map(line => JSON.parse(line));
+  assert.deepEqual(unpinned, [{ ready: true, installed: false, pinned: false }, { id: 7, unavailable: true, reason: "not-pinned" }]);
+
+  assert.equal(layaGateEnabled({ RICH_CHAT_LAYA_GATE: "1" }), true);
+  assert.equal(layaGateEnabled({ RICH_CHAT_LAYA_GATE: "0" }), false);
+}
+
+// The gate's Activity event: the decision, never the request, in the stream and the server log.
+{
+  const { createActivity } = await import("../src/lib/activity.ts");
+  const logged = [];
+  const activity = createActivity(event => logged.push(event));
+  activity.record({ type: "gate", outcome: "chosen", slices: ["chart"], confidence: 0.995, elapsedMs: 5.2, prompt: "sliced" });
+  activity.record({ type: "gate", outcome: "timeout", slices: [], elapsedMs: 250, prompt: "general", reason: "x".repeat(500) });
+  assert.deepEqual(Object.keys(logged[0]).sort(), ["confidence", "elapsedMs", "ms", "outcome", "prompt", "requestId", "seq", "slices", "type"]);
+  assert.equal(logged[0].slices[0], "chart");
+  assert.equal(logged[1].reason.length, 200, "Reasons are capped");
+  const written = [];
+  activity.attach({ write: chunk => written.push(chunk) });
+  assert.deepEqual(written.map(chunk => [chunk.type, chunk.data.type, chunk.transient]), [["data-activity", "gate", true], ["data-activity", "gate", true]]);
+}
+console.log("PASS: Laya component gate (slices, sidecar client, sidecar pin, activity)");
