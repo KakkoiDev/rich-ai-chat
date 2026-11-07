@@ -72,6 +72,12 @@ Report `reports/2fd4b40.MyyZob`, state `needs-investigation`, 289/290.
 - The features suite now saves each failing reply's Activity in the report.
 - `RICH_CHAT_DEBUG_CAPTURE=1` saves rejected drafts beside the server log. It is for synthetic benchmark runs only, never for a server people use.
 
+### M1 + M2 release streak at `6c935ab` (2026-11-08): passed
+
+- Report folder `6c935ab.iCn14Z`: `stable-and-regression-passed`, 10 perfect rounds plus the regression round, 1,705 of 1,705 checks (155 per round, 31 cases per model per round).
+- It followed six stopped streaks. Each stop was fixed in the product, not in the cases; the fixes are listed in the M1 streak section above and in the commit history from `2fd4b40` to `6c935ab`.
+- Merged to `main` as #3 (M1 + M2) and #5 (the test-core release command).
+
 ## 2. Rules (unchanged, restated)
 
 - **Stable** means ten consecutive perfect rounds on the expanded matrix, then one full regression round on the same frozen revision. Failures, skips, changed expectations and mixed revisions all reset the streak.
@@ -144,6 +150,62 @@ After M2: 31 cases per model (14 + 13 + 4), **155 checks per round**, so the sta
 
 After M3: 35 cases per model, **175 checks per round**.
 
+#### Laya slice gate measurement (2026-11-08)
+
+Laya chooses one component slice per request for small Gemma models (roadmap M3). It was measured on synthetic requests through the real sidecar, without a chat model. Reproduce with `node tests/eval/laya-slices.mjs`; it needs PLH's installed Laya runtime.
+
+- **Model:** laya-mlx 0.4.0, multilingual model at `f2b4faf`, pi-local-harness `31866da`.
+- **Question:** "Which kind of reply does the request need?", over descriptive options (`explanation_in_words`, `current_facts_from_the_web`, `chart_or_graph`, `table`, `form_to_fill_in`, `tabs_accordion_steps_or_cards`, `photos_or_videos`, `interactive_app_or_game`). The request is the state, as `{message}`.
+- **Threshold:** `min_confidence` 0.99.
+- **How the wording was chosen:** on `tests/eval/laya-slices.json` (176 requests, 22 per slice, 96 English and 80 Japanese). On the questions above 0.95 confidence, it was right on:
+  - 70 of 78 with bare slice names
+  - 109 of 118 with the chosen descriptive options
+
+  Asking eight yes/no questions instead of one choice did worse. The wording and threshold were then frozen. A held-out set, `tests/eval/laya-slices-heldout.json` (80 requests, 10 per slice, half Japanese), was written afterwards and measured once.
+
+| Set | Requests | Answered | Correct / answered | Abstained |
+|---|---:|---:|---:|---:|
+| Development | 176 | 90 | 88 (97.8%) | 86 (48.9%) |
+| Held-out | 80 | 40 | 38 (95.0%) | 40 (50.0%) |
+| Both | 256 | 130 | 126 (96.9%) | 126 (49.2%) |
+
+Per slice, answered correctly out of answered (abstained in brackets):
+
+| Slice | Development | Held-out |
+|---|---|---|
+| text | 12/12 (10) | 4/4 (6) |
+| sources | 8/8 (14) | 2/2 (8) |
+| chart | 19/19 (3) | 8/8 (2) |
+| table | 4/4 (18) | 2/2 (8) |
+| form | 14/14 (8) | 8/8 (2) |
+| layout | 4/6 (16) | 2/4 (6) |
+| media | 12/12 (10) | 6/6 (4) |
+| app | 15/15 (7) | 6/6 (4) |
+
+- **All four wrong answers were `layout` requests.** Two became `app` and two became `text`. Laya rarely answers for `table`, `sources` and `layout`.
+- **Time:** a round trip through the sidecar takes a median of 5 ms (95th percentile 7 ms) once the model is loaded.
+- **Decision:** the held-out rate is exactly the owner's 95% bar, so the classifier clears the bar. The gate still ships off (`RICH_CHAT_LAYA_GATE=1` turns it on) until the M3 streak runs the small Gemma models with it on, because no model has answered with the sliced prompts yet. 40 answered requests is a small sample (a 95% interval of roughly 83–99%), and sliced prompts have not been through a model streak.
+
+Prompt size per slice. Tokens are counted with Laya's tokenizer, which is mmBERT's Gemma tokenizer and close to what Gemma 4 sees:
+
+| Prompt | Characters | Tokens | Share of full |
+|---|---:|---:|---:|
+| Full (today's rich path) | 39,891 | 10,354 | 100% |
+| Concise Markdown (`text`, `sources`) | 758 | 160 | 2% |
+| chart | 10,309 | 2,597 | 25% |
+| table | 9,312 | 2,403 | 23% |
+| form | 16,285 | 4,065 | 39% |
+| layout | 20,526 | 5,096 | 49% |
+| media | 7,859 | 1,929 | 19% |
+| app | 8,472 | 2,032 | 20% |
+
+Every sliced prompt carries the same base: the syntax rules, the classroom rules, and Stack, Card, CardHeader, TextContent, MarkDownRenderer and Callout. That base alone is 1,715 tokens.
+
+**Model cases for the M3 streak:**
+- Run the existing chart, table, form and app cases on the small Gemma models with the gate on and off, and compare.
+- `gate-layout-request`: a varied tabs, accordion or steps request. Whatever Laya answers, the reply must use a native layout component or plain text, never `HtmlArtifact`.
+- `gate-unavailable`: the same cases with the sidecar absent (`RICH_CHAT_PLH_DIR` pointing nowhere). The results must match the gate-off run.
+
 ### M4 — Kakkoi theme
 
 | ID | Type | Assertions |
@@ -200,5 +262,10 @@ After each streak, append a table to this file:
 | Revision | Model | Rounds | Passed / expected | Median / max case seconds | New-suite failures (kept report) |
 | --- | --- | --- | --- | --- | --- |
 | `b490e06` | each of the 5 | 11 | 297 / 297 | see §1 | — |
+| `6c935ab` | DeepSeek Flash | 11 | 341 / 341 | 78.7 / 84.9 s per round task | — |
+| `6c935ab` | GPT-OSS 20B | 11 | 341 / 341 | 201.5 / 204.4 s per round task | — |
+| `6c935ab` | Gemma 4 12B | 11 | 341 / 341 | 178.3 / 194.2 s per round task | — |
+| `6c935ab` | Gemma 4 E4B | 11 | 341 / 341 | 77.7 / 88.1 s per round task | — |
+| `6c935ab` | Gemma 4 E2B | 11 | 341 / 341 | 53.0 / 55.3 s per round task | — |
 
 Also record the wall-clock time per round. Model-driven app cases include generation, so expect each round to take longer than today's 7.5 minutes. Measure the M1 cost in the first round rather than estimating it.

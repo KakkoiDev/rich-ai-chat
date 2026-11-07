@@ -6,7 +6,14 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: [
       { key: "Content-Security-Policy", value: "img-src 'self' https://imgs.search.brave.com; object-src 'none'; frame-src about:; base-uri 'self'" },
       { key: "Referrer-Policy", value: "no-referrer" },
-    ] }];
+    ] }, {
+      // The shell's offline worker: always checked for a new version, and allowed no wider than the site.
+      source: "/sw.js",
+      headers: [
+        { key: "Cache-Control", value: "no-cache" },
+        { key: "Service-Worker-Allowed", value: "/" },
+      ],
+    }];
   },
   turbopack: { root: process.cwd() },
   experimental: {

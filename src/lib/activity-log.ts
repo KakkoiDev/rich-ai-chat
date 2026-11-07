@@ -9,6 +9,8 @@ import type { ActivityEvent } from "@/lib/activity";
  * debugging without exposing what anyone asked. RICH_CHAT_LOG_DIR moves it; RICH_CHAT_LOG_DIR=off turns it off.
  */
 const retentionDays = 30;
+/** Debug files hold what was asked, so they are kept for a week only. */
+const debugRetentionDays = 7;
 const configured = process.env.RICH_CHAT_LOG_DIR;
 const directory = configured === "off" ? undefined
   : configured || join(homedir(), "Library", "Application Support", "Rich AI Chat", "logs");
@@ -24,9 +26,11 @@ async function prepare(day: string) {
   if (prunedOn !== day) {
     prunedOn = day;
     const oldest = new Date(Date.now() - retentionDays * 86400000).toISOString().slice(0, 10);
+    const debugOldest = new Date(Date.now() - debugRetentionDays * 86400000).toISOString().slice(0, 10);
     for (const name of await readdir(directory).catch(() => [])) {
-      const date = /^activity-(\d{4}-\d{2}-\d{2})\.jsonl$/.exec(name)?.[1];
-      if (date && date < oldest) await unlink(join(directory, name)).catch(() => {});
+      const match = /^(activity|debug)-(\d{4}-\d{2}-\d{2})\.jsonl$/.exec(name);
+      const date = match?.[2];
+      if (date && date < (match![1] === "debug" ? debugOldest : oldest)) await unlink(join(directory, name)).catch(() => {});
     }
   }
   return true;
@@ -40,6 +44,21 @@ export function logActivity(event: ActivityEvent) {
   queue = queue.then(async () => {
     if (await prepare(day)) await appendFile(join(directory!, `activity-${day}.jsonl`), line);
   }).catch(() => {});
+}
+
+function append(file: (day: string) => string, line: string) {
+  const day = new Date().toISOString().slice(0, 10);
+  queue = queue.then(async () => {
+    if (await prepare(day)) await appendFile(join(directory!, file(day)), line);
+  }).catch(() => {});
+}
+
+/**
+ * Full-text detail from a chat someone switched to debugging (their message, prompts, tool input and output,
+ * drafts), in debug-<day>.jsonl beside the activity log, kept 7 days. Nothing is written for other chats.
+ */
+export function logDetail(event: ActivityEvent) {
+  append(day => `debug-${day}.jsonl`, JSON.stringify({ at: new Date().toISOString(), ...event }) + "\n");
 }
 
 /**

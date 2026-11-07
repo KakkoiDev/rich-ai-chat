@@ -153,7 +153,7 @@ Order: the theme (M4) depends on design decisions, so engineering milestones tha
 
 ### M2 — Reply Activity and synthetic run capture
 
-**Status (2026-11-07):** built and under its release streak at 155 checks per round. Done:
+**Status (2026-11-08):** released. The streak at `6c935ab` passed (1,705/1,705) and M1 + M2 are on `main`. Done:
 - server events
 - the browser store (IndexedDB) with export and deletion
 - the Activity line under each request
@@ -163,7 +163,10 @@ Order: the theme (M4) depends on design decisions, so engineering milestones tha
 
 Differences from the plan:
 - Activity attaches through the user-message slot and shows above the reply it describes. OpenUI doesn't export its assistant-message renderer, so the line moves under the reply when the Kakkoi shell is rebuilt on the headless layer (M4).
-- The per-chat "Debug this chat" switch and the full log view are not built yet. Today there is export from the browser, plus `RICH_CHAT_DEBUG_CAPTURE` for benchmark servers.
+- **Added after the streak:**
+  - The per-chat **Debug** switch, beside the model picker. It is off by default, and a new chat keeps it from its first message. A debugged request adds `detail` events with full text: the message, the system prompt, each tool's input and output, rejected drafts and exact edits, and the reply as sent. These events appear under "Debug details" in that reply's Activity. The server writes them to `debug-<day>.jsonl`, kept 7 days. The always-on `activity-<day>.jsonl` stays free of text.
+  - The **full log view** at `/log` lists every request this browser sent, newest first, with its question, its reply and its events. It filters to requests with problems or to debugged chats, and exports with or without chat text.
+  - Two e2e checks were added to `tests/e2e/activity.cjs`, which now has 10.
 
 - **Server** (`route.ts`, `chat-attempt.ts`):
   - Assign a `requestId` per POST, an `attemptId` per attempt and a `toolCallId` per execution.
@@ -184,6 +187,22 @@ Differences from the plan:
 - **Accept:** Fault-injection tests in `tests/chat-attempt.mjs` (stubbed success, failed tool, interrupted stream, cancel) assert the event sequence. Reload keeps the panel. Thread deletion removes it. Model cases: `activity-single-search`, `activity-no-tool-local` (see the benchmark plan).
 
 ### M3 — OpenUI reachability, actions and gallery
+
+**Status (2026-11-08):** the Laya slice gate and the prompt slices are built, and **off by default until the M3 streak passes with it on** (`RICH_CHAT_LAYA_GATE=1` turns it on). The rest of M3 (`onAction`, gallery, chat-library additions) is not started.
+- **Measured** on synthetic English and Japanese requests (details in [BENCHMARK-PLAN.md](BENCHMARK-PLAN.md#laya-slice-gate-measurement-2026-11-08)):
+  - Development set: 176 requests, 97.8% correct on the 90 it answered.
+  - Held-out set: 80 requests, 95.0% correct on the 40 it answered.
+  - It abstains on about half; those requests keep today's path.
+  - Every wrong answer was a `layout` request (sent to `app` or `text`).
+  - Sliced prompts are 19–49% of the full prompt (10,354 Gemma-tokenizer tokens); `text` and `sources` use the 160-token Markdown prompt.
+- **Meets the owner's 95% rule only just, on a small held-out sample.** No model benchmark has run with sliced prompts yet. The M3 streak must show the small Gemma models do at least as well with them before this ships; until then `RICH_CHAT_LAYA_GATE=0` restores the old behaviour exactly.
+- **How it works:**
+  - `src/lib/laya-gate.ts` starts `scripts/laya-sidecar.py` on the first eligible request: small Gemma models on the general chat path, not the correction, native-table or bundled-image special cases.
+  - The sidecar runs PLH's `harness/laya.py`, pinned by commit and SHA-256 in `cores.lock.json`, with PLH's installed runtime and model. Nothing is downloaded.
+  - Each question waits at most 250 ms (`RICH_CHAT_LAYA_TIMEOUT_MS`). A sidecar that dies is restarted on the next request; one that keeps dying is left alone for a minute.
+  - The decision is a `gate` Activity event: outcome, slices, confidence, milliseconds and the prompt used. It never holds request text.
+  - The first request after a server start usually times out while the model loads, and uses the general path.
+- **Not done:** an end-to-end test of the gate. The gate only applies to Gemma on Ollama's fixed port 11434, so a browser test would reach the real models; the client, sidecar, pin and prompt assembly are covered by `tests/preflight.mjs` with a stub sidecar instead.
 
 - `onAction` handler: log custom actions to Activity and show "This action isn't supported".
 - A `/gallery` route, development only, that renders each of the 82 components from fixture markup.

@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { chatModelIds, chatModelLabels, isChatModelId } from "@/lib/chat-models";
 import { localStorageChat } from "@/lib/local-storage";
+import { debugMode } from "@/lib/debug-mode";
 import {
   AgentInterface,
   fetchLLM,
@@ -13,6 +14,7 @@ import {
 import { library } from "@/library";
 import { ChatComposer, ChatUserMessage } from "@/chat-composer";
 import { TasksPanel } from "@/tasks-panel";
+import { ConnectionStatus } from "@/connection-status";
 
 const serverDefault = "server-default";
 const modelOptions = [
@@ -51,7 +53,7 @@ function selectModel(value: string) {
   window.dispatchEvent(new Event(modelChanged));
 }
 
-function chatTransport(model?: string) {
+function chatTransport(model?: string, debug = false) {
   return fetchLLM({
     url: "/api/chat",
     streamAdapter: vercelAIAdapter(),
@@ -73,17 +75,19 @@ function chatTransport(model?: string) {
         }));
       },
     },
-    body: model ? { model } : undefined,
+    body: model || debug ? { ...(model ? { model } : {}), ...(debug ? { debug } : {}) } : undefined,
   });
 }
 
 const defaultTransport = chatTransport();
-const transports = new Map(chatModelIds.map(model => [model, chatTransport(model)]));
+const transports = new Map([undefined, ...chatModelIds].flatMap(model => [false, true]
+  .map(debug => [`${model ?? ""}|${debug}`, chatTransport(model, debug)] as const)));
 const { llm, storage } = localStorageChat({
   ...defaultTransport,
   send(params) {
     const model = readModel();
-    return (isChatModelId(model) ? transports.get(model)! : defaultTransport).send(params);
+    const debug = debugMode.forRequest(params.threadId, params.messages.filter(message => message.role === "user").length <= 1);
+    return transports.get(`${isChatModelId(model) ? model : ""}|${debug}`)!.send(params);
   },
 }, "rich-ai-chat");
 
@@ -104,6 +108,7 @@ export default function ChatPage({ defaultModelLabel }: { defaultModelLabel: str
         components={{ UserMessage: ChatUserMessage }}
       >
         <AgentInterface.Composer>
+          <ConnectionStatus />
           <ChatComposer model={model || serverDefault} models={[{ id: serverDefault, name: `${defaultModelLabel} (default)` }, ...modelOptions]} selectModel={selectModel} starters={[
             { displayText: "Weather in Tokyo", prompt: "What's the weather like in Tokyo right now?" },
             { displayText: "Try web search", prompt: "Search the web for a recent NASA astronomy discovery and cite your sources." },

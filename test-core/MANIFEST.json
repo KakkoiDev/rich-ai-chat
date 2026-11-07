@@ -1,8 +1,8 @@
 {
   "test-core": "https://github.com/KakkoiDev/test-core",
-  "commit": "0fdfbe47e710e741defc7993ba9e218a5b9aea5f",
+  "commit": "2700755132cf3dec77c9b5c998e332065bb85e5c",
   "files": {
-    "adopt.py": "a1b15b1e2b0c5707b912cbbca2d20c4c1fc6bf4310fc74319b5dbba4aca7a2c8",
+    "adopt.py": "13b5f23b9342d83a7ead8e33c6721f0687d0632ea51e76ab795e5257c8ed3785",
     "bench/README.md": "465b80b76cb7338bde222705d555e470abcef3584c422db6557e0a608aa16af3",
     "bench/SCENARIOS.md": "ad97bffb9958395ce2516ceb1a86d4fdf3e5c1a15690a0265e64231d42303b97",
     "bench/bench.mjs": "3fa7723507a21bfe2b7f31d2dfb51a234667d5a821f7432dbf3c5188e7d09001",
@@ -46,6 +46,9 @@
     "functional/registry.py": "29d4dccde803dc8b33c0f533625db646e89ce2bebc6ef64916d0d147f1aeaa41",
     "functional/runner.py": "aec07cf11c7b6e06af1a52c436a2f972d308eb5b83da1c1efc62dd812ea8d18a",
     "package.json": "f69ed17eea98f49ee075f676bae79df9cb779e54d5887b94d94313d34511170c",
+    "pwa/README.md": "745106827a8151412ba51f73eaf7d6cc6658c17c88c345c543ec8619af9b815b",
+    "pwa/pwa.mjs": "f467af15993d4a25fd2f3fd067f4252cf91cfdcd548c5ab0538b7e0fb7fe5caf",
+    "pwa/pwa.py": "178f207e0e46d5896e1e1c9121c7e22db33359f8a5f13f0da2c6a0b83f6bfcf4",
     "recording/README.md": "0a0362c456c17360cee20f04d748fb8e6088c3590f02e92ba7e97b266402c8bf",
     "recording/SCENARIOS.md": "09f27b8dff6e1aaf18f2b0206ed590c1e1d87627d5ee82b463f01101257448cb",
     "recording/flows.py": "db24593094902df0fdac93bba06077b46631b9f96407bc9f3db6f65a3618addf",

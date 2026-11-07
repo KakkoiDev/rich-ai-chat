@@ -48,6 +48,20 @@ const jobWords: Record<string, string> = {
 };
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
+const gateWords = {
+  abstained: "the classifier wasn't sure", unavailable: "the classifier isn't available", timeout: "the classifier was too slow",
+  error: "the classifier failed",
+};
+const promptWords = { concise: "a plain-text prompt", sliced: "only those components", general: "the general prompt" };
+const milliseconds = (ms: number) => `${Math.round(ms)} ms`;
+const confidence = (value?: number) => value === undefined ? "" : ` (confidence ${value.toFixed(2)})`;
+
+function gateLine(event: Extract<ActivityEvent, { type: "gate" }>) {
+  if (event.outcome === "chosen")
+    return `Chose ${event.slices.join(", ")} components${confidence(event.confidence)}; used ${promptWords[event.prompt]} · ${milliseconds(event.elapsedMs)}`;
+  return `Component choice skipped: ${gateWords[event.outcome]}${confidence(event.confidence)}; used ${promptWords[event.prompt]} · ${milliseconds(event.elapsedMs)}`;
+}
+
 /** One readable line per Activity event (null for events that add nothing); the Tasks panel reuses it for jobs. */
 export function activityLine(event: ActivityEvent, ended: Set<string> = new Set()) {
   switch (event.type) {
@@ -63,6 +77,8 @@ export function activityLine(event: ActivityEvent, ended: Set<string> = new Set(
       : `${toolWords[event.tool][1]}, but it failed: ${event.summary} · ${seconds(event.elapsedMs)}`;
     case "check": return event.passed ? event.reason || null : `Check failed: ${event.reason ?? "the app did not pass"}`;
     case "recovery": return recoveryWords[event.method];
+    case "gate": return gateLine(event);
+    case "detail": return null;
     case "reply": return event.status === "done" ? `Finished in ${seconds(event.ms)}`
       : event.status === "cancelled" ? "Cancelled" : `Stopped without a complete answer after ${seconds(event.ms)}`;
     case "job": return `${jobWords[event.status] ?? event.status}`
@@ -71,7 +87,11 @@ export function activityLine(event: ActivityEvent, ended: Set<string> = new Set(
   }
 }
 
-function summary(entry: ActivityEntry) {
+/** `unfinished` is what to say when no end was recorded: "working…" while this page is following the request. */
+/** The name the log view uses. */
+export const line = activityLine;
+
+export function summary(entry: ActivityEntry, unfinished = "working…") {
   const counts = new Map<ActivityTool, number>();
   for (const event of entry.events) if (event.type === "tool-end") counts.set(event.tool, (counts.get(event.tool) ?? 0) + 1);
   const attempts = Math.max(0, ...entry.events.map(event => event.type === "attempt-start" ? event.attempt : 0));
@@ -79,7 +99,7 @@ function summary(entry: ActivityEntry) {
   const parts = [
     ...(counts.size ? [...counts].map(([tool, n]) => `${n} ${toolNouns[tool][n === 1 ? 0 : 1]}`) : ["no tools"]),
     ...(attempts > 1 ? [`${attempts} attempts`] : []),
-    reply ? seconds(reply.ms) : entry.ended === "cancelled" ? "cancelled" : entry.ended ? "interrupted" : "working…",
+    reply ? seconds(reply.ms) : entry.ended === "cancelled" ? "cancelled" : entry.ended ? "interrupted" : unfinished,
   ];
   return parts.join(" · ");
 }
@@ -90,6 +110,23 @@ async function exportLog(threadId: string) {
   link.download = `chat-activity-${threadId.slice(0, 8)}.jsonl`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(link.href), 0);
+}
+
+/** Full-text records from a chat in debug mode: one collapsed block per stage. */
+export function DebugDetails({ events }: { events: ActivityEvent[] }) {
+  const details = events.flatMap(event => event.type === "detail" ? [event] : []);
+  if (!details.length) return null;
+  return (
+    <section className="debug-details" aria-label="Debug details">
+      <h4>Debug details</h4>
+      {details.map(event => (
+        <details key={event.seq}>
+          <summary>{event.stage} · {event.text.length.toLocaleString()} characters · {seconds(event.ms)}</summary>
+          <pre>{event.text}</pre>
+        </details>
+      ))}
+    </section>
+  );
 }
 
 /** The collapsed Activity line for the request a user message started; nothing when there is no record. */
@@ -110,7 +147,11 @@ export function ReplyActivity({ userMessageId }: { userMessageId: string }) {
         {lines.map(row => <li key={row.seq}>{row.text}</li>)}
       </ol>
       <p className="reply-activity__note">Reasoning summary: not available for this model.</p>
-      <button type="button" onClick={() => void exportLog(entry.threadId)}>Export this chat&apos;s log</button>
+      <DebugDetails events={entry.events} />
+      <div className="reply-activity__actions">
+        <button type="button" onClick={() => void exportLog(entry.threadId)}>Export this chat&apos;s log</button>
+        <a href="/log" target="_blank" rel="noopener">Open the full log</a>
+      </div>
     </details>
   );
 }
