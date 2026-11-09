@@ -7,7 +7,8 @@ import { cloudInstructions } from "../src/lib/cloud-prompt.ts";
 import { buildMessage } from "@openuidev/lang-core";
 import { Temporal } from "@js-temporal/polyfill";
 import { braveSearch, currentDateTime, safeSearchQuery } from "../src/lib/local-tools.ts";
-import { applyArtifactEdits, artifactRevision, replaceArtifactScript, revisionForTurn, scriptEditContext } from "../src/lib/artifact-edits.ts";
+import { publicPageUrl, pageSummaryUrl, extractPageText } from "../src/lib/read-page.ts";
+import { applyArtifactEdits, applyArtifactLineEdits, diagnoseArtifactEdits, artifactRevision, replaceArtifactScript, revisionForTurn, scriptEditContext } from "../src/lib/artifact-edits.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
 import { addCalculatorAction } from "../src/lib/calculator-action.ts";
@@ -208,9 +209,23 @@ restart.click();
 assert.equal(count.textContent, "3");
 assert.match(readArtifact("Here is the app:\n```html\n<button>Go</button><script>let n = 0;</script>\n```\nDone.", true).document, /<button>Go/);
 assert.match(checkArtifactRequest("<button>Convert</button>", "Clear must reset both values."), /Clear/);
+assert.equal(pageSummaryUrl("summerize this article [source](https://example.com/story)"), "https://example.com/story");
+assert.throws(() => publicPageUrl("https://127.0.0.1/story"));
+assert.throws(() => publicPageUrl("https://user@example.com/story"));
+assert.throws(() => publicPageUrl("https://example.com:3212/story"));
+assert.deepEqual(extractPageText("<main><p>Public preview</p><p>To view this article, accept our terms</p></main>"),
+  { title: "", text: "Public preview", partial: true });
+assert.equal(extractPageText("<article><p><ruby>海<rt>うみ</rt></ruby> &amp; weather</p></article>").text, "海 & weather");
+assert.match(diagnoseArtifactEdits("var enabled = false;", [{ find: "false", replace: "false" }]).problem, /makes no change/);
+assert.deepEqual(applyArtifactLineEdits("header\nold element\nkeep\nold handler", [
+  { start: 2, end: 2, text: "new element\nnew control" }, { start: 4, end: 4, text: "new handler" },
+]), { document: "header\nnew element\nnew control\nkeep\nnew handler" });
+assert.match(applyArtifactLineEdits("first\nsecond", [
+  { start: 1, end: 2, text: "one" }, { start: 2, end: 2, text: "two" },
+]).problem, /non-overlapping/);
 const revisionContext = "Revise this mini-app and return a complete new HtmlArtifact.\n\nRequested change or observed behavior: Add one.\n\nArtifact source (JSON string):\n" + JSON.stringify(html);
 assert.deepEqual(artifactRevision(buildMessage({ content: "Revision: Add one.", context: ["User clicked", {}, revisionContext] })), {
-  request: "Requested change or observed behavior: Add one.", source: html,
+  request: "Requested change or observed behavior: Add one.", instruction: "Add one.", source: html,
 });
 const failedRevision = [
   { role: "user", content: revisionContext },
@@ -218,6 +233,9 @@ const failedRevision = [
   { role: "user", content: "again" },
 ];
 assert.deepEqual(revisionForTurn(failedRevision), artifactRevision(revisionContext));
+assert.deepEqual(revisionForTurn([failedRevision[0], {
+  role: "assistant", content: "The model could not finish a usable revision. Your original preview is still available.",
+}, failedRevision[2]]), artifactRevision(revisionContext));
 assert.equal(revisionForTurn([failedRevision[0], { role: "assistant", content: "Done." }, failedRevision[2]]), undefined);
 assert.equal(scriptEditContext("<style>canvas{border:0}</style><script>draw()</script>"), "<script>draw()</script>");
 assert.equal(scriptEditContext('<script src="external.js"></script>'), undefined);
@@ -709,6 +727,8 @@ console.log("PASS: Laya component gate (slices, sidecar client, sidecar pin, act
   const root = new URL("../", import.meta.url);
   const hash = path => createHash("sha256").update(readFileSync(new URL(path, root))).digest("hex");
   const lock = JSON.parse(readFileSync(new URL("cores.lock.json", root), "utf8"));
+  assert.match(lock["gaming-core"].commit, /^[0-9a-f]{40}$/);
+  for (const [path, { sha256 }] of Object.entries(lock["gaming-core"].files)) assert.equal(hash(path), sha256);
   assert.match(lock["visual-core"].commit, /^[0-9a-f]{40}$/, "visual-core is pinned to a full commit");
   for (const [path, { sha256 }] of Object.entries(lock["visual-core"].files)) assert.equal(hash(path), sha256, `${path} matches visual-core's pinned copy`);
   const manifest = JSON.parse(readFileSync(new URL(lock["test-core"].manifest, root), "utf8"));

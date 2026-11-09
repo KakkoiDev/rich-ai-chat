@@ -8,9 +8,10 @@ const pathWords: Record<string, string> = {
   chat: "Answered in chat", "app-build": "Built an app", revision: "Revised the app", "image-search": "Searched for pictures",
   "video-search": "Searched for videos", clock: "Read the clock", table: "Made a table", chart: "Made a chart",
   starter: "Opened a tested starter app", "tested-layout": "Used a tested app layout", transform: "Transformed the quoted text",
-  job: "Background job run", map: "Looked up a map", forecast: "Looked up a temperature forecast",
+  page: "Read a linked page", job: "Background job run", map: "Looked up a map", forecast: "Looked up a temperature forecast",
 };
 const toolWords: Record<ActivityTool, [string, string]> = {
+  read_page: ["Opening the linked page", "Read the linked page"],
   web_search: ["Searching the web", "Searched the web"],
   image_search: ["Searching for pictures", "Searched for pictures"],
   video_search: ["Searching for videos", "Searched for videos"],
@@ -36,6 +37,7 @@ const recoveryWords = {
   "requested-search": "Searched the web because you asked; the model had answered without searching",
 };
 const toolNouns: Record<ActivityTool, [string, string]> = {
+  read_page: ["page read", "page reads"],
   web_search: ["search", "searches"], image_search: ["picture search", "picture searches"],
   video_search: ["video search", "video searches"], current_datetime: ["clock reading", "clock readings"],
   read_plan: ["plan read", "plan reads"], propose_items: ["proposal", "proposals"],
@@ -81,7 +83,7 @@ export function activityLine(event: ActivityEvent, ended: Set<string> = new Set(
       switch (event.event.type) {
         case "receipt-replay": return "Reused a completed tool result";
         case "receipt-reconcile": return "Skipped a tool whose earlier outcome is unknown";
-        case "repair": return "Repairing the rejected edit before rewriting the app";
+        case "repair": return "Trying a different approach to repair the app";
         case "resume": return "Resumed saved work";
         case "stall": return event.event.reason === "total-timeout" && event.event.attempt === undefined
           ? "The revision reached its time limit" : null;

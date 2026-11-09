@@ -8,9 +8,9 @@ import type { GateDecision, GatePrompt, PromptSlice } from "@/lib/prompt-slices"
  * allowlist: never prompt text, reply text, tool arguments, file contents or credentials.
  */
 export type ActivityPath = "chat" | "app-build" | "revision" | "image-search" | "video-search" | "clock" | "table" | "chart"
-  | "starter" | "tested-layout" | "transform" | "job" | "map" | "forecast";
+  | "starter" | "tested-layout" | "transform" | "job" | "map" | "forecast" | "page";
 export type TaskTool = "read_plan" | "propose_items" | "record_checkpoint" | "record_verification" | "queue_job";
-export type ActivityTool = "web_search" | "image_search" | "video_search" | "current_datetime" | TaskTool;
+export type ActivityTool = "read_page" | "web_search" | "image_search" | "video_search" | "current_datetime" | TaskTool;
 /** Background job progress (M10): status changes, committed steps (`checkpoint`) and reclaimed leases (`requeued`). */
 export type JobProgress = "queued" | "waiting" | "blocked" | "running" | "checkpoint" | "requeued" | "succeeded" | "failed" | "cancelled";
 
@@ -87,9 +87,10 @@ const taskTools = new Set<ActivityTool>(["read_plan", "propose_items", "record_c
 /** A one-line, data-free summary of a tool result for the Activity panel. Task tools write their own short summary. */
 export function toolSummary(tool: ActivityTool, result: unknown): { status: "ok" | "error"; summary: string } {
   const value = (result ?? {}) as { error?: unknown; untrustedSources?: { url: string }[]; count?: unknown; timeZone?: unknown;
-    images?: unknown[]; videos?: unknown[]; summary?: unknown };
+    images?: unknown[]; videos?: unknown[]; summary?: unknown; partial?: boolean };
   if (typeof value.error === "string") return { status: "error", summary: value.error };
   if (taskTools.has(tool)) return { status: "ok", summary: typeof value.summary === "string" ? value.summary : "Updated the plan" };
+  if (tool === "read_page") return { status: "ok", summary: value.partial ? "Only a preview was accessible" : "Retrieved readable page text" };
   if (tool === "web_search") {
     const sources = value.untrustedSources ?? [];
     const sites = new Set(sources.map(source => { try { return new URL(source.url).hostname; } catch { return ""; } }).filter(Boolean));

@@ -57,7 +57,7 @@ function append(file: (day: string) => string, line: string) {
  * Full-text detail from a chat someone switched to debugging (their message, prompts, tool input and output,
  * drafts), in debug-<day>.jsonl beside the activity log, kept 7 days. Nothing is written for other chats.
  */
-export function logDetail(event: ActivityEvent) {
+export function logDetail(event: ActivityEvent & { model: string }) {
   append(day => `debug-${day}.jsonl`, JSON.stringify({ at: new Date().toISOString(), ...event }) + "\n");
 }
 
@@ -66,9 +66,9 @@ export function logDetail(event: ActivityEvent) {
  * beside the log, so a failing synthetic case can be read. Never set it on a server people use: drafts contain what
  * was asked.
  */
-export function debugCapture(requestId: string, step: string, problem: string, draft: string) {
+export function debugCapture(requestId: string, model: string, step: string, problem: string, draft: string) {
   if (process.env.RICH_CHAT_DEBUG_CAPTURE !== "1" || !directory) return;
-  const line = JSON.stringify({ at: new Date().toISOString(), requestId, step, problem, draft: draft.slice(0, 40000) }) + "\n";
+  const line = JSON.stringify({ at: new Date().toISOString(), requestId, model, step, problem, draft: draft.slice(0, 40000) }) + "\n";
   queue = queue.then(async () => {
     if (await prepare(new Date().toISOString().slice(0, 10))) await appendFile(join(directory!, "debug-drafts.jsonl"), line);
   }).catch(() => {});

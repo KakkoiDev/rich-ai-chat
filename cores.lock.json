@@ -74,5 +74,19 @@
     "repository": "https://github.com/KakkoiDev/ai-core",
     "commit": "f51333517e5edccd7e2a20576381a35edc3c8e44",
     "manifest": "package-lock.json"
+  },
+  "gaming-core": {
+    "repository": "https://github.com/KakkoiDev/gaming-core",
+    "commit": "aa4a07871533bda891eb14aa4aaff5503bab5229",
+    "files": {
+      "src/starters/paperclip.html": {
+        "from": "starters/paperclip/index.html",
+        "sha256": "3ad517262c36dbddd128cc91c52f0764a8a4dcdaf143f8f3d0f5b72dd742ac56"
+      },
+      "src/starters/paperclip.LICENSE.txt": {
+        "from": "LICENSE",
+        "sha256": "1d7ff4af1cce526e8f9af767cea412b730a3e4ef38fce3d83469b3894bc5d653"
+      }
+    }
   }
 }

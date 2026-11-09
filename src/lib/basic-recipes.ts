@@ -1,6 +1,9 @@
 /** Match only requests the app's tested mechanics can fulfill as written. */
 export function basicRecipe(request: string) {
   const text = request.trim().replace(/\s+/g, " ");
+  if (/^(?:please )?(?:make|build|create|open|play) (?:me )?(?:a )?(?:simple )?paper[ -]?clip (?:factory|clicker|game)(?: game)?[.!]?$/i.test(text)) {
+    return { title: "Paperclip Factory", file: "paperclip.html" } as const;
+  }
   const calculator = /^(?:please )?(?:make|build|create) (?:a )?(?:(?:simple|basic|compact|working) )?calculator(?: (?:i can use right here|with (?:buttons for )?[\w (),+−×÷=.]+))?[.!]?$/i.exec(text);
   if (calculator) {
     const features = text.split(/ with /i)[1]?.replace(/^buttons for /i, "").replace(/[().,+−×÷=]/g, " ").trim();

@@ -1,6 +1,7 @@
 import { parseMessage } from "@openuidev/lang-core";
 
 const revisionPrefix = "Revise this mini-app and return a complete new HtmlArtifact.";
+export const revisionFailure = "The model could not finish a usable revision";
 const sourceMarker = "\n\nArtifact source (JSON string):\n";
 
 /** Read the context carried by the real OpenUI revision action. */
@@ -14,11 +15,12 @@ export function artifactRevision(message: string) {
   if (sourceAt < 0) return undefined;
   const requestAt = text.indexOf("Requested change or observed behavior:");
   const request = text.slice(Math.max(0, requestAt), sourceAt);
+  const instruction = request.replace(/^Requested change or observed behavior:\s*/, "").split("\n\nPreview diagnostics:")[0].trim();
   try {
     const source: unknown = JSON.parse(text.slice(sourceAt + sourceMarker.length));
-    return { request, source: typeof source === "string" ? source : undefined };
+    return { request, instruction, source: typeof source === "string" ? source : undefined };
   } catch {
-    return { request, source: undefined };
+    return { request, instruction, source: undefined };
   }
 }
 
@@ -30,7 +32,7 @@ export function revisionForTurn(messages: readonly { role: string; content: stri
   const failure = messages.at(-2);
   const previous = messages.at(-3);
   if (failure?.role !== "assistant" || previous?.role !== "user"
-    || !failure.content.includes("The model could not finish a usable revision after two attempts.")) return undefined;
+    || !failure.content.includes(revisionFailure)) return undefined;
   return artifactRevision(previous.content);
 }
 
@@ -44,26 +46,33 @@ export function scriptEditContext(source: string) {
 type Replacement = { find: string; replace: string };
 
 /** Apply model edits atomically against the original, without fuzzy matches. */
-export function applyArtifactEdits(source: string, edits: Replacement[]) {
-  if (!edits.length || edits.length > 6) return undefined;
+export function diagnoseArtifactEdits(source: string, edits: Replacement[]): { document: string; problem?: never } | { document?: never; problem: string } {
+  if (!edits.length || edits.length > 6) return { problem: "Provide one to six edits." };
   const ranges: { start: number; end: number; text: string }[] = [];
-  for (const { find, replace } of edits) {
-    if (!find || find === replace) return undefined;
+  for (const [index, { find, replace }] of edits.entries()) {
+    const label = `Edit ${index + 1}`;
+    if (!find) return { problem: `${label} has no source text to locate.` };
+    if (find === replace) return { problem: `${label} makes no change. Remove it and edit the code that actually controls the behavior.` };
     const start = source.indexOf(find);
-    if (start < 0 || source.indexOf(find, start + 1) >= 0) return undefined;
+    if (start < 0) return { problem: `${label} does not match the source exactly.` };
+    if (source.indexOf(find, start + 1) >= 0) return { problem: `${label} matches more than once. Include surrounding lines.` };
     ranges.push({ start, end: start + find.length, text: replace });
   }
   ranges.sort((a, b) => b.start - a.start);
   let result = source;
   let boundary = source.length;
   for (const { start, end, text } of ranges) {
-    if (end > boundary) return undefined;
+    if (end > boundary) return { problem: "Two edits overlap. Merge them or choose separate ranges." };
     result = result.slice(0, start) + text + result.slice(end);
     boundary = start;
   }
-  return /^(?:<!doctype html>\s*)?<html(?:\s[^>]*)?>/i.test(result.trim())
+  return { document: /^(?:<!doctype html>\s*)?<html(?:\s[^>]*)?>/i.test(result.trim())
     ? result.trim()
-    : `<!doctype html><html><head><title>Revised preview</title></head><body>${result}</body></html>`;
+    : `<!doctype html><html><head><title>Revised preview</title></head><body>${result}</body></html>` };
+}
+
+export function applyArtifactEdits(source: string, edits: Replacement[]) {
+  return diagnoseArtifactEdits(source, edits).document;
 }
 
 /** Replace one inline script without rewriting the working HTML. */
@@ -137,4 +146,19 @@ export function closeButtons(html: string) {
     open.lastIndex = end;
   }
   return out + html.slice(from);
+}
+
+/** Replace explicit source lines. The host checks boundaries and leaves all other lines intact. */
+export function applyArtifactLineEdits(source: string, edits: { start: number; end: number; text: string }[]) {
+  const lines = source.split("\n");
+  if (!edits.length || edits.length > 6) return { problem: "Provide one to six line edits." };
+  let next = lines.length + 1;
+  for (const { start, end, text } of [...edits].sort((a, b) => b.start - a.start)) {
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start || end >= next)
+      return { problem: "Line edits must use valid, non-overlapping ranges from the numbered source." };
+    if (lines.slice(start - 1, end).join("\n") === text) return { problem: "A line edit makes no change." };
+    lines.splice(start - 1, end - start + 1, ...(text ? text.split("\n") : []));
+    next = start;
+  }
+  return { document: lines.join("\n") };
 }
