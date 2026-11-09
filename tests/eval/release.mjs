@@ -7,7 +7,7 @@
 //
 // Settings: RICH_CHAT_BENCH_ROOT (reports and builds; default ~/Library/Application Support/Rich AI Chat Benchmarks),
 // RICH_CHAT_BENCH_MODULES (a folder providing Playwright; default: <root>/bench-modules),
-// RICH_CHAT_ENV_FILE (secrets, read by the run itself; default /Library/Application Support/Rich AI Chat/.env).
+// EVAL_PAID_CASSETTE (recorded paid API responses; default <root>/paid-api.jsonl).
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
@@ -27,7 +27,7 @@ const note = flag('--note');
 const launch = !args.includes('--no-launch');
 const models = args.filter(arg => !arg.startsWith('--'));
 const root = process.env.RICH_CHAT_BENCH_ROOT || join(homedir(), 'Library', 'Application Support', 'Rich AI Chat Benchmarks');
-const envFile = process.env.RICH_CHAT_ENV_FILE || '/Library/Application Support/Rich AI Chat/.env';
+const cassette = resolve(process.env.EVAL_PAID_CASSETTE || join(root, 'paid-api.jsonl'));
 
 async function step(label, command, argv, options) {
   console.log(`== ${label}`);
@@ -43,6 +43,7 @@ async function step(label, command, argv, options) {
 const freePort = () => new Promise(done => { const server = createServer().listen(0, '127.0.0.1', () => { const { port } = server.address(); server.close(() => done(port)); }); });
 
 async function main() {
+  if (launch && !existsSync(cassette)) throw new Error('Missing paid API cassette: ' + cassette);
   // One benchmark at a time on the local models.
   const latest = join(root, 'latest.txt');
   if (launch && existsSync(latest)) {
@@ -85,10 +86,10 @@ async function main() {
   if (note) writeFileSync(join(folder, 'NOTE.txt'), note.trim() + '\n');
   const record = await launchDetached({
     folder, label: `dev.kakkoi.rich-ai-chat.benchmark.${basename(folder)}`, cwd: build,
-    // Settings only; the secrets stay in the env file, which the run reads itself.
     env: { PATH: process.env.PATH, NODE_PATH: join(build, 'bench-modules'), EVAL_DIR: folder, EVAL_REVISION: sha,
+      EVAL_PAID_MODE: 'replay', EVAL_PAID_CASSETTE: cassette,
       RICH_CHAT_BUILD_DIR: '.next-local/bench', RICH_CHAT_LOG_DIR: join(folder, 'server-log'), RICH_CHAT_DEBUG_CAPTURE: '1' },
-    argv: ['node', `--env-file=${envFile}`, 'tests/eval/matrix.cjs', ...models],
+    argv: ['node', 'tests/eval/matrix.cjs', ...models],
   });
   writeFileSync(latest, folder + '\n');
   console.log(`Launched ${record.label} (${record.method}).\nWatch: node test-core/bench/cli.mjs watch "${folder}"`);

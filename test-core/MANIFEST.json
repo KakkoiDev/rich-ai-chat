@@ -10,6 +10,8 @@
     "bench/freeze.mjs": "199ed99bd9732b05a2beaba46f7cd953cbf4afb83bb9c31540a924c3bcfd7c72",
     "bench/launch.mjs": "3e778aed15d8c2fd0fa1df09f1a2f1763a49a23ef2596925544c558cff0b986f",
     "bench/report.mjs": "46acd9ad08c1cb8fe213007f0ca753ba56514fc6307f8b3ca4af073a5b5735b5",
+    "bench/response-proxy.md": "87db0da5380ffcb8347392b5259a7640795deb445987d27aa91b5437e6f1dc6a",
+    "bench/response-proxy.mjs": "1d1271b813238bb361df9d5e1eeb9083cc98a2432e62836a14c79953e2a544fc",
     "bench/seeded.mjs": "80c261910695b99a21ea0190a00d11d9560766dc82da6f1bb677281585b48751",
     "functional/README.md": "2e88e9697362cf4f92b9c96588548beb0913f6fe666d47393c251b58bdcea333",
     "functional/__init__.py": "5c94744b0ee10af55737e0a67c849bbf715d87704ccf444abb2280975560af05",
@@ -58,5 +60,12 @@
     "tools/flaky_lint.py": "c8f4c738edc139b61e722e11f99178c4847563d989e398c8d4874bd6a8596062",
     "tools/scenarios.py": "d51e64117dfe619957c7dc87ccfb08a6720e7f41ee9723866739f10f853589ed",
     "tools/vocab.py": "b1072e5af03211d7ae908d3ccf80c06d98b606d9515f3e37bf96a516753a49b3"
+  },
+  "localOverlay": {
+    "source": "test-core bench response proxy (unreleased)",
+    "files": [
+      "bench/response-proxy.md",
+      "bench/response-proxy.mjs"
+    ]
   }
 }

@@ -294,6 +294,15 @@ Differences from the plan:
 - Activity events reused for job progress.
 - **Accept:** kill the worker during a run and it resumes from the checkpoint; duplicate delivery doesn't repeat a receipt-backed operation; cancellation; blocked dependencies; waiting reasons are visible.
 
+### Backlog — Protect the live Brave Search quota
+
+The [benchmark proxy](../tests/eval/README.md#paid-apis-replay-by-default) now defaults to replay for Brave and DeepSeek. Preparing and validating a complete cassette is still open.
+
+- Run the recurring five-model matrix against recorded Brave web, image, and video responses. Check that the model actually calls the right tool with a relevant query and uses the returned sources or media. Cover empty results, timeouts, and quota errors with fixtures; keep the existing assertions.
+- Keep a small, opt-in live smoke suite on a separate Brave Search key. Never fall back to the everyday chat key. Enforce a hard budget at the outbound request boundary so retries and parallel attempts count, and stop the live run on quota exhaustion.
+- Report fixture and live results separately. Record outbound request counts and quota errors without recording credentials or query text. Keep the app-specific fixtures here; put reusable request-budget and reporting support in test-core if needed.
+- **Accept:** The full fixture matrix makes zero calls to Brave, the live smoke suite refuses to use the chat key, and a test proves that retries cannot exceed the request budget.
+
 ## 5. First milestone in detail: M1
 
 ### Why M1 first

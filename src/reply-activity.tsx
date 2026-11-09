@@ -8,7 +8,7 @@ const pathWords: Record<string, string> = {
   chat: "Answered in chat", "app-build": "Built an app", revision: "Revised the app", "image-search": "Searched for pictures",
   "video-search": "Searched for videos", clock: "Read the clock", table: "Made a table", chart: "Made a chart",
   starter: "Opened a tested starter app", "tested-layout": "Used a tested app layout", transform: "Transformed the quoted text",
-  job: "Background job run",
+  job: "Background job run", map: "Looked up a map", forecast: "Looked up a temperature forecast",
 };
 const toolWords: Record<ActivityTool, [string, string]> = {
   web_search: ["Searching the web", "Searched the web"],

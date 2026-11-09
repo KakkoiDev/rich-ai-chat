@@ -18,8 +18,9 @@ const directory = path.resolve(EVAL_DIR);
 // The release gate is 10 + 1. Smaller values are for parity and focused checks and never count as a stable release.
 const required = Number(process.env.EVAL_REQUIRED || 10);
 const regression = Number(process.env.EVAL_REGRESSION ?? 1);
+const evalClock = '2026-01-15T12:00:00Z';
 const suites = [
-  ['basic', path.join(__dirname, 'run.cjs'), 14],
+  ['basic', path.join(__dirname, 'run.cjs'), 17],
   ['breadth', path.join(__dirname, 'breadth/run-breadth.cjs'), 13],
   ['features', path.join(__dirname, 'features/run-features.cjs'), 4],
 ];
@@ -30,16 +31,19 @@ const root = path.resolve(__dirname, '../..');
 const frozen = ['tests/eval/matrix.cjs', 'tests/eval/run.cjs', 'tests/eval/breadth/run-breadth.cjs',
   'tests/eval/features/run-features.cjs', 'tests/eval/features/prompts.cjs',
   ...fs.readdirSync(path.join(root, 'tests/e2e')).map(name => 'tests/e2e/' + name),
-  'test-core/bench/bench.mjs', 'package-lock.json', path.join(RICH_CHAT_BUILD_DIR, 'BUILD_ID')];
+  'test-core/bench/bench.mjs', 'test-core/bench/response-proxy.mjs', 'tests/eval/paid-proxy.mjs', 'tests/eval/map-fixture.mjs',
+  'package-lock.json', path.join(RICH_CHAT_BUILD_DIR, 'BUILD_ID')];
 
-async function evaluate(model, round, taskDir, signal) {
+async function evaluate(model, round, taskDir, signal, proxy, mapFixture) {
   const hosted = model === 'deepseek-flash';
   const env = {
     ...process.env, NEXT_TELEMETRY_DISABLED: '1', MODEL_ID: model, EVAL_MODEL: model, CHAT_URL: chatUrl,
-    MODEL_BASE_URL: hosted ? 'https://api.deepseek.com' : 'http://127.0.0.1:11434/v1',
-    MODEL_API_KEY: hosted ? process.env.DEEPSEEK_API_KEY || '' : 'local',
+    MODEL_BASE_URL: hosted ? proxy.origin : 'http://127.0.0.1:11434/v1',
+    MODEL_API_KEY: 'local', RICH_CHAT_PAID_PROXY: proxy.origin,
+    RICH_CHAT_EVAL_CLOCK: evalClock, RICH_CHAT_GEOCODER_URL: mapFixture.url, RICH_CHAT_FORECAST_URL: mapFixture.forecastUrl,
+    BRAVE_SEARCH_API_KEY: 'fixture', DEEPSEEK_API_KEY: 'fixture',
+    EVAL_BRAVE_SEARCH_API_KEY: '', EVAL_DEEPSEEK_API_KEY: '',
   };
-  assert.ok(env.MODEL_API_KEY, 'DeepSeek API key is missing');
   const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)],
     { env, stdio: 'inherit', signal, killSignal: 'SIGTERM' });
   server.on('error', () => {});
@@ -86,28 +90,40 @@ async function evaluate(model, round, taskDir, signal) {
   for (let round = 1; round <= required + regression; round++)
     for (const model of models)
       tasks.push({ id: 'r' + String(round).padStart(2, '0') + '-' + model.replace(/[^a-z0-9.-]/gi, '-'), round, model });
-  const { state, exitCode, summary } = await runBench({
-    dir: directory, revision: EVAL_REVISION, tasks, resume,
-    gate: streakGate({ required, regression }),
-    freeze: { root, files: frozen },
-    secrets: [process.env.DEEPSEEK_API_KEY, process.env.MODEL_API_KEY, process.env.BRAVE_SEARCH_API_KEY],
-    config: { models, suites: suites.map(([name, , expected]) => ({ name, expected })), required, regression, port },
-    onEvent: event => { if (event.type === 'task-start') console.log(`=== ${event.id} ===`); },
-    async run(task, { signal, taskDir }) {
-      const results = await evaluate(task.model, task.round, taskDir, signal);
-      const passed = results.reduce((sum, suite) => sum + suite.passed, 0);
-      const expected = suites.reduce((sum, [, , count]) => sum + count, 0);
-      // `cases` lets test-core's report show each model's cases, timings and failures.
-      return { ok: results.length === suites.length && results.every(suite => suite.perfect), checks: { passed, expected },
-        suites: results.map(s => ({ suite: s.suite, passed: s.passed, expected: s.expected, perfect: s.perfect, report: s.report })),
-        cases: results.flatMap(suite => suite.cases) };
-    },
-  });
-  // A short summary under the historical name for tools and notes that read matrix.json.
-  fs.writeFileSync(path.join(directory, 'matrix.json'), JSON.stringify({ revision: EVAL_REVISION, models, required,
-    regressionRounds: regression, state, summary }, null, 2) + '\n');
-  console.log(`${state}: ${summary.checks?.passed ?? 0}/${summary.checks?.expected ?? 0} checks`);
-  process.exitCode = exitCode;
+  if (process.env.EVAL_PAID_MODE === 'record')
+    assert.ok(!resume && required === 1 && regression === 0, 'Use EVAL_REQUIRED=1 EVAL_REGRESSION=0 for a separate recording run');
+  const { paidProxy } = await import('./paid-proxy.mjs');
+  const proxy = await paidProxy(process.env);
+  let mapFixture;
+  try {
+    mapFixture = await (await import('./map-fixture.mjs')).startMapFixture();
+    const { state, exitCode, summary } = await runBench({
+      dir: directory, revision: EVAL_REVISION, tasks, resume,
+      gate: streakGate({ required, regression }),
+      freeze: { root, files: frozen },
+      secrets: [process.env.DEEPSEEK_API_KEY, process.env.MODEL_API_KEY, process.env.BRAVE_SEARCH_API_KEY],
+      config: { models, suites: suites.map(([name, , expected]) => ({ name, expected })), required, regression, port,
+        paidMode: proxy.mode, cassetteDigest: proxy.digest, evalClock },
+      onEvent: event => { if (event.type === 'task-start') console.log(`=== ${event.id} ===`); },
+      async run(task, { signal, taskDir }) {
+        const before = { ...proxy.stats };
+        const results = await evaluate(task.model, task.round, taskDir, signal, proxy, mapFixture);
+        const paid = Object.fromEntries(Object.entries(proxy.stats).map(([key, count]) => [key, count - before[key]]));
+        const passed = results.reduce((sum, suite) => sum + suite.passed, 0);
+        const expected = suites.reduce((sum, [, , count]) => sum + count, 0);
+        // `cases` lets test-core's report show each model's cases, timings and failures.
+        return { ok: !paid.misses && !paid.failures && results.length === suites.length && results.every(suite => suite.perfect),
+          paid, checks: { passed, expected },
+          suites: results.map(s => ({ suite: s.suite, passed: s.passed, expected: s.expected, perfect: s.perfect, report: s.report })),
+          cases: results.flatMap(suite => suite.cases) };
+      },
+    });
+    // A short summary under the historical name for tools and notes that read matrix.json.
+    fs.writeFileSync(path.join(directory, 'matrix.json'), JSON.stringify({ revision: EVAL_REVISION, models, required,
+      regressionRounds: regression, state, summary, paid: { mode: proxy.mode, digest: proxy.digest, ...proxy.stats } }, null, 2) + '\n');
+    console.log(`${state}: ${summary.checks?.passed ?? 0}/${summary.checks?.expected ?? 0} checks`);
+    process.exitCode = exitCode;
+  } finally { await Promise.all([proxy.close(), mapFixture?.close()]); }
 })().catch(error => {
   console.error(error.message);
   process.exitCode = 2;

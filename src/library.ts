@@ -7,10 +7,14 @@
  */
 import { ColorPieChart } from "./pie-chart";
 import { HtmlArtifact } from "./html-artifact";
+import { OpenStreetMap } from "./open-street-map";
 import { openuiLibrary, openuiPromptOptions } from "@openuidev/react-ui/genui-lib";
 
 export const library = openuiLibrary.extend({
-  components: { override: [ColorPieChart], add: [{ component: HtmlArtifact, slots: ["Card.children"] }] },
+  components: { override: [ColorPieChart], add: [
+    { component: HtmlArtifact, slots: ["Card.children"] },
+    { component: OpenStreetMap, slots: ["Card.children"] },
+  ] },
 });
 
 /**

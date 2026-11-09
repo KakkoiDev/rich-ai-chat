@@ -22,6 +22,12 @@ export function currentDateTime(timeZone: string, daysFromToday = 0, now = Tempo
   }
 }
 
+/** Keep the model's clock tool output stable for exact-match benchmark recordings. */
+export function modelClock(timeZone: string, daysFromToday = 0) {
+  const fixed = process.env.RICH_CHAT_PAID_PROXY && process.env.RICH_CHAT_EVAL_CLOCK;
+  return currentDateTime(timeZone, daysFromToday, fixed ? Temporal.Instant.from(fixed) : undefined);
+}
+
 const mediaResult = z.object({
   title: z.string().nullish(),
   url: z.string().nullish(),
@@ -93,7 +99,7 @@ function firstResponse(url: URL, key: string, budget: AbortSignal, hedgeAfterMs:
 
 export async function braveSearch(kind: "web" | "images" | "videos", query: string, key: string, signal: AbortSignal,
   timing = { hedgeAfterMs: [3000, 8000], budgetMs: 15000 }) {
-  const url = new URL(`https://api.search.brave.com/res/v1/${kind}/search`);
+  const url = new URL(`/res/v1/${kind}/search`, process.env.RICH_CHAT_PAID_PROXY || "https://api.search.brave.com");
   url.search = new URLSearchParams({ q: query, count: "4", safesearch: "strict" }).toString();
   const budget = AbortSignal.any([signal, AbortSignal.timeout(timing.budgetMs)]);
   const response = await firstResponse(url, key, budget, timing.hedgeAfterMs, signal, timing.budgetMs);

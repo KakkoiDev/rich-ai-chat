@@ -2,7 +2,7 @@
   "root": "Stack",
   "components": {
     "Card": {
-      "signature": "Card(children: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | IconButton | Steps | InlineHeader | EntityList | EditableTable | SnippetCardBlock | OverviewCardBlock | ContextCardBlock | CompositeCardBlock | VisualCardBlock | Tabs | Carousel | Stack | HtmlArtifact)[], variant?: \"card\" | \"sunk\" | \"clear\", direction?: \"row\" | \"column\", gap?: \"none\" | \"xs\" | \"s\" | \"m\" | \"l\" | \"xl\" | \"2xl\", align?: \"start\" | \"center\" | \"end\" | \"stretch\" | \"baseline\", justify?: \"start\" | \"center\" | \"end\" | \"between\" | \"around\" | \"evenly\", wrap?: boolean)",
+      "signature": "Card(children: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | IconButton | Steps | InlineHeader | EntityList | EditableTable | SnippetCardBlock | OverviewCardBlock | ContextCardBlock | CompositeCardBlock | VisualCardBlock | Tabs | Carousel | Stack | HtmlArtifact | OpenStreetMap)[], variant?: \"card\" | \"sunk\" | \"clear\", direction?: \"row\" | \"column\", gap?: \"none\" | \"xs\" | \"s\" | \"m\" | \"l\" | \"xl\" | \"2xl\", align?: \"start\" | \"center\" | \"end\" | \"stretch\" | \"baseline\", justify?: \"start\" | \"center\" | \"end\" | \"between\" | \"around\" | \"evenly\", wrap?: boolean)",
       "description": "Styled container. variant: \"card\" (default, elevated) | \"sunk\" (recessed) | \"clear\" (transparent). Always full width. Accepts all Stack flex params (default: direction \"column\"). Cards flex to share space in row/wrap layouts."
     },
     "CardHeader": {
@@ -332,6 +332,10 @@
     "HtmlArtifact": {
       "signature": "HtmlArtifact(title: string, document: string, javascript?: string)",
       "description": "Build a runnable mini-app or game using self-contained HTML, inline CSS and inline JavaScript. No libraries, remote resources, or chat actions."
+    },
+    "OpenStreetMap": {
+      "signature": "OpenStreetMap(label: string, west: number, south: number, east: number, north: number)",
+      "description": "Map preview for a place with known bounds, in west, south, east, north order. Never guess bounds."
     }
   },
   "componentGroups": [
@@ -787,6 +791,9 @@
       },
       "HtmlArtifact": {
         "$ref": "#/$defs/HtmlArtifact"
+      },
+      "OpenStreetMap": {
+        "$ref": "#/$defs/OpenStreetMap"
       }
     },
     "required": [
@@ -872,7 +879,8 @@
       "VisualCardItem",
       "VisualCardBlock",
       "Modal",
-      "HtmlArtifact"
+      "HtmlArtifact",
+      "OpenStreetMap"
     ],
     "additionalProperties": false,
     "$defs": {
@@ -993,6 +1001,9 @@
                 },
                 {
                   "$ref": "#/$defs/HtmlArtifact"
+                },
+                {
+                  "$ref": "#/$defs/OpenStreetMap"
                 }
               ]
             }
@@ -4025,6 +4036,44 @@
         ],
         "additionalProperties": false,
         "description": "Build a runnable mini-app or game using self-contained HTML, inline CSS and inline JavaScript. No libraries, remote resources, or chat actions."
+      },
+      "OpenStreetMap": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "west": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "south": {
+            "type": "number",
+            "minimum": -85,
+            "maximum": 85
+          },
+          "east": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "north": {
+            "type": "number",
+            "minimum": -85,
+            "maximum": 85
+          }
+        },
+        "required": [
+          "label",
+          "west",
+          "south",
+          "east",
+          "north"
+        ],
+        "additionalProperties": false,
+        "description": "Map preview for a place with known bounds, in west, south, east, north order. Never guess bounds."
       },
       "Slice": {
         "type": "object",

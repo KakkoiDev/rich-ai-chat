@@ -7,7 +7,7 @@ import type { GateDecision, GatePrompt, PromptSlice } from "@/lib/prompt-slices"
  * allowlist: never prompt text, reply text, tool arguments, file contents or credentials.
  */
 export type ActivityPath = "chat" | "app-build" | "revision" | "image-search" | "video-search" | "clock" | "table" | "chart"
-  | "starter" | "tested-layout" | "transform" | "job";
+  | "starter" | "tested-layout" | "transform" | "job" | "map" | "forecast";
 export type TaskTool = "read_plan" | "propose_items" | "record_checkpoint" | "record_verification" | "queue_job";
 export type ActivityTool = "web_search" | "image_search" | "video_search" | "current_datetime" | TaskTool;
 /** Background job progress (M10): status changes, committed steps (`checkpoint`) and reclaimed leases (`requeued`). */

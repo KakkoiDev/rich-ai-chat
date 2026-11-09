@@ -11,8 +11,8 @@ CHAT_URL=http://127.0.0.1:3212/ EVAL_MODEL=gpt-oss:20b \
 
 For another model, start an instance with its own `MODEL_ID` and `MODEL_BASE_URL`, then change the URL, label, and report path in the command. Pass case IDs after the script to run a subset, for example `context calculator repair`.
 
-- **Model:** context recall without search, calculator behavior, repair from a runtime diagnostic, native pie values and colors, bundled image, and a playable game with restart.
-- **App:** repeated table-to-chart request with separate units, and the Slingshot starter. These can pass even if the model cannot generate a chart or game.
+- **Model:** context recall without search, calculator behavior, repair from a runtime diagnostic, native pie values and colors, a line chart from numbers given in plain text, bundled image, and a playable game with restart.
+- **App:** repeated table-to-chart request with separate units, the Slingshot starter, a map preview, and a weekly temperature chart backed by a local forecast fixture. These can pass even if the model cannot generate a chart or game.
 - **Live:** exactly one search for Tokyo weather and a citation to a returned source. A provider error or empty result is a skip. This checks tool use and citation wiring, not the accuracy or freshness of the forecast.
 
 The newer tool checks can run independently:
@@ -43,7 +43,7 @@ RICH_CHAT_BUILD_DIR=.next-local/bench EVAL_REVISION="$(git rev-parse HEAD)" \
   EVAL_DIR=/path/to/new-report-directory node tests/eval/matrix.cjs
 ```
 
-The matrix runs the basic, breadth and features suites serially for each model: 14 + 13 + 2 = 29 cases, so 145 checks per round across the five models. A skipped, failed, or missing case ends the streak after the current round finishes.
+The matrix runs the basic, breadth and features suites serially for each model: 17 + 13 + 4 = 34 cases, so 170 checks per round across the five models. A skipped, failed, or missing case ends the streak after the current round finishes.
 
 The features suite (`features/run-features.cjs`) grows with each milestone ([benchmark plan](../../docs/BENCHMARK-PLAN.md)). Its prompts come from `features/prompts.cjs`, seeded by round, model and case: the wording and data vary, and the same key always reproduces the same prompt, which is saved in the report. Preflight checks that every prompt stays outside the app's tested layouts, so the model's own code is what gets tested. `run-features.cjs --list` prints the case ids, and the matrix refuses to start if its expected count differs. The M1 cases build a varied app, use it, open it full screen, then download its source and replay the same actions on the file in an offline browser. One case does this after a revision and checks that the first version is unchanged.
 
@@ -87,3 +87,27 @@ drafts are captured for diagnosis, because benchmark prompts are synthetic. `--n
 
 `node test-core/bench/cli.mjs report <folder>` shows each model's cases, median and slowest times, and failures with
 their details at any point. `stop <folder>` ends a run as interrupted.
+
+### Paid APIs: replay by default
+
+The matrix uses test-core's loopback response proxy for Brave (web, image and video)
+and DeepSeek Flash. Ollama models still run live locally. The release launcher
+requires a cassette (`EVAL_PAID_CASSETTE`, default `<benchmark root>/paid-api.jsonl`)
+and does not load the live app's credentials. A cassette miss fails the matrix
+task; there is no live fallback. The manifest pins the cassette digest, and
+`matrix.json` reports hits, misses, outbound attempts and failures.
+
+A full cassette is not bundled. To capture responses for synthetic benchmark
+requests, run `matrix.cjs` separately against a dedicated build and report directory
+with `EVAL_PAID_MODE=record EVAL_REQUIRED=1 EVAL_REGRESSION=0`, an explicit
+`EVAL_PAID_CASSETTE`, a positive `EVAL_PAID_MAX_REQUESTS`, and separate
+`EVAL_BRAVE_SEARCH_API_KEY` / `EVAL_DEEPSEEK_API_KEY` credentials. If using an env
+file, keep it outside the repository. Recording checks the keys against the live
+configuration (override its location with `RICH_CHAT_ENV_FILE`) and inherited keys.
+When the owner explicitly permits shared keys, set `EVAL_ALLOW_SHARED_PAID_KEYS=1`
+for that capped recording run only. Replay still makes zero paid calls.
+Recording is fixture preparation, not a release result.
+Review captured responses before sharing. Exact matching means new prompts, changed
+tool outputs, or new queries from local models may need new recordings. Replay
+tests the app's handling of DeepSeek's recorded output, not current hosted model
+quality or latency; live provider checks are separate and explicitly budgeted.

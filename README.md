@@ -95,3 +95,21 @@ See [scenario prompts](tests/scenarios.json) and [model evaluation notes](tests/
 To compare GPT-OSS 20B with smaller models, run the [basic capability evaluation](tests/eval/README.md) against each model's chat server. It checks observable behavior and separates model performance from built-in app behavior.
 
 See the [agent handoff](docs/AI-HANDOFF.md) for the full model matrix, stall recovery, and the proposed persistent task workflow.
+
+### Show a place on a map
+
+Ask “show me Paris on the map” to get an inline OpenStreetMap preview. The
+server sends the place name to Photon to resolve its map bounds; it does not
+send chat history or use a paid search key. Set `RICH_CHAT_GEOCODER_URL` to
+point at a different Photon-compatible search endpoint. If the lookup fails,
+the reply still includes links to OpenStreetMap and Google Maps.
+
+### Chart the coming week's temperatures
+
+Ask “Show me a chart of the temperature in Paris this coming week” to see the next seven local days of highs and lows from Open-Meteo. Add “in Fahrenheit” to change the units.
+
+## Update the live app
+
+On the Mac mini, stop Rich AI Chat from App Home. From this checkout, run `zsh scripts/deploy-live.sh origin/main` and then start Rich AI Chat again in App Home. The script fetches and builds the committed revision and preserves the live settings. If the dependency lockfile changed, update the deployment's dependencies before switching builds.
+
+A future **Update** button belongs in App Home, where the app can be restarted from outside its own process. It should show the current and available versions, build and check the new version before stopping the old one, and restore the previous version if the new one fails to start.

@@ -1,4 +1,6 @@
 import { readFile } from "node:fs/promises";
+import { findMapLocation } from "@/lib/map-location";
+import { weeklyTemperatureChart, weeklyTemperatureRequest } from "@/lib/temperature-forecast";
 import { chartFromTable } from "@/lib/table-chart";
 import { basicExpenseSpec, basicKeypadSpec, basicRecipe, basicTakeAwaySpec } from "@/lib/basic-recipes";
 import { addCalculatorAction, calculatorOperations } from "@/lib/calculator-action";
@@ -16,7 +18,7 @@ import { defaultChatModelId } from "@/lib/default-chat-model";
 import { classroomRules, cloudInstructions, conciseToolPrompt, loadPromptSpec, promptFromSpec } from "@/lib/cloud-prompt";
 import { gatePlan, sliceAsk, sliceSpec, type GatePrompt, type PromptSlice } from "@/lib/prompt-slices";
 import { layaGateEnabled, sharedLayaGate } from "@/lib/laya-gate";
-import { braveSearch, currentDateTime, explicitSearchQuery, findImages, findVideos, safeSearchQuery } from "@/lib/local-tools";
+import { braveSearch, currentDateTime, explicitSearchQuery, findImages, findVideos, modelClock, safeSearchQuery } from "@/lib/local-tools";
 import { createActivity, toolSummary, type ActivityPath, type ActivityTool } from "@/lib/activity";
 import { debugCapture, logActivity, logDetail } from "@/lib/activity-log";
 import { taskTools } from "@/lib/tasks/tools";
@@ -107,6 +109,7 @@ export async function POST(req: Request) {
   /** Every reply goes through here: the stream starts, Activity is attached, and the outcome is always recorded. */
   const respond = (path: ActivityPath, run: (writer: import("ai").UIMessageStreamWriter) => Promise<"done" | "failed" | void>) =>
     createUIMessageStreamResponse({
+      headers: { "Content-Type": "text/event-stream; charset=utf-8" },
       stream: createUIMessageStream({
         async execute({ writer: stream }) {
           stream.write({ type: "start" });
@@ -152,6 +155,32 @@ export async function POST(req: Request) {
   const requestedZone = req.headers.get("x-chat-time-zone") ?? "";
   const localClock = currentDateTime(requestedZone) ?? currentDateTime("UTC")!;
   const noSearch = /\b(?:do not|don’t|don't|never)\s+(?:search|browse|look up)\b/i.test(latest.content);
+  const forecast = !fileContext && !noSearch && weeklyTemperatureRequest(latest.content);
+  if (forecast && safeSearchQuery(forecast.place.padEnd(3))) {
+    return directReply("forecast", weeklyTemperatureChart(forecast.place, forecast.fahrenheit, req.signal));
+  }
+  const mapText = latest.content.trim();
+  const mapRequest = /^(?:please\s+)?(?:(?:can|could) you\s+)?(?:show(?: me)?|display|open|find(?: me)?)\s+(?:(?:a|the)\s+)?(?:google\s+maps?(?:\s+map)?|openstreetmap(?:\s+map)?|map)\s+(?:of|for)\s+([^\r\n]+?)[?!. ]*$/i.exec(mapText)
+    ?? /^(?:please\s+)?(?:(?:can|could) you\s+)?(?:show(?: me)?|display|where\s+is)\s+(?:where\s+is\s+)?([^\r\n]+?)(?:\s+is)?\s+on\s+(?:the\s+)?(?:google\s+maps?|openstreetmap|map)[?!. ]*$/i.exec(mapText);
+  // A plain location question gets a map only when the geocoder recognizes its subject.
+  const implicitPlace = /^(?:please\s+)?where\s+is\s+([\p{L}\p{M}][\p{L}\p{M} .'’,-]{0,119}?)[?!. ]*$/iu.exec(mapText)?.[1].trim();
+  const mapPlace = mapRequest?.[1].trim() ?? implicitPlace;
+  if (!fileContext && !noSearch && mapPlace && safeSearchQuery(mapPlace.padEnd(3))) {
+    const place = mapPlace;
+    const lookup = findMapLocation(place, req.signal);
+    const resolved = mapRequest ? undefined : await lookup;
+    if (mapRequest || resolved) return directReply("map", (async () => {
+      const location = resolved ?? await lookup;
+      const google = new URL("https://www.google.com/maps/search/");
+      google.search = new URLSearchParams({ api: "1", query: place }).toString();
+      const osm = new URL("https://www.openstreetmap.org/search");
+      osm.searchParams.set("query", place);
+      const preview = location ? `OpenStreetMap(${JSON.stringify(location.label)}, ${location.bounds.join(", ")}), ` : "";
+      const links = `[Open in OpenStreetMap](<${osm.href}>) · [Open in Google Maps](<${google.href}>)`;
+      const markdown = JSON.stringify(location ? links : "No map preview found. Try a more specific location, or open the map search.\n\n" + links);
+      return `root = Card([TextContent(${JSON.stringify(location?.label ?? place)}, "large-heavy"), ${preview}MarkDownRenderer(${markdown})])`;
+    })());
+  }
   const directClock = /^(?:please\s+)?(?:what(?:['’]s| is) (?:the )?(?:current |local )?(?:time|date)(?: (?:is it|today|now|right now))?|what time is it(?: now)?|what day is it(?: today)?|what(?:['’]s| is) today(?:'s|’s) date)[?!. ]*$/i;
   if (!fileContext && directClock.test(latest.content.trim())) {
     const detail = /\btime\b/i.test(latest.content) ? localClock.time : `${localClock.weekday}, ${localClock.date}`;
@@ -197,10 +226,12 @@ export async function POST(req: Request) {
   }
   const selected = parsed.data.model;
   const defaultBaseURL = process.env.MODEL_BASE_URL || "https://api.deepseek.com";
-  const deepSeekBaseURL = "https://api.deepseek.com";
+  const paidProxy = process.env.RICH_CHAT_PAID_PROXY;
+  const deepSeekBaseURL = paidProxy || "https://api.deepseek.com";
   const baseURL = selected
     ? selected === "deepseek-flash" ? deepSeekBaseURL : "http://127.0.0.1:11434/v1"
-    : defaultBaseURL;
+    : paidProxy && !/^(?:localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(defaultBaseURL).hostname)
+      ? paidProxy : defaultBaseURL;
   const modelId = selected || defaultChatModelId();
   const localOllama = /^(?:localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(baseURL).hostname)
     && new URL(baseURL).port === "11434";
@@ -229,9 +260,9 @@ export async function POST(req: Request) {
     bind: bindArtifactExpenseList,
     guide: 'Use two inputs: <input data-expense-name aria-label="name label"> and <input data-expense-amount aria-label="amount label" type="number" step="any">. Replace the example aria-labels with the requested labels. Add <button type="button" data-expense-add>Add</button>, <ul data-expense-list></ul>, and <output data-expense-total>0.00</output>. The app adds the entries, removal buttons and total.',
   } : undefined;
-  const deepSeek = new URL(baseURL).hostname === "api.deepseek.com";
+  const deepSeek = baseURL === paidProxy || new URL(baseURL).hostname === "api.deepseek.com";
   const apiKey = deepSeek
-    ? process.env.DEEPSEEK_API_KEY || (new URL(defaultBaseURL).hostname === "api.deepseek.com" ? process.env.MODEL_API_KEY : undefined)
+    ? paidProxy ? "fixture" : process.env.DEEPSEEK_API_KEY || (new URL(defaultBaseURL).hostname === "api.deepseek.com" ? process.env.MODEL_API_KEY : undefined)
     : selected ? "local" : process.env.MODEL_API_KEY;
   if (selected === "deepseek-flash" && !apiKey) {
     return new Response("DeepSeek is not configured on this server.", { status: 503 });
@@ -733,7 +764,7 @@ export async function POST(req: Request) {
           daysFromToday: z.number().int().min(-3660).max(3660).optional(),
         }).strict(),
         execute: ({ timeZone, daysFromToday }, { toolCallId }) => executed("current_datetime", toolCallId, async () => {
-          clockResult = currentDateTime(timeZone ?? localClock.timeZone, daysFromToday);
+          clockResult = modelClock(timeZone ?? localClock.timeZone, daysFromToday);
           return clockResult ?? { error: "Invalid time zone. Use a named IANA time zone, such as Asia/Tokyo." };
         }, { timeZone, daysFromToday }),
       }),

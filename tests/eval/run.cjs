@@ -37,7 +37,7 @@ async function ask(page, prompt) {
   await box.press('Enter');
   const result = await response;
   assert.ok(result.ok(), 'Chat request failed: ' + result.status());
-  const events = parseEvents(await result.text());
+  const events = parseEvents((await result.body()).toString("utf8"));
   assert.ok(events.some(e => e.type === 'finish'), 'No completed reply');
   const text = events.filter(e => e.type === 'text-delta').map(e => e.delta).join('');
   assert.ok(text.trim() && !/model (?:stopped before finishing|could not finish)/i.test(text), text.slice(0, 240) || 'Empty reply');
@@ -116,6 +116,46 @@ const cases = [
     const output = result.events.find(e => e.type === 'tool-output-available' && e.toolCallId === call.toolCallId)?.output;
     assert.ok(['America/New_York', 'US/Eastern'].includes(output?.timeZone), 'Expected a valid New York time zone');
     assert.match(output.time, /^\d{2}:\d{2}:\d{2}$/);
+  }],
+  ['map-location', 'app', async page => {
+    for (const [prompt, place, country, bounds] of [
+      ['show me where is Mount Everest on the map', 'Mount Everest', 'Nepal', '86.88, 27.95, 86.97, 28.02'],
+      ['show me Paris on the map', 'Paris', 'France', '2.22, 48.81, 2.47, 48.91'],
+    ]) {
+      const result = await turn(part('user', prompt));
+      assert.equal(result.calls.length, 0, 'Map previews need no model or paid search');
+      assert.ok(result.text.includes(`OpenStreetMap("${place}, ${country}", ${bounds})`));
+      assert.ok(result.text.includes(`https://www.openstreetmap.org/search?${new URLSearchParams({ query: place })}`));
+    }
+    await page.route('https://www.openstreetmap.org/export/embed.html?*', route =>
+      route.fulfill({ contentType: 'text/html', body: '<p>Map fixture loaded</p>' }));
+    await ask(page, 'Show me Paris on the map');
+    const frame = 'iframe[title="Map of Paris, France — OpenStreetMap"]';
+    await page.frameLocator(frame).getByText('Map fixture loaded').waitFor({ state: 'visible' });
+    assert.equal(new URL(await page.locator(frame).getAttribute('src')).searchParams.get('bbox'), '2.22,48.81,2.47,48.91');
+    await page.getByRole('link', { name: 'Open in OpenStreetMap', exact: true }).waitFor({ state: 'visible' });
+    await ask(page, 'where is tokyo?');
+    const tokyo = 'iframe[title="Map of Tokyo, Japan — OpenStreetMap"]';
+    await page.frameLocator(tokyo).getByText('Map fixture loaded').waitFor({ state: 'visible' });
+    assert.equal(new URL(await page.locator(tokyo).getAttribute('src')).searchParams.get('bbox'), '139.56,35.52,139.92,35.82');
+    const missing = await turn(part('user', 'Show me a map of Unknown Fixture Place'));
+    assert.match(missing.text, /No map preview found/);
+    assert.doesNotMatch(missing.text, /OpenStreetMap\(/);
+  }],
+  ['weekly-temperature-chart', 'app', async page => {
+    const reply = await ask(page, 'Show me a chart of the temperature in Paris this coming week');
+    assert.ok(reply.includes('LineChart(["2026-01-16","2026-01-17","2026-01-18","2026-01-19","2026-01-20","2026-01-21","2026-01-22"]'));
+    assert.ok(reply.includes('Series("Low (°C)", [-2,-1,0,2,3,1,4])'), reply);
+    assert.ok(reply.includes('Series("High (°C)", [4,5,6,9,11,7,12])'), reply);
+    await page.locator('svg[role="img"]').waitFor({ state: 'visible' });
+    await page.getByRole('link', { name: 'Forecast data: Open-Meteo' }).waitFor({ state: 'visible' });
+  }],
+  ['model-numeric-chart', 'model', async page => {
+    const reply = await ask(page, 'Plot a line chart of the aquarium temperature readings. Label the points Dawn, Noon, and Dusk, in that order. The readings were 18.5, 24, and 20.25 degrees Celsius, respectively.');
+    assert.match(reply, /LineChart\(/);
+    assert.match(reply, /\[\s*"Dawn"\s*,\s*"Noon"\s*,\s*"Dusk"\s*\]/);
+    assert.match(reply, /\[\s*18\.5\s*,\s*24(?:\.0+)?\s*,\s*20\.25\s*\]/);
+    await page.locator('svg[role="img"]').waitFor({ state: 'visible' });
   }],
   ['online-pictures', 'app-live', async page => {
     const reply = await ask(page, 'Show me pictures of Mount Fuji');
