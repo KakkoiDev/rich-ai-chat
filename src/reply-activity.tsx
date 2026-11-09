@@ -77,6 +77,16 @@ export function activityLine(event: ActivityEvent, ended: Set<string> = new Set(
       : `${toolWords[event.tool][1]}, but it failed: ${event.summary} · ${seconds(event.elapsedMs)}`;
     case "check": return event.passed ? event.reason || null : `Check failed: ${event.reason ?? "the app did not pass"}`;
     case "recovery": return recoveryWords[event.method];
+    case "core-recovery":
+      switch (event.event.type) {
+        case "receipt-replay": return "Reused a completed tool result";
+        case "receipt-reconcile": return "Skipped a tool whose earlier outcome is unknown";
+        case "repair": return "Repairing the rejected edit before rewriting the app";
+        case "resume": return "Resumed saved work";
+        case "stall": return event.event.reason === "total-timeout" && event.event.attempt === undefined
+          ? "The revision reached its time limit" : null;
+        default: return null; // The existing attempt and checkpoint lines already explain these.
+      }
     case "gate": return gateLine(event);
     case "detail": return null;
     case "reply": return event.status === "done" ? `Finished in ${seconds(event.ms)}`

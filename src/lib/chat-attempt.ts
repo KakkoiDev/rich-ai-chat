@@ -1,4 +1,5 @@
 import type { UIMessageChunk } from "ai";
+import { createProgressWatch } from "@kakkoidev/ai-core";
 
 const deadlines = { opening: 40000, answer: 22000, tool: 40000 };
 const maxAnswerLength = 68000;
@@ -18,17 +19,19 @@ export async function readChatAttempt(
   let timer: ReturnType<typeof setTimeout> | undefined;
   let answer = "";
   let toolSeen = false;
-  let meaningful = 0;
+  const progress = createProgressWatch({ openingMs: timeouts.opening, answerMs: timeouts.answer, toolMs: timeouts.tool });
   let reason = "incomplete-stream";
   let reader: ReadableStreamDefaultReader<UIMessageChunk> | undefined;
-  const arm = (phase: keyof typeof deadlines) => {
+  const arm = () => {
     clearTimeout(timer);
-    timer = setTimeout(() => guard.abort(`stale-${phase}`), timeouts[phase]);
+    const expired = progress.reason();
+    if (expired) guard.abort(expired);
+    else timer = setTimeout(arm, Math.ceil(progress.remainingMs()));
   };
   const cancel = () => { void reader?.cancel().catch(() => {}); };
   try {
     if (signal.aborted) return { toolSeen, reason: "cancelled" } as const;
-    arm("opening");
+    arm();
     reader = open(guard).getReader();
     if (signal.aborted) cancel();
     signal.addEventListener("abort", cancel, { once: true });
@@ -37,11 +40,8 @@ export async function readChatAttempt(
       if (done || signal.aborted) break;
       switch (value.type) {
         case "text-delta": {
-          const added = value.delta.replace(/\s/g, "").length;
-          if (added && (!answer.trim() || meaningful + added >= 12)) {
-            meaningful = 0;
-            arm("answer");
-          } else meaningful += added;
+          progress.observe("answer", value.delta);
+          arm();
           answer += value.delta;
           if (answer.length > maxAnswerLength) guard.abort("answer-too-large");
           break;
@@ -50,16 +50,16 @@ export async function readChatAttempt(
           toolSeen = true;
           // The completed answer belongs to the synthesis step, not its preamble.
           answer = "";
-          meaningful = 0;
-          arm("tool");
+          progress.observe("tool-start");
+          arm();
           reportTool(value);
           break;
         case "tool-output-available":
         case "tool-output-error":
         case "tool-output-denied":
           toolSeen = true;
-          meaningful = 0;
-          arm("opening");
+          progress.observe("tool-end");
+          arm();
           reportTool(value);
           break;
         case "finish":

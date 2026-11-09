@@ -22,6 +22,25 @@ export function artifactRevision(message: string) {
   }
 }
 
+/** A bare retry only refers to the immediately preceding failed revision. */
+export function revisionForTurn(messages: readonly { role: string; content: string }[]) {
+  const latest = messages.at(-1)?.content ?? "";
+  const current = artifactRevision(latest);
+  if (current || !/^(?:again|retry|try again|please try again)[.!?]*$/i.test(latest.trim())) return current;
+  const failure = messages.at(-2);
+  const previous = messages.at(-3);
+  if (failure?.role !== "assistant" || previous?.role !== "user"
+    || !failure.content.includes("The model could not finish a usable revision after two attempts.")) return undefined;
+  return artifactRevision(previous.content);
+}
+
+/** Omit styling from exact script edits; the patch still applies to the original document. */
+export function scriptEditContext(source: string) {
+  const scripts = [...source.matchAll(/<script\b([^>]*)>[\s\S]*?<\/script\s*>/gi)];
+  if (scripts.length !== 1 || scripts[0][1].trim()) return undefined;
+  return scripts[0][0];
+}
+
 type Replacement = { find: string; replace: string };
 
 /** Apply model edits atomically against the original, without fuzzy matches. */

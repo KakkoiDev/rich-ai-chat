@@ -1,3 +1,4 @@
+import { createCheckpoint, resumeCheckpoint, type TaskStatus } from "@kakkoidev/ai-core";
 import { tool } from "ai";
 import { z } from "zod";
 import type { ActivityTool } from "@/lib/activity";
@@ -11,7 +12,7 @@ import type { Plan } from "@/lib/tasks/store";
  * come back as `{ error }` for the model to read. Only a short summary of the plan goes into the model's context.
  */
 
-type Executed = <T>(tool: ActivityTool, toolCallId: string, run: () => Promise<T>) => Promise<T>;
+type Executed = <T>(tool: ActivityTool, toolCallId: string, run: () => Promise<T>, input?: unknown) => Promise<T>;
 
 /** Words that make plan tools worth offering when the chat has no plan yet (they are always offered once it has one). */
 const planIntent = /\b(?:plans?|todos?|to-dos?|to do list|checklists?|task list|next steps?|checkpoints?|verif(?:y|ied|ication)|background jobs?|resume)\b/i;
@@ -24,11 +25,22 @@ const outcome = async <T>(run: () => T | Promise<T>) => {
 
 /** What the model needs to continue: the objective, the next actionable items and the latest checkpoint. */
 export function planSummary(plan: Plan) {
-  const open = plan.items.filter(item => item.status !== "done" && item.status !== "cancelled");
+  const status: Record<Plan["items"][number]["status"], TaskStatus> = {
+    pending: "todo", in_progress: "in-progress", done: "done", blocked: "blocked", cancelled: "declined",
+  };
+  const checkpoint = createCheckpoint({ objective: plan.task.objective, items: plan.items.map(item => ({
+    id: item.id, title: item.title, status: status[item.status], dependsOn: item.dependsOn ? [item.dependsOn] : [],
+  })) });
+  const { ready, reconcile } = resumeCheckpoint(checkpoint);
+  const readyIds = new Set(ready.map(item => item.id));
+  const interruptedIds = new Set(reconcile.map(item => item.id));
+  const priority = (id: string) => interruptedIds.has(id) ? 0 : readyIds.has(id) ? 1 : 2;
+  const open = plan.items.filter(item => item.status !== "done" && item.status !== "cancelled")
+    .sort((left, right) => priority(left.id) - priority(right.id));
   return {
     objective: plan.task.objective,
     next: open.slice(0, 6).map(({ id, title, status, version, allowed, blockedReason }) => ({
-      id, title, status, version, allowed, ...(blockedReason ? { blockedReason } : {}),
+      id, title, status, version, allowed, resume: interruptedIds.has(id) ? "check current progress before continuing" : readyIds.has(id) ? "ready" : "waiting", ...(blockedReason ? { blockedReason } : {}),
     })),
     done: plan.items.filter(item => item.status === "done").map(item => item.title).slice(-6),
     latestCheckpoint: plan.checkpoints[0]?.note,
@@ -60,7 +72,7 @@ export function taskTools({ req, chatId, model, latest, executed }: {
         if (!plan) return { plan: null, summary: "No plan yet" };
         const summary = planSummary(plan);
         return { ...summary, summary: `${summary.next.length} open, ${summary.done.length} done` };
-      })),
+      }), _input),
     }),
     propose_items: tool({
       description: "Add todos to this chat's plan, creating the plan with its objective if there is none. Keep todos short and concrete. Set sequential when each todo needs the one before it.",
@@ -74,7 +86,7 @@ export function taskTools({ req, chatId, model, latest, executed }: {
         const { plan, replayed } = store.addItems(profileId, chatId,
           { objective: objective ?? (current ? undefined : items[0]), titles: items, dependsOnPrevious: sequential, key }, "agent");
         return { ...planSummary(plan), summary: replayed ? "Already in the plan" : `Added ${items.length} todo${items.length === 1 ? "" : "s"}` };
-      })),
+      }), { objective, items, sequential }),
     }),
     record_checkpoint: tool({
       description: "Record a short checkpoint on this chat's plan: what was done or decided, so the work can resume later. Optionally name the todo it is about.",
@@ -85,7 +97,7 @@ export function taskTools({ req, chatId, model, latest, executed }: {
         const key = store.operationKey("checkpoint", profileId, chatId, itemId ?? null, note);
         const { replayed } = store.recordCheckpoint(profileId, plan.task.id, { itemId, note, key }, "agent");
         return { summary: replayed ? "Checkpoint already recorded" : "Checkpoint recorded" };
-      })),
+      }), { note, itemId }),
     }),
     record_verification: tool({
       description: "Mark a todo done with evidence: a test that passed, an artifact that was produced, or a receipt id. Without evidence the host refuses. Pass the version you read to avoid overwriting a newer edit.",
@@ -97,7 +109,7 @@ export function taskTools({ req, chatId, model, latest, executed }: {
       execute: ({ itemId, version, evidence }, { toolCallId }) => executed("record_verification", toolCallId, () => outcome(() => {
         const item = store.recordVerification(profileId, itemId, evidence, version, "agent");
         return { id: item.id, status: item.status, version: item.version, summary: `Verified “${item.title.slice(0, 60)}”` };
-      })),
+      }), { itemId, version, evidence }),
     }),
     queue_job: tool({
       description: "Queue a background job for this chat's plan: up to 8 generation steps that run in order on the worker, even after the tab closes, and resume from their last checkpoint. Optionally attach it to a todo or make it wait for another job.",
@@ -111,7 +123,7 @@ export function taskTools({ req, chatId, model, latest, executed }: {
         const key = store.operationKey("queue-job", profileId, chatId, title, steps);
         const { job, replayed } = jobs.enqueue(profileId, chatId, { title, steps, model, itemId, dependsOn: dependsOnJobId, key }, "agent");
         return { jobId: job.id, status: job.status, summary: replayed ? "Job already queued" : `Queued a ${steps.length}-step job` };
-      })),
+      }), { title, steps, itemId, dependsOnJobId }),
     }),
   };
   return { tools, context };

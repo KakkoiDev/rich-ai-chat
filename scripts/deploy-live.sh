@@ -34,7 +34,12 @@ else
   sha=$(git -C "$repo" rev-parse --verify "$revision^{commit}")
   echo "== Build ${sha:0:7} in $stage"
   git -C "$repo" archive "$sha" | tar -x -C "$stage"
-  cp -cR "$repo/node_modules" "$stage/node_modules"
+  if [[ -d "$repo/node_modules" ]] && cmp -s "$repo/package-lock.json" "$stage/package-lock.json" \
+    && (cd "$repo" && npm ls --depth=0 >/dev/null 2>&1); then
+    cp -cR "$repo/node_modules" "$stage/node_modules"
+  else
+    (cd "$stage" && npm ci --no-audit --no-fund)
+  fi
   (cd "$stage" && RICH_CHAT_BUILD_DIR=$build NEXT_TELEMETRY_DISABLED=1 npm run build >"$stage/build.log" 2>&1) \
     || { tail -30 "$stage/build.log"; exit 1; }
   if [[ "$mode" == --prepare ]]; then

@@ -69,5 +69,10 @@
       "kit/laya-lock.json": "9d855bb8e5dc1f5c3d42c4043f1fccfd558df2b0cae2bbaa6ccf965f590ed608"
     },
     "laya": "laya-mlx 0.4.0, model aac6fef/laya-multilingual-mlx at f2b4faf51023039425946074e2cf1361d2db11d5, installed by `plh setup laya`; scripts/laya-sidecar.py refuses a harness/laya.py with another SHA-256"
+  },
+  "ai-core": {
+    "repository": "https://github.com/KakkoiDev/ai-core",
+    "commit": "f51333517e5edccd7e2a20576381a35edc3c8e44",
+    "manifest": "package-lock.json"
   }
 }

@@ -1,3 +1,4 @@
+import { recoveryEvent, type RecoveryEvent } from "@kakkoidev/ai-core";
 import type { UIMessageStreamWriter } from "ai";
 import type { GateDecision, GatePrompt, PromptSlice } from "@/lib/prompt-slices";
 
@@ -21,6 +22,7 @@ export type ActivityEvent = { requestId: string; seq: number; ms: number } & (
   | { type: "tool-end"; toolCallId: string; tool: ActivityTool; elapsedMs: number; status: "ok" | "error"; summary: string }
   | { type: "check"; attempt: number; passed: boolean; reason?: string }
   | { type: "recovery"; method: "sources-synthesis" | "sources-only" | "clock" | "media" | "requested-search" }
+  | { type: "core-recovery"; event: ReturnType<typeof recoveryEvent> }
   /** The Laya component gate (M3): which slices it chose, how sure it was, and which prompt the reply used. */
   | { type: "gate"; outcome: GateDecision["outcome"]; slices: PromptSlice[]; confidence?: number; elapsedMs: number; prompt: GatePrompt;
       reason?: string }
@@ -61,6 +63,9 @@ export function createActivity(log: (event: ActivityEvent) => void = () => {},
       const logged = event.type === "check" ? { ...event, reason: undefined } : event;
       try { (event.type === "detail" ? logDetail : log)(logged); } catch { /* logging never breaks a reply */ }
       if (writer) send(event); else pending.push(event);
+    },
+    core(input: Omit<RecoveryEvent, "requestId">) {
+      this.record({ type: "core-recovery", event: recoveryEvent({ ...input, requestId }) });
     },
     debug,
     /** Full text for debugging; does nothing unless this request is in debug mode. */

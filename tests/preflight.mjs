@@ -7,7 +7,7 @@ import { cloudInstructions } from "../src/lib/cloud-prompt.ts";
 import { buildMessage } from "@openuidev/lang-core";
 import { Temporal } from "@js-temporal/polyfill";
 import { braveSearch, currentDateTime, safeSearchQuery } from "../src/lib/local-tools.ts";
-import { applyArtifactEdits, artifactRevision, replaceArtifactScript } from "../src/lib/artifact-edits.ts";
+import { applyArtifactEdits, artifactRevision, replaceArtifactScript, revisionForTurn, scriptEditContext } from "../src/lib/artifact-edits.ts";
 import { artifactBuildGuide } from "../src/lib/artifact-build.ts";
 import { inlineSumTable } from "../src/lib/inline-table.ts";
 import { addCalculatorAction } from "../src/lib/calculator-action.ts";
@@ -212,6 +212,21 @@ const revisionContext = "Revise this mini-app and return a complete new HtmlArti
 assert.deepEqual(artifactRevision(buildMessage({ content: "Revision: Add one.", context: ["User clicked", {}, revisionContext] })), {
   request: "Requested change or observed behavior: Add one.", source: html,
 });
+const failedRevision = [
+  { role: "user", content: revisionContext },
+  { role: "assistant", content: "The model could not finish a usable revision after two attempts." },
+  { role: "user", content: "again" },
+];
+assert.deepEqual(revisionForTurn(failedRevision), artifactRevision(revisionContext));
+assert.equal(revisionForTurn([failedRevision[0], { role: "assistant", content: "Done." }, failedRevision[2]]), undefined);
+assert.equal(scriptEditContext("<style>canvas{border:0}</style><script>draw()</script>"), "<script>draw()</script>");
+assert.equal(scriptEditContext('<script src="external.js"></script>'), undefined);
+const slingshotSource = readFileSync(new URL("../src/starters/slingshot.html", import.meta.url), "utf8");
+const slingshotEdit = applyArtifactEdits(slingshotSource, [{ find: "score+=100", replace: "score+=150" }]);
+assert.ok(slingshotEdit);
+assert.ok(readArtifact(slingshotEdit).error);
+assert.equal(readArtifact(slingshotEdit, false, true).document, slingshotEdit);
+assert.match(readArtifact(slingshotEdit.replace("score+=150", "score+=)"), false, true).error, /SyntaxError|Unexpected/);
 assert.match(checkArtifact("<style>button {color:red}<body><button>Try</button>"), /close every style tag/);
 const edited = applyArtifactEdits(html, [{ find: "<button>0</button>", replace: "<button>1</button>" }]);
 assert.equal(edited, html.replace("<button>0</button>", "<button>1</button>"));

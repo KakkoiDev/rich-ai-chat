@@ -5,6 +5,22 @@ import { streamText } from "ai";
 import { chatModelIds } from "../src/lib/chat-models.ts";
 import { readChatAttempt } from "../src/lib/chat-attempt.ts";
 
+import { createTurnReceipts } from "../src/lib/turn-receipts.ts";
+
+test("a duplicate delivery reuses the tool result and a conflicting call cannot execute", async () => {
+  const receipt = createTurnReceipts();
+  let complete;
+  const pending = new Promise(resolve => { complete = resolve; });
+  const first = receipt("call", "web_search", { query: "weather", count: 2 }, () => pending);
+  const unexpected = () => assert.fail("Duplicate tool execution");
+  assert.deepEqual(await receipt("call", "web_search", { count: 2, query: "weather" }, unexpected), { status: "reconcile" });
+  complete({ hits: 2 });
+  assert.equal((await first).status, "executed");
+  assert.deepEqual(await receipt("call", "web_search", { count: 2, query: "weather" }, unexpected),
+    { status: "replayed", result: { hits: 2 } });
+  await assert.rejects(receipt("call", "web_search", { count: 3, query: "weather" }, unexpected), /conflict/);
+});
+
 const timeouts = { opening: 30, answer: 20, tool: 30 };
 const delta = (delta) => ({ type: "text-delta", id: "answer", delta });
 const finish = (finishReason) => ({ type: "finish", finishReason });

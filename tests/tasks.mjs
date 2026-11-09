@@ -212,10 +212,12 @@ test("a reclaimed lease resumes from the last committed step", async () => {
   const finished = jobs.get(alice, job.id);
   assert.equal(finished.status, "succeeded");
   assert.equal(finished.nextStep, 3);
-  const view = jobs.forTask(alice, finished.taskId)[0];
+  const view = jobs.forTask(alice, finished.taskId, 30)[0];
   assert.equal(view.runs, 2);
   assert.ok(view.events.some(event => event.type === "job" && event.status === "requeued" && /resuming from step 2/.test(event.reason)));
   assert.ok(view.events.some(event => event.type === "job" && event.status === "running" && /Resumed from the checkpoint after step 1/.test(event.reason)));
+  assert.ok(view.events.some(event => event.type === "core-recovery" && event.event.type === "resume"));
+  assert.ok(view.events.some(event => event.type === "core-recovery" && event.event.type === "checkpoint"));
   // The hung worker wakes up: its late step-2 result is a duplicate delivery and is not committed again.
   gate.resolve();
   await first.idle();
@@ -331,6 +333,6 @@ test("waiting reasons are visible: one generation at a time on a local model, ho
   assert.equal(jobs.get(alice, two.id).status, "succeeded");
   assert.equal(jobs.get(alice, two.id).waitingReason, null);
   const events = jobs.forTask(alice, one.taskId).find(view => view.id === one.id).events;
-  assert.deepEqual(events.map(event => event.type), ["job", "request", "job", "attempt-start", "attempt-end", "job", "job", "reply"],
+  assert.deepEqual(events.map(event => event.type), ["job", "request", "job", "attempt-start", "attempt-end", "core-recovery", "job", "job", "reply"],
     "Job progress uses the Activity event model");
 });
