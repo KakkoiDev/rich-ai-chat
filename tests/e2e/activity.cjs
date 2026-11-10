@@ -39,6 +39,14 @@ function stubModel(req, res) {
       res.write(chunk({}, 'stop'));
       res.end('data: [DONE]\n\n');
     };
+    const plain = text => {
+      if (text) res.write(chunk({ role: 'assistant', content: text }));
+      res.write(chunk({}, 'stop'));
+      res.end('data: [DONE]\n\n');
+    };
+    if (scenario === 'visible-markdown') return plain('**The actual answer:** 東京');
+    if (scenario === 'visible-retry') return n === 1 ? plain('root = Card([])') : plain('Recovered answer after empty markup.');
+    if (scenario === 'visible-empty') return plain('');
     const callClock = () => {
       res.write(chunk({ role: 'assistant', tool_calls: [{ index: 0, id: `call_${scenario}_${n}`, type: 'function',
         function: { name: 'current_datetime', arguments: '{}' } }] }));
@@ -246,6 +254,42 @@ async function check(name, body) {
         };
       }));
       assert.equal(await count(), 0);
+    });
+    const sendVisible = async (scenario, expected) => {
+      const box = page.getByRole('textbox').first();
+      await box.fill(`Explain the example for scenario ${scenario}.`);
+      await box.press('Enter');
+      await page.getByText(expected).last().waitFor();
+    };
+    await check('new and previously saved Markdown replies are visible', async () => {
+      await sendVisible('visible-markdown', /The actual answer:/);
+      await page.getByText('東京', { exact: false }).last().waitFor();
+      await page.waitForFunction(() => Object.keys(localStorage).some(key =>
+        key.startsWith('rich-ai-chat:messages:') && localStorage.getItem(key)?.includes('The actual answer:')));
+      await page.evaluate(() => {
+        for (const key of Object.keys(localStorage).filter(key => key.startsWith('rich-ai-chat:messages:'))) {
+          const messages = JSON.parse(localStorage.getItem(key));
+          const reply = messages.find(message => message.role === 'assistant' && message.content?.includes('The actual answer:'));
+          if (!reply) continue;
+          reply.content = '**The actual answer:** 東京';
+          localStorage.setItem(key, JSON.stringify(messages));
+          return;
+        }
+        throw Error('No saved reply to convert to the legacy format');
+      });
+      await page.reload();
+      const expand = page.getByRole('button', { name: 'Expand sidebar' });
+      if (await expand.isVisible()) await expand.click();
+      await page.getByRole('button', { name: /^Explain the example for scenario visible-markdown/ }).click();
+      await page.getByText(/The actual answer:/).last().waitFor();
+    });
+    await check('invisible markup is retried and shows the recovered answer', async () => {
+      await sendVisible('visible-retry', 'Recovered answer after empty markup.');
+      assert.equal(calls.get('visible-retry'), 2);
+    });
+    await check('two empty completions show a clear message', async () => {
+      await sendVisible('visible-empty', /finished without writing an answer/);
+      assert.equal(calls.get('visible-empty'), 2);
     });
   } finally {
     await browser.close();

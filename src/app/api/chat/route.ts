@@ -1,3 +1,4 @@
+import { visibleModelReply } from "@/lib/visible-reply";
 import { browserPlan, checkRevisionInBrowser, usableChecks } from "@/lib/artifact-browser";
 import { pageSummaryUrl, readPublicPage } from "@/lib/read-page";
 import { createTurnReceipts } from "@/lib/turn-receipts";
@@ -123,14 +124,25 @@ export async function POST(req: Request) {
           activity.detail("user message", latest.content + (fileContext ? "\n\n[with attached files]" + fileContext : ""));
           // In debug mode, keep the reply text as it was sent, to record it beside the prompts and drafts.
           let replyText = "";
-          const writer: typeof stream = !activity.debug ? stream : { ...stream, write(part) {
-            if (part.type === "text-delta") replyText += part.delta;
+          let hasVisibleOutput = false;
+          const writer: typeof stream = { ...stream, write(part) {
+            if (part.type === "text-delta") {
+              hasVisibleOutput ||= Boolean(part.delta.trim());
+              if (activity.debug) replyText += part.delta;
+            }
             stream.write(part);
           } };
           let status: "done" | "failed" = "failed";
           try {
             status = (await run(writer)) || "done";
+          } catch {
+            // Keep any result already sent, but never leave an otherwise empty completed turn.
+            status = "failed";
           } finally {
+            if (!req.signal.aborted && !hasVisibleOutput) {
+              status = "failed";
+              writeReply(writer, textCard("The chat couldn’t display a reply. Please try again."));
+            }
             if (replyText) activity.detail("reply as sent", replyText);
             activity.record({ type: "reply", status: req.signal.aborted ? "cancelled" : status });
           }
@@ -892,7 +904,7 @@ export async function POST(req: Request) {
       : cloudInstructions(classroomRules +
       (bundledImage ? ' The requested asset already exists locally. Show it as root = Card([ImageBlock("/water-cycle.svg", "Water cycle illustration")]). Keep the local path exactly as shown.' : "") +
       (nativeTable ? ' Use the native Table component. Aggregate any duplicate groups before rendering. Use one Col per header and put literal arrays of equal length in each Col. Example syntax: root = Card([Table([Col("Group", ["A", "B"]), Col("Count", ["2", "3"])])]). Use the actual requested data and headers.' : ""))) +
-      (recovery ? "\nThe previous attempt was interrupted. Answer the original request directly and finish the complete response." : "") + tasks.context;
+      (recovery ? "\nThe previous attempt did not produce a visible answer. Answer the original request directly and complete the response. Use plain Markdown if you cannot produce a valid UI." : "") + tasks.context;
     activity.detail(`system prompt${recovery ? ", recovery attempt" : ""}`, system);
     return streamText({
     temperature: 0.15,
@@ -993,7 +1005,8 @@ export async function POST(req: Request) {
             chunk => writer.write(chunk),
           );
           if (req.signal.aborted) return;
-          if ("answer" in result && result.answer !== undefined) {
+          const display = "answer" in result && result.answer !== undefined ? visibleModelReply(result.answer) : undefined;
+          if (display?.valid && "answer" in result && result.answer !== undefined) {
             activity.record({ type: "attempt-end", attempt: attempt + 1, outcome: "answer" });
             // The person asked for a web search; some local models answer from memory instead (and may still cite a
             // link). Then the app runs the search itself and answers only from what it returned.
@@ -1007,7 +1020,7 @@ export async function POST(req: Request) {
                 return answerFromSources(writer);
               }
             }
-            writeTextStep(writer, "chat-answer", result.answer);
+            writeTextStep(writer, "chat-answer", display.markup);
             // Whatever the model wrote, say plainly that its answer was not checked against sources.
             if (searchFailed && !searchSources.length) writeTextStep(writer, "search-notice", searchNotice);
             if (mediaReply) writeTextStep(writer, "media-results", mediaReply);
@@ -1015,18 +1028,18 @@ export async function POST(req: Request) {
             writer.write({ type: "finish", finishReason: "stop" });
             return;
           }
-          console.warn("[chat] incomplete model reply", { attempt: attempt + 1, reason: result.reason, toolSeen: result.toolSeen });
+          const reason = result.reason ?? "undisplayable-answer";
+          console.warn("[chat] incomplete model reply", { attempt: attempt + 1, reason, toolSeen: result.toolSeen });
           const retrying = recoveryAction({
             cancelled: req.signal.aborted,
             attempt: attempt + 1,
             toolMayHaveRun: result.toolSeen || searched,
             hasRetainedResult: Boolean(mediaReply || searchSources.length || clockResult),
           }) === "retry";
-          const reason = result.reason;
           if (reason === "repeated-reasoning") activity.core({ type: "loop", attempt: attempt + 1, reason });
           if (reason === "stale-opening" || reason === "stale-answer" || reason === "stale-tool" || reason === "total-timeout")
             activity.core({ type: "stall", attempt: attempt + 1, reason });
-          activity.record({ type: "attempt-end", attempt: attempt + 1, outcome: retrying ? "retry" : "gave-up", reason: result.reason });
+          activity.record({ type: "attempt-end", attempt: attempt + 1, outcome: retrying ? "retry" : "gave-up", reason });
           if (mediaReply) {
             activity.record({ type: "recovery", method: "media" });
             writeReply(writer, mediaReply);
@@ -1042,7 +1055,9 @@ export async function POST(req: Request) {
           }
           activity.core({ type: retrying ? "retry" : "stop", attempt: attempt + 1 });
           if (!retrying) {
-            writeReply(writer, 'root = Card([TextContent("The model stopped before finishing this reply. Please try again.")])');
+            writeReply(writer, display?.markup ?? textCard(reason === "empty-answer"
+              ? "The model finished without writing an answer. Please try again."
+              : "The model stopped before finishing this reply. Please try again."));
             return "failed";
           }
         }

@@ -1,3 +1,4 @@
+import { restoreVisibleReply } from "@/lib/visible-reply";
 import {
   processStreamedMessage,
   type ChatLLM,
@@ -76,7 +77,9 @@ export function localStorageChat(
           return thread;
         },
         async getMessages(threadId: string) {
-          return read<Message[]>(messagesKey(threadId), []);
+          return read<Message[]>(messagesKey(threadId), []).map(message =>
+            message.role === "assistant" && message.content?.trim()
+              ? { ...message, content: restoreVisibleReply(message.content) } : message);
         },
         async updateThread(thread: Thread) {
           write(

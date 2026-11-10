@@ -23,6 +23,7 @@ const toolWords: Record<ActivityTool, [string, string]> = {
   queue_job: ["Queueing a background job", "Queued a background job"],
 };
 const reasonWords: Record<string, string> = {
+  "empty-answer": "the model finished without writing an answer", "undisplayable-answer": "the response had nothing the chat could display",
   "stale-opening": "no reply started in time", "stale-answer": "the answer stalled", "stale-tool": "the step after the tool stalled",
   "provider-interrupted": "the model's connection ended", "repeated-reasoning": "the model kept repeating itself",
   "check-failed": "the app failed a check", "syntax-error": "the app's script had a syntax error",

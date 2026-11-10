@@ -65,7 +65,7 @@ export async function readChatAttempt(
         case "finish":
           if (value.finishReason === "stop" && answer.trim())
             return { toolSeen, answer } as const;
-          return { toolSeen, reason: value.finishReason ?? "missing-finish-reason" } as const;
+          return { toolSeen, reason: value.finishReason === "stop" ? "empty-answer" : value.finishReason ?? "missing-finish-reason" } as const;
         case "error":
         case "abort":
           return { toolSeen, reason: "provider-interrupted" } as const;
