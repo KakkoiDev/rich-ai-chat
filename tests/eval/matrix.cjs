@@ -23,23 +23,27 @@ const suites = [
   ['basic', path.join(__dirname, 'run.cjs'), 17],
   ['breadth', path.join(__dirname, 'breadth/run-breadth.cjs'), 13],
   ['features', path.join(__dirname, 'features/run-features.cjs'), 4],
+  ['conversations', path.join(__dirname, 'conversation-smoke.mjs'), 5],
 ];
-// A case added to the features suite must also raise its expected count here, or the run refuses to start.
-const listed = require('node:child_process').execFileSync(process.execPath, [suites[2][1], '--list'], { encoding: 'utf8' }).trim().split('\n');
-assert.equal(listed.length, suites[2][2], `features lists ${listed.length} cases; update its expected count`);
+// Listable suites must match their frozen case counts, or the run refuses to start.
+for (const [name, script, expected] of suites.slice(2)) {
+  const listed = require('node:child_process').execFileSync(process.execPath, [script, '--list'], { encoding: 'utf8' }).trim().split('\n');
+  assert.equal(listed.length, expected, `${name} lists ${listed.length} cases; update its expected count`);
+}
 const root = path.resolve(__dirname, '../..');
 const frozen = ['tests/eval/matrix.cjs', 'tests/eval/run.cjs', 'tests/eval/breadth/run-breadth.cjs',
   'tests/eval/features/run-features.cjs', 'tests/eval/features/prompts.cjs',
+  'tests/eval/conversation-smoke.mjs', 'tests/eval/conversation-provider.mjs',
   ...fs.readdirSync(path.join(root, 'tests/e2e')).map(name => 'tests/e2e/' + name),
-  'test-core/bench/bench.mjs', 'test-core/bench/response-proxy.mjs', 'tests/eval/paid-proxy.mjs', 'tests/eval/map-fixture.mjs',
+  'test-core/bench/bench.mjs', 'test-core/bench/conversation.mjs', 'test-core/bench/response-proxy.mjs', 'tests/eval/paid-proxy.mjs', 'tests/eval/map-fixture.mjs',
   'package-lock.json', path.join(RICH_CHAT_BUILD_DIR, 'BUILD_ID')];
 
-async function evaluate(model, round, taskDir, signal, proxy, mapFixture) {
+async function evaluate(model, round, taskDir, signal, provider, mapFixture) {
   const hosted = model === 'deepseek-flash';
   const env = {
     ...process.env, NEXT_TELEMETRY_DISABLED: '1', MODEL_ID: model, EVAL_MODEL: model, CHAT_URL: chatUrl,
-    MODEL_BASE_URL: hosted ? proxy.origin : 'http://127.0.0.1:11434/v1',
-    MODEL_API_KEY: 'local', RICH_CHAT_PAID_PROXY: proxy.origin,
+    MODEL_BASE_URL: hosted ? provider.origin : 'http://127.0.0.1:11434/v1',
+    MODEL_API_KEY: 'local', RICH_CHAT_PAID_PROXY: provider.origin,
     RICH_CHAT_EVAL_CLOCK: evalClock, RICH_CHAT_GEOCODER_URL: mapFixture.url, RICH_CHAT_FORECAST_URL: mapFixture.forecastUrl,
     BRAVE_SEARCH_API_KEY: 'fixture', DEEPSEEK_API_KEY: 'fixture',
     EVAL_BRAVE_SEARCH_API_KEY: '', EVAL_DEEPSEEK_API_KEY: '',
@@ -57,7 +61,9 @@ async function evaluate(model, round, taskDir, signal, proxy, mapFixture) {
       await delay(200);
     }
     for (const [suite, script, expected] of suites) {
-      const file = path.join(taskDir, suite + '.json');
+      let file = path.join(taskDir, suite + '.json');
+      // An interrupted task may already have a partial suite report. Preserve it on resume.
+      for (let retry = 1; fs.existsSync(file); retry++) file = path.join(taskDir, suite + '.retry-' + retry + '.json');
       const runner = spawn(process.execPath, [script], { env: { ...env, EVAL_ROUND: String(round), EVAL_REPORT: file }, stdio: 'inherit', signal });
       runner.on('error', () => {});
       const [code] = await once(runner, 'exit');
@@ -94,9 +100,10 @@ async function evaluate(model, round, taskDir, signal, proxy, mapFixture) {
     assert.ok(!resume && required === 1 && regression === 0, 'Use EVAL_REQUIRED=1 EVAL_REGRESSION=0 for a separate recording run');
   const { paidProxy } = await import('./paid-proxy.mjs');
   const proxy = await paidProxy(process.env);
-  let mapFixture;
+  let mapFixture, provider;
   try {
     mapFixture = await (await import('./map-fixture.mjs')).startMapFixture();
+    provider = await (await import('./conversation-provider.mjs')).startConversationProvider(proxy.origin);
     const { state, exitCode, summary } = await runBench({
       dir: directory, revision: EVAL_REVISION, tasks, resume,
       gate: streakGate({ required, regression }),
@@ -107,12 +114,12 @@ async function evaluate(model, round, taskDir, signal, proxy, mapFixture) {
       onEvent: event => { if (event.type === 'task-start') console.log(`=== ${event.id} ===`); },
       async run(task, { signal, taskDir }) {
         const before = { ...proxy.stats };
-        const results = await evaluate(task.model, task.round, taskDir, signal, proxy, mapFixture);
+        const results = await evaluate(task.model, task.round, taskDir, signal, provider, mapFixture);
         const paid = Object.fromEntries(Object.entries(proxy.stats).map(([key, count]) => [key, count - before[key]]));
         const passed = results.reduce((sum, suite) => sum + suite.passed, 0);
         const expected = suites.reduce((sum, [, , count]) => sum + count, 0);
         // `cases` lets test-core's report show each model's cases, timings and failures.
-        return { ok: !paid.misses && !paid.failures && results.length === suites.length && results.every(suite => suite.perfect),
+        return { ok: !paid.misses && !paid.failures && (proxy.mode !== 'replay' || paid.outbound === 0) && results.length === suites.length && results.every(suite => suite.perfect),
           paid, checks: { passed, expected },
           suites: results.map(s => ({ suite: s.suite, passed: s.passed, expected: s.expected, perfect: s.perfect, report: s.report })),
           cases: results.flatMap(suite => suite.cases) };
@@ -123,7 +130,7 @@ async function evaluate(model, round, taskDir, signal, proxy, mapFixture) {
       regressionRounds: regression, state, summary, paid: { mode: proxy.mode, digest: proxy.digest, ...proxy.stats } }, null, 2) + '\n');
     console.log(`${state}: ${summary.checks?.passed ?? 0}/${summary.checks?.expected ?? 0} checks`);
     process.exitCode = exitCode;
-  } finally { await Promise.all([proxy.close(), mapFixture?.close()]); }
+  } finally { await Promise.all([proxy.close(), mapFixture?.close(), provider?.close()]); }
 })().catch(error => {
   console.error(error.message);
   process.exitCode = 2;

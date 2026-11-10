@@ -1,15 +1,17 @@
 {
   "test-core": "https://github.com/KakkoiDev/test-core",
-  "commit": "2700755132cf3dec77c9b5c998e332065bb85e5c",
+  "commit": "4eb65fd129948e7d322e9bdcdc4748661b3ae1e6",
   "files": {
     "adopt.py": "13b5f23b9342d83a7ead8e33c6721f0687d0632ea51e76ab795e5257c8ed3785",
-    "bench/README.md": "465b80b76cb7338bde222705d555e470abcef3584c422db6557e0a608aa16af3",
-    "bench/SCENARIOS.md": "ad97bffb9958395ce2516ceb1a86d4fdf3e5c1a15690a0265e64231d42303b97",
-    "bench/bench.mjs": "3fa7723507a21bfe2b7f31d2dfb51a234667d5a821f7432dbf3c5188e7d09001",
-    "bench/cli.mjs": "627ba200a04b0c2aa8c5d3738edcdcb30fb25d82d0988a0261ba60b414d68bc8",
+    "bench/README.md": "624dd00b5bf23fc183411a86e48539c2a6661b22bf4d436f69f6d66da9a41e3a",
+    "bench/SCENARIOS.md": "595df54dbc4a397df3705d674797f55d0f50b41e808b025d679b435fbb7ce200",
+    "bench/bench.mjs": "8c83e7b28b5c421cf9cc35b2e546ab7cf4cf3addcff2e95e002488f4b9d04a65",
+    "bench/cli.mjs": "f7fa420170d9bb4ab3f53e1b7c317135e2116a6f8e717c71c4e366a4d8c86119",
+    "bench/conversation.md": "65e6bf10d6bf57eef37e23962a4abbe8bdde0b72b4c2e281a2c8d72adaec61fd",
+    "bench/conversation.mjs": "eb50bb8209ef9677384a329e4fa895d79f5d450ceec5507f17e8bc152efea577",
     "bench/freeze.mjs": "199ed99bd9732b05a2beaba46f7cd953cbf4afb83bb9c31540a924c3bcfd7c72",
-    "bench/launch.mjs": "3e778aed15d8c2fd0fa1df09f1a2f1763a49a23ef2596925544c558cff0b986f",
-    "bench/report.mjs": "46acd9ad08c1cb8fe213007f0ca753ba56514fc6307f8b3ca4af073a5b5735b5",
+    "bench/launch.mjs": "8bc719b9debfda43166c16daf8bdb2dd120519d2ce1aaf3abdfc90f7c462dc9b",
+    "bench/report.mjs": "38262af2ced71258b214df0974dd1922215f05b4674eabbf58dc13be7153be00",
     "bench/response-proxy.md": "87db0da5380ffcb8347392b5259a7640795deb445987d27aa91b5437e6f1dc6a",
     "bench/response-proxy.mjs": "1d1271b813238bb361df9d5e1eeb9083cc98a2432e62836a14c79953e2a544fc",
     "bench/seeded.mjs": "80c261910695b99a21ea0190a00d11d9560766dc82da6f1bb677281585b48751",
@@ -60,12 +62,5 @@
     "tools/flaky_lint.py": "c8f4c738edc139b61e722e11f99178c4847563d989e398c8d4874bd6a8596062",
     "tools/scenarios.py": "d51e64117dfe619957c7dc87ccfb08a6720e7f41ee9723866739f10f853589ed",
     "tools/vocab.py": "b1072e5af03211d7ae908d3ccf80c06d98b606d9515f3e37bf96a516753a49b3"
-  },
-  "localOverlay": {
-    "source": "test-core bench response proxy (unreleased)",
-    "files": [
-      "bench/response-proxy.md",
-      "bench/response-proxy.mjs"
-    ]
   }
 }

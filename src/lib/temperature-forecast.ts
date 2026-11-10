@@ -13,6 +13,27 @@ export function weeklyTemperatureRequest(text: string) {
   return { place: match[1].trim(), fahrenheit: match[2]?.toLowerCase() === "fahrenheit" };
 }
 
+const week = /\b(?:this (?:coming )?week|(?:the )?next (?:7|seven) days)\b/i;
+const lookupAgain = /^(?:(?:please|yes|sure|can you|could you|would you)[, ]+)*(?:(?:look it up|check it|search)(?: online| on the web)?|try again)[.!? ]*$/i;
+
+export function conversationalForecast(request: string, previousRequest?: string, mapPlace?: string) {
+  const input = (lookupAgain.test(request.trim()) ? previousRequest : request)?.trim();
+  if (!input) return;
+  const exact = weeklyTemperatureRequest(input);
+  if (exact) return exact;
+  const range = week.exec(input);
+  if (!range || !/\b(?:weather|temperatures?|forecast)\b/i.test(input)) return;
+  // Only interpret location language in the clause before the requested period.
+  const subject = input.slice(0, range.index).trim().replace(/\s+(?:for|over|during)$/i, "");
+  if (/\b(?:was|were|historical|history|last week|yesterday)\b/i.test(subject)) return;
+  const placeName = "[\\p{L}\\p{M}][\\p{L}\\p{M} .'’,-]{0,79}";
+  const location = new RegExp("\\b(?:weather(?: forecast)?|forecast|temperatures?)\\s+(?:in|for|at)\\s+(" + placeName + ")$", "iu").exec(subject)?.[1]
+    ?? new RegExp("^(?:(?:please|show me|give me|what is|what's|what’s|how is|how's|how’s)\\s+)*(?:(?:the)\\s+)?(" + placeName + ")[’']s\\s+(?:weather(?: forecast)?|forecast|temperatures?)$", "iu").exec(subject)?.[1];
+  const place = location?.trim() ?? (/\b(?:weather(?: forecast)?|forecast|temperatures?)\s+there$/i.test(subject) ? mapPlace : undefined);
+  if (!place) return;
+  return { place, fahrenheit: /\bfahrenheit\b/i.test(input) };
+}
+
 export async function weeklyTemperatureChart(place: string, fahrenheit: boolean, signal: AbortSignal) {
   const quote = JSON.stringify;
   const unavailable = (message: string) => `root = Card([TextContent(${quote(message)})])`;

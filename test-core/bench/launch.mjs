@@ -11,11 +11,23 @@ const LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const xml = text => String(text).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 async function launchctl(...args) {
-  const child = spawn('launchctl', args, { stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawn('launchctl', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = '';
   let err = '';
+  child.stdout.on('data', data => { out += data; });
   child.stderr.on('data', data => { err += data; });
   const [code] = await once(child, 'close');
-  return { code, err: err.trim() };
+  return { code, out, err: err.trim() };
+}
+
+/** A finished job stays loaded under its label and blocks a new bootstrap: remove it. Refuse while it still runs. */
+async function clearFinishedJob(label) {
+  const target = `gui/${process.getuid()}/${label}`;
+  const { code, out } = await launchctl('print', target);
+  if (code !== 0) return;
+  if (/^\s*state = running$/m.test(out)) throw new Error(`${label} is still running; stop it first`);
+  const removed = await launchctl('bootout', target);
+  if (removed.code !== 0) throw new Error(`launchctl bootout failed: ${removed.err || `exit ${removed.code}`}`);
 }
 
 /**
@@ -33,6 +45,7 @@ export async function launchDetached({ folder, label, argv, cwd = process.cwd(),
   const stderr = join(dir, 'error.log');
   const record = { method, label, argv: command, cwd: resolve(cwd), startedAt: new Date().toISOString() };
   if (method === 'launchd') {
+    await clearFinishedJob(label);
     const plist = join(dir, 'job.plist');
     const strings = values => values.map(value => `<string>${xml(value)}</string>`).join('');
     const environment = Object.entries(env).map(([key, value]) => `<key>${xml(key)}</key><string>${xml(value)}</string>`).join('');

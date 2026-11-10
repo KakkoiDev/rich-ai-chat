@@ -33,10 +33,10 @@ process.exitCode = exitCode;
 | File | Contents |
 | --- | --- |
 | `manifest.json` | revision, plan hash, gate, frozen files with sha256, fingerprint, Node version, host `config` |
-| `state.json` | state, PID, `updatedAt` (refreshed at least every 15 s while running), completed / total, active tasks with start times, the gate's summary, any failure |
-| `tasks/<id>.json` | one checkpoint per finished task: the task, revision, fingerprint, start time, `seconds`, `ok` and the full result |
+| `state.json` | state, PID and its start time (`pidStarted`), `updatedAt` (refreshed at least every 15 s while running), completed / total, active tasks with start times, the gate's summary, any failure |
+| `tasks/<id>.json` | one checkpoint per finished task: the task, revision, fingerprint, start time, `seconds`, `ok`, `attempts` when it was retried, and the full result |
 | `tasks/<id>/` | the task's own folder for reports, logs and screenshots |
-| `run.lock` | the running process's PID; removed at the end, reclaimed only when that process no longer exists |
+| `run.lock` | the running process's PID and start time (read with `ps` in the C locale and UTC, so every caller sees the same text); removed at the end, reclaimed only when that process no longer exists or the PID now names a process with another start time (PID reuse, for example after a reboot), and only when the lock still holds what was read. Without an OS lock (`flock`, which Node.js has no built-in for, so it would need a dependency) two narrow windows remain: between that re-read and the removal, and between creating the lock and its single write of the PID and start time (read before the lock is created) |
 
 Failed tasks are kept exactly like passing ones. Nothing is ever deleted.
 
@@ -48,22 +48,38 @@ Failed tasks are kept exactly like passing ones. Nothing is ever deleted.
 | `rateGate({ threshold, z = 1.96 })` | a result `outcome`: `win`, `draw` or `loss` | score = (wins + draws / 2) / games, with a Wilson interval. `above-threshold` when the lower bound reaches the threshold, `below-threshold` when the upper bound is under it, otherwise `inconclusive`. There is no early stopping; a failed task stops the run as `needs-investigation`. |
 | `allGate()` (default) | — | `complete` when every task passes, otherwise `needs-investigation`. |
 
-Other states: `interrupted` (SIGINT/SIGTERM; tasks in flight are aborted and not recorded), `runner-error` (the
-runner itself failed), and `secret-leak` (a configured secret value appears in a file under the run folder; the summary
-names the file and the secret's index, never its value).
+Other states: `budget-reached` (the next task would pass the spending cap; tasks in flight finish and are recorded, and
+a resume with a higher cap continues), `interrupted` (SIGINT/SIGTERM; tasks in flight are aborted and not recorded), `runner-error` (the
+runner itself failed), and `secret-leak` (a configured secret value appears in a file under the run folder, as it is or
+JSON-escaped, URL-encoded or base64; the summary names the file, the secret's index and the encoded `form`, never the
+value). A secret shorter than 8 characters is not scanned; its index is listed in the summary's `unscannedSecrets`.
 
 Exit codes: 0 for `stable-and-regression-passed`, `complete` and `above-threshold`; 1 for `needs-investigation`,
-`below-threshold` and `inconclusive`; 130 for `interrupted`; 2 for `runner-error` and `secret-leak`.
+`below-threshold`, `inconclusive` and `budget-reached`; 130 for `interrupted`; 2 for `runner-error` and `secret-leak`.
 
 ## Rules the runner enforces
 
 - **One run per folder.** A new run refuses a folder that already holds one. A resume refuses a finished run, a changed
-  revision, a changed plan, a changed gate, a changed frozen file (`freeze: { root, files }`) or a checkpoint from
+  revision, a changed plan, a changed gate, a changed `config`, a changed, added or removed frozen file (`freeze: { root, files }`) or a checkpoint from
   another run. When it refuses, it changes nothing.
 - **Resume never repeats finished work.** Checkpointed tasks are skipped; tasks that were in flight run again.
 - **Concurrency is bounded.** `concurrency` caps the tasks in flight. `exclusive(task)` returns a key, and at most one
-  task per key runs at a time, for example one generation per local model.
+  task per key runs at a time, for example one generation per local model. With `concurrency` above 1, tasks of a later
+  round start while the earlier round still runs, so a failure stops work that was already paid for. `roundsInOrder:
+  true` holds every task with a `round` until all tasks of the earlier rounds finished.
 - **Tasks get the abort signal.** Pass it to child processes and requests so an interruption stops them.
+- **A hung task does not hang the run.** With `timeoutMs`, a task still running after that many milliseconds gets its
+  signal aborted and is recorded as `ok: false, error: 'timeout'`; the run goes on. A task that ignores the signal keeps
+  running in the background, so pass it on.
+- **An infrastructure flake is not a product failure.** A task that fails for a reason outside the product (an API 5xx,
+  a rate limit) returns `infra: true`. With `retries: n`, such a task runs again up to n times before its result counts;
+  the checkpoint records `attempts`. A product failure is never retried.
+- **Spending is capped.** With `budget: { capUsd, estimate }`, each task's result reports `costUsd` (summed over its
+  attempts into the checkpoint). A task starts only when the spend so far, the estimates of the tasks in flight and
+  `estimate(task)` stay within `capUsd`; otherwise the run ends as `budget-reached`. `state.json` holds `spentUsd` and
+  `capUsd`. The spend counts every checkpoint, so it carries over a resume. An infrastructure retry runs only when the
+  spend so far, the estimates in flight and the task's cost so far stay within `capUsd`; otherwise its last result
+  counts and the run ends as `budget-reached`.
 
 The host owns everything else: what a case asserts, which models or engines run, and how to start and stop the app.
 Keep case counts honest in the host. Rich AI Chat, for example, compares each suite's case list with its expected count
@@ -78,8 +94,8 @@ free and have scenarios and tests.
 | --- | --- |
 | `seeded.mjs` | `seeded(case, round, subject)` gives `pick`, `pickDistinct`, `int` and `next`. The same key always gives the same choices, so a failure reproduces exactly; different keys vary the wording and data, so no case is one memorised sentence. |
 | `freeze.mjs` | `freezeRevision({ repo, revision, into, copy, link })` writes one committed revision into its own folder with `git archive`, so uncommitted edits never leak in. Large folders such as `node_modules` are copied (APFS clones on macOS, instant). `FROZEN.json` names the revision. It refuses an existing folder or an unknown revision, and cleans up after a failure. |
-| `launch.mjs` | `launchDetached({ folder, label, argv, cwd, env })` starts the run so it outlives whatever started it: a launchd job on macOS (it survives the launching app quitting) or a detached process elsewhere. `stopDetached(folder)` sends SIGTERM, which the runner records as `interrupted`. Put secrets in an env file read by the run (`node --env-file`), never in `env`, because launchd keeps `env` in a plist on disk. |
-| `report.mjs` | `summarize(dir)` gives the state, checks, rounds and, per subject, cases passed, median and slowest seconds and every failure with its detail. A task's result may list `cases: [{ id, status, seconds, detail }]`; otherwise the task counts as one case. `waitForRun(dir)` resolves when the run is final, or `stale` when its process died while it still said running. |
+| `launch.mjs` | `launchDetached({ folder, label, argv, cwd, env })` starts the run so it outlives whatever started it: a launchd job on macOS (it survives the launching app quitting) or a detached process elsewhere. `stopDetached(folder)` sends SIGTERM, which the runner records as `interrupted`. On macOS, launching a label again removes that label's finished job first, and refuses while the job still runs. Put secrets in an env file read by the run (`node --env-file`), never in `env`, because launchd keeps `env` in a plist on disk. |
+| `report.mjs` | `summarize(dir)` gives the state, checks, rounds and, per subject, cases passed, median and slowest seconds and every failure with its detail. A task's result may list `cases: [{ id, status, seconds, detail }]`; otherwise the task counts as one case. `waitForRun(dir)` resolves when the run is final, or `stale` when its process died (or its PID now names another process) while it still said running. |
 | `cli.mjs` | One command line for all of the above (below). |
 
 ```sh
@@ -89,6 +105,10 @@ node test-core/bench/cli.mjs watch reports/run-1          # waits, prints the su
 node test-core/bench/cli.mjs report reports/run-1 --json  # at any time, also while it runs
 node test-core/bench/cli.mjs stop reports/run-1
 ```
+
+Every command exits 2 when it fails. With `--json`, the failure is printed on stdout as
+`{ "ok": false, "error": { "code", "message" } }`, where `code` is `usage` (a missing or wrong argument), `not-found`
+(no such run folder or file) or `failed` (anything else, for example a refused freeze).
 
 ## The method
 
@@ -126,3 +146,5 @@ These rules came out of releasing Rich AI Chat against five models, three local 
 Scenarios: [SCENARIOS.md](SCENARIOS.md). Tests: `npx vitest run tests/js/bench.test.js tests/js/bench-toolkit.test.js`,
 and `python3 tools/scenarios.py check bench/SCENARIOS.md --tests tests/js/bench.test.js tests/js/bench-toolkit.test.js
 --junit <vitest junit report>`.
+
+For multi-turn chat cases, use the [conversation protocol](conversation.md) to keep real follow-up context and report each turn. The [HTTP response proxy](response-proxy.md) replays paid provider responses without contacting the provider.

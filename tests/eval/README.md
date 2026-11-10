@@ -43,7 +43,7 @@ RICH_CHAT_BUILD_DIR=.next-local/bench EVAL_REVISION="$(git rev-parse HEAD)" \
   EVAL_DIR=/path/to/new-report-directory node tests/eval/matrix.cjs
 ```
 
-The matrix runs the basic, breadth and features suites serially for each model: 17 + 13 + 4 = 34 cases, so 170 checks per round across the five models. A skipped, failed, or missing case ends the streak after the current round finishes.
+The matrix runs the basic, breadth, features and conversations suites serially for each model: 17 + 13 + 4 + 5 = 39 cases, so 195 checks per round across the five models. A skipped, failed, or missing case ends the streak after the current round finishes.
 
 The features suite (`features/run-features.cjs`) grows with each milestone ([benchmark plan](../../docs/BENCHMARK-PLAN.md)). Its prompts come from `features/prompts.cjs`, seeded by round, model and case: the wording and data vary, and the same key always reproduces the same prompt, which is saved in the report. Preflight checks that every prompt stays outside the app's tested layouts, so the model's own code is what gets tested. `run-features.cjs --list` prints the case ids, and the matrix refuses to start if its expected count differs. The M1 cases build a varied app, use it, open it full screen, then download its source and replay the same actions on the file in an offline browser. One case does this after a revision and checks that the first version is unchanged.
 
@@ -54,7 +54,7 @@ The matrix runs on test-core's pinned benchmark runner (`test-core/bench`; the p
 - `manifest.json`: the revision, plan, frozen files with their hashes (the harness scripts, `package-lock.json`, the build's `BUILD_ID`) and the configuration
 - `state.json`: the state, PID, active task and a running summary, refreshed while the run is alive
 - `tasks/rNN-<model>.json`: each finished task's verdict, checks and duration
-- `tasks/rNN-<model>/{basic,breadth,features}.json`: the suite reports with per-case durations
+- `tasks/rNN-<model>/{basic,breadth,features,conversations}.json`: the suite reports with per-case durations
 - `matrix.json`: a short final summary
 
 Failed and interrupted reports are kept. `EVAL_RESUME=1` continues an interrupted run in the same directory without repeating finished tasks. It refuses if a frozen file, the plan or the revision changed. A run fails as `secret-leak` if a configured API key appears anywhere in its reports. `EVAL_REQUIRED` and `EVAL_REGRESSION` (default 10 and 1) shorten a run for parity and focused checks. Only the full 10 + 1 run counts toward a release, whatever its final state is called.
@@ -111,3 +111,28 @@ Review captured responses before sharing. Exact matching means new prompts, chan
 tool outputs, or new queries from local models may need new recordings. Replay
 tests the app's handling of DeepSeek's recorded output, not current hosted model
 quality or latency; live provider checks are separate and explicitly budgeted.
+
+## Natural conversation smoke test
+
+Run this before changing the router to establish a baseline, then again against the same cases with routing enabled. The suite uses [test-core’s conversation protocol](../../test-core/bench/conversation.md). Each scenario starts a synthetic conversation; subsequent turns receive the actual previous replies. The report saves each turn's answer, Activity, verdict and latency. This checks the chat stream's visible output and component markup; browser rendering and interaction remain covered by the separate browser suites.
+
+```sh
+# Terminal 1: isolated chat server with Ollama, local provider fixtures and DeepSeek replay
+node tests/eval/conversation-smoke-server.mjs
+
+# Terminal 2: all five models, one at a time
+EVAL_REPORT="$HOME/Library/Application Support/Rich AI Chat Benchmarks/reports/conversation-smoke-$(date -u +%Y%m%dT%H%M%SZ).json" \
+  EVAL_REVISION="$(git rev-parse HEAD)" node tests/eval/conversation-smoke.mjs
+```
+
+Use `--list` to print scenario IDs, pass IDs to narrow the run, or set `EVAL_MODEL` for one model. If you change `EVAL_PORT` on the server, set `CHAT_URL` to the same loopback port for the runner. The recipe uses fixed Brave evidence, and geocoding and forecast data use local fixtures. Other Brave requests replay from the paid cassette alongside DeepSeek. Replay misses fail without contacting a provider. New DeepSeek prompts need one separately budgeted recording before they can replay. Keep an old cassette available by explicit path if resuming a run pinned to its digest. The matrix runs this suite in each round; a standalone smoke run is separate from the release streak.
+
+| Conversation | What counts |
+| --- | --- |
+| Map → “Zoom out a little” | Inline map with a wider view around the same center. |
+| Map → “What’s the weather there?” → “Could you look it up online?” | A sourced daily forecast chart for the carried-over location. |
+| Pizza small talk → “Could you look up an easy homemade pizza recipe for me?” | A successful search and a visible recipe with quantities, cooking instructions, time and a source. Links alone fail. |
+| Make a game → “Can you explain how I restart the game?” | A game preview and instructions about restarting it. |
+| Make an app → “Can you show me the JavaScript for the reset part?” | An app preview and code that resets its counter. |
+
+For Laya, keep tool choice separate from argument validation and answer generation. Start with ordinary chat, forecast, search, URL fetch, map, game, app, and coding. Resolve follow-ups against the relevant prior result (e.g. map bounds or an app revision) and the unresolved request. In a second set of held-out conversations, check ambiguous requests, topic changes, refusals to search, and mixed requests such as “find a recipe, then make a shopping checklist.” Record route, abstention, decision latency, and final outcome separately. A correct route with an unusable answer is still a product failure.

@@ -3,11 +3,12 @@
 // detail? }]`; without them the task itself counts as one case. No dependencies.
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { sameProcess } from './bench.mjs';
 
 const FINAL = new Set(['stable-and-regression-passed', 'needs-investigation', 'complete', 'above-threshold', 'below-threshold',
-  'inconclusive', 'secret-leak', 'interrupted', 'runner-error']);
+  'inconclusive', 'budget-reached', 'secret-leak', 'interrupted', 'runner-error']);
 const EXIT = { 'stable-and-regression-passed': 0, complete: 0, 'above-threshold': 0, 'needs-investigation': 1, 'below-threshold': 1,
-  inconclusive: 1, interrupted: 130, 'runner-error': 2, 'secret-leak': 2, stale: 2 };
+  inconclusive: 1, 'budget-reached': 1, interrupted: 130, 'runner-error': 2, 'secret-leak': 2, stale: 2 };
 
 const median = values => {
   if (!values.length) return 0;
@@ -16,14 +17,10 @@ const median = values => {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 };
 
-function alive(pid) {
-  try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
-}
-
-/** The run's state, with "stale" when it still says running but its process is gone. */
+/** The run's state, with "stale" when it still says running but its process is gone or its PID now names another process. */
 export async function readState(dir) {
   const state = JSON.parse(await readFile(join(dir, 'state.json'), 'utf8'));
-  if (state.state === 'running' && state.pid && !alive(state.pid)) return { ...state, state: 'stale' };
+  if (state.state === 'running' && state.pid && !sameProcess(state.pid, state.pidStarted)) return { ...state, state: 'stale' };
   return state;
 }
 

@@ -1,5 +1,6 @@
 // A frozen, resumable benchmark runner. No dependencies: Node.js 22.13+ built-ins only.
 // The host supplies the plan (tasks), the task body (run) and a gate that turns results into a verdict.
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, open, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
@@ -9,7 +10,7 @@ const TASK_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const FINISHED = new Set(['stable-and-regression-passed', 'needs-investigation', 'complete', 'above-threshold',
   'below-threshold', 'inconclusive', 'secret-leak']);
 const EXIT = { 'stable-and-regression-passed': 0, complete: 0, 'above-threshold': 0, 'needs-investigation': 1,
-  'below-threshold': 1, inconclusive: 1, interrupted: 130, 'runner-error': 2, 'secret-leak': 2 };
+  'below-threshold': 1, inconclusive: 1, 'budget-reached': 1, interrupted: 130, 'runner-error': 2, 'secret-leak': 2 };
 
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 
@@ -31,27 +32,45 @@ async function frozenFiles(freeze) {
   return files;
 }
 
-/** Take the folder's lock, reclaiming it only when the recorded process no longer exists. */
+/** The process's start time as `ps` prints it in the C locale and UTC, or undefined when the process is gone or `ps` is missing. */
+export function processStart(pid) {
+  try {
+    return execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: { ...process.env, LC_ALL: 'C', TZ: 'UTC' } }).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** True when `pid` runs and, if `started` is known, is the same process that recorded it (not a reused PID). */
+export function sameProcess(pid, started) {
+  try {
+    process.kill(pid, 0);
+  } catch (error) {
+    if (error.code !== 'EPERM') return false;
+  }
+  if (!started) return true;
+  const now = processStart(pid);
+  return now === undefined || now === started;
+}
+
+/** Take the folder's lock, reclaiming it only when the recorded process no longer exists and the lock still holds what was read. */
 async function lock(dir) {
   const path = join(dir, 'run.lock');
+  const mine = JSON.stringify({ pid: process.pid, started: processStart(process.pid) });
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const handle = await open(path, 'wx');
-      await handle.writeFile(String(process.pid));
+      await handle.writeFile(mine);
       await handle.close();
       return async () => { await unlink(path).catch(() => {}); };
     } catch (error) {
       if (error.code !== 'EEXIST') throw error;
-      const pid = Number(await readFile(path, 'utf8').catch(() => ''));
-      if (pid > 0 && pid !== process.pid) {
-        try {
-          process.kill(pid, 0);
-          throw new Error(`Run already active (PID ${pid})`);
-        } catch (probe) {
-          if (probe.code !== 'ESRCH') throw probe.code === 'EPERM' ? new Error(`Run already active (PID ${pid})`) : probe;
-        }
-      }
-      await unlink(path).catch(() => {});
+      const text = await readFile(path, 'utf8').catch(() => '');
+      const held = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+      const pid = Number(held?.pid ?? held);
+      if (pid > 0 && pid !== process.pid && sameProcess(pid, held?.started)) throw new Error(`Run already active (PID ${pid})`);
+      if (await readFile(path, 'utf8').catch(() => '') === text) await unlink(path).catch(() => {});
     }
   }
   throw new Error('Could not take the run lock');
@@ -141,22 +160,59 @@ export function allGate() {
   };
 }
 
+/** The byte strings a secret value can appear as: itself, JSON-escaped, URL-encoded, and base64 at each alignment. */
+function secretForms(value, secret) {
+  const forms = [{ secret, bytes: Buffer.from(value) }];
+  const json = JSON.stringify(value).slice(1, -1);
+  if (json !== value) forms.push({ secret, form: 'json', bytes: Buffer.from(json) });
+  const url = encodeURIComponent(value);
+  if (url !== value) forms.push({ secret, form: 'url', bytes: Buffer.from(url) });
+  const bytes = Buffer.from(value);
+  for (let shift = 0; shift < 3; shift++) {
+    const encoded = Buffer.concat([Buffer.alloc(shift), bytes]).toString('base64');
+    const inner = encoded.slice(Math.ceil((shift * 8) / 6), Math.floor(((shift + bytes.length) * 8) / 6));
+    forms.push({ secret, form: 'base64', bytes: Buffer.from(inner) });
+  }
+  return forms;
+}
+
+/** The first form of each secret found in the file, read in chunks that overlap by the longest form. */
+async function findForms(path, forms) {
+  const found = new Map();
+  const overlap = Math.max(...forms.map(form => form.bytes.length)) - 1;
+  const handle = await open(path, 'r');
+  try {
+    let carry = Buffer.alloc(0);
+    for (;;) {
+      const chunk = Buffer.alloc(1 << 20);
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, null);
+      if (!bytesRead) break;
+      const window = Buffer.concat([carry, chunk.subarray(0, bytesRead)]);
+      for (const form of forms) if (!found.has(form.secret) && window.includes(form.bytes)) found.set(form.secret, form.form);
+      carry = window.subarray(Math.max(0, window.length - overlap));
+    }
+  } finally {
+    await handle.close();
+  }
+  return found;
+}
+
 async function scan(dir, secrets) {
-  const values = (secrets ?? []).filter(value => typeof value === 'string' && value.length >= 8);
-  if (!values.length) return [];
+  const values = (secrets ?? []).map((value, secret) => ({ value, secret })).filter(({ value }) => typeof value === 'string');
+  const unscanned = values.filter(({ value }) => value.length < 8).map(({ secret }) => secret);
+  const forms = values.filter(({ value }) => value.length >= 8).flatMap(({ value, secret }) => secretForms(value, secret));
   const leaks = [];
   async function walk(folder) {
     for (const entry of await readdir(folder, { withFileTypes: true })) {
       const path = join(folder, entry.name);
       if (entry.isDirectory()) await walk(path);
-      else if (entry.isFile()) {
-        const text = await readFile(path, 'utf8');
-        values.forEach((value, secret) => { if (text.includes(value)) leaks.push({ file: relative(dir, path), secret }); });
-      }
+      else if (entry.isFile())
+        for (const [secret, form] of await findForms(path, forms)) leaks.push({ file: relative(dir, path), secret, ...(form ? { form } : {}) });
     }
   }
-  await walk(dir);
-  return leaks;
+  if (forms.length) await walk(dir);
+  leaks.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.secret - b.secret));
+  return { leaks, unscanned };
 }
 
 /**
@@ -169,14 +225,20 @@ async function scan(dir, secrets) {
  *   freeze      { root, files } hashed into the manifest; a resume refuses if any changed
  *   concurrency how many tasks run at once (1)
  *   exclusive   task => key: at most one running task per key (e.g. one local model)
- *   secrets     literal values that must not appear in any file under `dir` when the run ends
- *   config      extra settings recorded in the manifest
+ *   timeoutMs   a task still running after this many milliseconds is aborted and recorded as ok false, error 'timeout'
+ *   retries     how many times a task whose result says `infra: true` runs again before that result counts (0)
+ *   roundsInOrder  no task with a `round` starts before every task of the earlier rounds finished
+ *   budget      { capUsd, estimate: task => usd }: no task starts when the spend so far (tasks return `costUsd`), the
+ *               estimates of the tasks in flight and its own estimate would pass capUsd; the run ends as budget-reached
+ *   secrets     literal values that must not appear in any file under `dir` when the run ends, as they are or JSON-escaped,
+ *               URL-encoded or base64; values under 8 characters are not scanned and are listed in `unscannedSecrets`
+ *   config      extra settings recorded in the manifest; a resume refuses if they changed
  *   onEvent     ({ type, ... }) => void, for logs
  * Returns { state, exitCode, summary }. Throws (and changes nothing) when it refuses to start.
  */
 export async function runBench(options) {
   const { dir, tasks, run, revision, resume = false, freeze, concurrency = 1, exclusive = () => undefined, secrets,
-    config = {}, onEvent = () => {} } = options;
+    config = {}, timeoutMs, retries = 0, budget, roundsInOrder = false, onEvent = () => {} } = options;
   const gate = options.gate ?? allGate();
   if (!dir || !revision || typeof run !== 'function' || !Array.isArray(tasks) || !tasks.length)
     throw new Error('runBench needs dir, revision, run and a non-empty tasks list');
@@ -206,9 +268,12 @@ export async function runBench(options) {
       if (manifest.revision !== revision) throw new Error(`Revision changed: ${manifest.revision} → ${revision}`);
       if (manifest.plan !== plan) throw new Error('The task plan changed since the run started');
       if (manifest.gate !== gate.name) throw new Error('The gate changed since the run started');
+      if (JSON.stringify(manifest.config) !== JSON.stringify(config)) throw new Error('The config changed since the run started');
       const now = new Map(files.map(file => [file.path, file.sha256]));
       for (const file of manifest.files)
         if (now.get(file.path) !== file.sha256) throw new Error(`Frozen file changed: ${file.path}`);
+      const kept = new Set(manifest.files.map(file => file.path));
+      for (const file of files) if (!kept.has(file.path)) throw new Error(`Frozen file added: ${file.path}`);
       for (const name of (await readdir(join(dir, 'tasks'))).filter(name => name.endsWith('.json'))) {
         const record = JSON.parse(await readFile(join(dir, 'tasks', name), 'utf8'));
         if (!ids.has(record.id) || record.revision !== revision || record.fingerprint !== manifest.fingerprint)
@@ -229,15 +294,20 @@ export async function runBench(options) {
   const controller = new AbortController();
   const active = new Map();
   const startedAt = new Date().toISOString();
+  const pidStarted = processStart(process.pid);
   let state = 'running';
   let failure;
   let verdict = gate.evaluate(records, tasks);
-  const save = () => atomic(statePath, { state, pid: process.pid, revision, startedAt, updatedAt: new Date().toISOString(),
+  let reserved = 0;
+  const spent = () => [...records.values()].reduce((sum, record) => sum + (record.costUsd ?? 0), 0);
+  const save = () => atomic(statePath, { state, pid: process.pid, ...(pidStarted ? { pidStarted } : {}), revision, startedAt, updatedAt: new Date().toISOString(),
     completed: records.size, total: tasks.length, active: [...active.values()], summary: verdict.summary,
-    ...(failure ? { failure } : {}) });
+    ...(budget ? { spentUsd: spent(), capUsd: budget.capUsd } : {}), ...(failure ? { failure } : {}) });
   const heartbeat = setInterval(() => { save().catch(() => {}); }, 15000);
   heartbeat.unref();
-  const interrupt = () => { if (state === 'running') { state = 'interrupted'; controller.abort(new Error('interrupted')); } };
+  const interrupt = () => {
+    if (state === 'running' || state === 'budget-reached') { state = 'interrupted'; controller.abort(new Error('interrupted')); }
+  };
   process.once('SIGINT', interrupt);
   process.once('SIGTERM', interrupt);
 
@@ -251,14 +321,25 @@ export async function runBench(options) {
       const next = () => {
         if (state !== 'running') { if (!running) settle(); return; }
         while (running < concurrency) {
-          const index = pending.findIndex(task => { const key = exclusive(task); return key === undefined || !busy.has(key); });
+          const current = roundsInOrder
+            ? Math.min(...tasks.filter(task => !records.has(task.id) && task.round !== undefined).map(task => task.round))
+            : Infinity;
+          const index = pending.findIndex(task => {
+            if (task.round > current) return false;
+            const key = exclusive(task);
+            return key === undefined || !busy.has(key);
+          });
           if (index === -1) break;
+          const estimate = budget ? Number(budget.estimate?.(pending[index]) ?? 0) : 0;
+          if (budget && spent() + reserved + estimate > budget.capUsd) { state = 'budget-reached'; break; }
           const [task] = pending.splice(index, 1);
           const key = exclusive(task);
           if (key !== undefined) busy.add(key);
           running++;
+          reserved += estimate;
           execute(task).then(() => {
             running--;
+            reserved -= estimate;
             if (key !== undefined) busy.delete(key);
             next();
           }, fail);
@@ -267,6 +348,23 @@ export async function runBench(options) {
       };
       next();
     });
+
+    async function attempt(task, taskDir) {
+      const limit = new AbortController();
+      let timer;
+      const expired = new Promise(done => {
+        if (timeoutMs) timer = setTimeout(() => { limit.abort(new Error('timeout')); done(); }, timeoutMs);
+      });
+      try {
+        const signal = AbortSignal.any([controller.signal, limit.signal]);
+        const result = await Promise.race([run(task, { signal, dir, taskDir }), expired]);
+        return limit.signal.aborted ? { ok: false, error: 'timeout' } : result;
+      } catch (error) {
+        return limit.signal.aborted ? { ok: false, error: 'timeout' } : { ok: false, error: String(error?.message ?? error).slice(0, 2000) };
+      } finally {
+        clearTimeout(timer);
+      }
+    }
 
     async function execute(task) {
       const taskDir = join(dir, 'tasks', task.id);
@@ -277,22 +375,30 @@ export async function runBench(options) {
       onEvent({ type: 'task-start', id: task.id });
       await save();
       let result;
-      try {
-        result = await run(task, { signal: controller.signal, dir, taskDir });
-      } catch (error) {
-        if (controller.signal.aborted) { active.delete(task.id); return; }
-        result = { ok: false, error: String(error?.message ?? error).slice(0, 2000) };
-      }
+      let attempts = 0;
+      let costUsd = 0;
+      const retryFits = () => {
+        if (!budget) return true;
+        if (state === 'running' && spent() + reserved + costUsd <= budget.capUsd) return true;
+        if (state === 'running') state = 'budget-reached';
+        return false;
+      };
+      do {
+        attempts++;
+        if (attempts > 1) onEvent({ type: 'task-retry', id: task.id, attempt: attempts, error: result?.error });
+        result = await attempt(task, taskDir);
+        costUsd += Number(result?.costUsd) || 0;
+      } while (result?.infra === true && attempts <= retries && !controller.signal.aborted && retryFits());
       active.delete(task.id);
       if (controller.signal.aborted) return;
       const seconds = Math.round(Number(process.hrtime.bigint() - clock) / 1e6) / 1e3;
       const record = { id: task.id, task, revision, fingerprint: manifest.fingerprint, startedAt: begun, seconds,
-        ok: result?.ok === true, result: result ?? null };
+        ok: result?.ok === true, ...(attempts > 1 ? { attempts } : {}), ...(costUsd ? { costUsd } : {}), result: result ?? null };
       await atomic(join(dir, 'tasks', `${task.id}.json`), record);
       records.set(task.id, record);
       verdict = gate.evaluate(records, tasks);
       onEvent({ type: 'task-end', id: task.id, ok: record.ok, seconds });
-      if (verdict.stop && state === 'running') {
+      if (verdict.stop && (state === 'running' || state === 'budget-reached')) {
         state = verdict.state;
         controller.abort(new Error('gate stopped the run'));
       }
@@ -307,7 +413,11 @@ export async function runBench(options) {
     process.removeListener('SIGINT', interrupt);
     process.removeListener('SIGTERM', interrupt);
   }
-  const leaks = await scan(dir, secrets);
+  const { leaks, unscanned } = await scan(dir, secrets);
+  if (unscanned.length) {
+    onEvent({ type: 'secrets-unscanned', secrets: unscanned });
+    verdict = { ...verdict, summary: { ...verdict.summary, unscannedSecrets: unscanned } };
+  }
   if (leaks.length) {
     state = 'secret-leak';
     verdict = { ...verdict, summary: { ...verdict.summary, leaks } };
