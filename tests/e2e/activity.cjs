@@ -39,11 +39,12 @@ function stubModel(req, res) {
     const user = [...(request.messages ?? [])].reverse().find(m => m.role === 'user');
     const prompt = typeof user?.content === 'string' ? user.content : JSON.stringify(user?.content ?? '');
     const scenario = /scenario ([a-z-]+)/.exec(prompt)?.[1] ?? 'plain';
-    if (!request.stream && scenario === 'search-summary') {
+    if (!request.stream && ['search-summary', 'printed-search'].includes(scenario)) {
       res.setHeader('content-type', 'application/json');
       return res.end(JSON.stringify({ id: 'fixture', object: 'chat.completion', created: 0, model: 'stub-model',
         choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant',
-          content: 'root = Card([MarkDownRenderer("The study did not support the specific claim.")])' } }],
+          content: scenario === 'printed-search' ? 'The follow-up study did not support the claim.' :
+            'root = Card([MarkDownRenderer("The study did not support the specific claim.")])' } }],
         usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }));
     }
     const n = (calls.get(scenario) ?? 0) + 1;
@@ -86,6 +87,7 @@ function stubModel(req, res) {
       res.write(chunk({}, 'tool_calls'));
       return res.end('data: [DONE]\n\n');
     }
+    if (scenario === 'printed-search') return plain('web_search(query="study about the original claim")');
     if (scenario === 'search-summary') return afterTool ? plain('') : callSearch();
     if (scenario === 'search-fails') return afterTool ? answer('It opened in 1998, as far as I know.') : callSearch();
     if (scenario === 'retry-no-tool') return n === 1 ? drop() : answer('Second try worked.');
@@ -365,6 +367,13 @@ async function check(name, body) {
         assert.ok((await summary.boundingBox()).y < (await link.boundingBox()).y);
         assert.equal(await fixturePage.getByText(/root = Card/).count(), 0);
         assert.equal(calls.get('search-summary'), 2);
+      });
+      await check('a printed search on a sourced follow-up runs once and shows the answer', async () => {
+        await send('What about the follow-up claim, scenario printed-search?');
+        await fixturePage.getByText('The follow-up study did not support the claim.', { exact: true }).waitFor();
+        await fixturePage.locator('.reply-activity summary').last().filter({ hasText: /1 search/ }).waitFor();
+        assert.equal(calls.get('printed-search'), 1);
+        assert.equal(await fixturePage.getByText(/web_search\(query=/).count(), 0);
       });
       await fixturePage.close();
     } finally {
