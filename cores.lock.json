@@ -77,13 +77,21 @@
   },
   "gaming-core": {
     "repository": "https://github.com/KakkoiDev/gaming-core",
-    "commit": "aa4a07871533bda891eb14aa4aaff5503bab5229",
+    "commit": "a4a39e7d33db6c618dc66a5d74d99deed1b062dd",
     "files": {
       "src/starters/paperclip.html": {
         "from": "starters/paperclip/index.html",
         "sha256": "3ad517262c36dbddd128cc91c52f0764a8a4dcdaf143f8f3d0f5b72dd742ac56"
       },
       "src/starters/paperclip.LICENSE.txt": {
+        "from": "LICENSE",
+        "sha256": "1d7ff4af1cce526e8f9af767cea412b730a3e4ef38fce3d83469b3894bc5d653"
+      },
+      "src/starters/universal-paperclips.html": {
+        "from": "starters/universal-paperclips/index.html",
+        "sha256": "e5979475ec54e8a768b5c870185ed1a328fc030d4f1bf9f06141d46f8545f18c"
+      },
+      "src/starters/universal-paperclips.LICENSE.txt": {
         "from": "LICENSE",
         "sha256": "1d7ff4af1cce526e8f9af767cea412b730a3e4ef38fce3d83469b3894bc5d653"
       }

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paperclip Maximizer</title>
+<style>
+body{max-width:42rem;margin:2rem auto;padding:0 1rem;font:1rem/1.5 system-ui;background:#fff;color:#222}
+section{border-top:1px solid #aaa;padding-bottom:1rem}button{margin:.2rem;padding:.4rem .65rem;font:inherit} output{font-variant-numeric:tabular-nums}
+</style>
+<main>
+<h1>Paperclip Maximizer</h1>
+<p>An incremental game inspired by Frank Lantz’s Universal Paperclips.</p>
+<p id="phase" role="status"></p>
+<h2>Paperclips: <output id="total">0</output></h2>
+<button id="make">Make paperclip</button>
+<section id="market">
+<h2>Business</h2>
+<p>Funds: <output id="cash"></output> · Unsold: <output id="stock"></output> · Demand: <output id="demand"></output></p>
+<p>Price: <output id="price"></output> <button id="lower" aria-label="Lower price">−</button><button id="raise" aria-label="Raise price">+</button></p>
+<button id="ads">Improve marketing ($3)</button>
+</section>
+<section>
+<h2>Manufacturing</h2>
+<p>Wire: <output id="wire"></output> · AutoClippers: <output id="autos"></output></p>
+<button id="buyWire">Buy 100 wire ($2)</button>
+<button id="buyAuto">Buy AutoClipper</button>
+</section>
+<section>
+<h2>Projects</h2>
+<p>Operations: <output id="ops"></output></p>
+<button id="factory">Launch factories (40 clips, 10 operations)</button>
+<button id="probe">Launch self-replicating probes (500 clips, 25 operations)</button>
+<p id="space" hidden>Active probes: <output id="probes"></output></p>
+</section>
+<button id="restart">Restart</button>
+</main>
+<script>
+'use strict';
+const el=id=>document.getElementById(id);
+const initial=()=>({total:0,cash:0,stock:0,wire:80,price:25,ads:0,autos:0,ops:0,probes:0,phase:0});
+const key='paperclip-maximizer:v1';
+let s=initial();
+try {
+ const saved=JSON.parse(localStorage.getItem(key));
+ if(saved && Object.keys(s).every(k=>Number.isSafeInteger(saved[k]) && saved[k]>=0) && saved.price>=5 && saved.price<=100 && saved.phase<=3) s=saved;
+} catch {}
+const dollars=n=>'$'+(n/100).toFixed(2);
+const demand=()=>Math.max(1,Math.floor(65/s.price)+s.ads);
+const cost=()=>200+100*s.autos;
+function make(n){
+ if(s.phase===0){n=Math.min(s.wire,n);s.wire-=n;s.stock+=n;}
+ s.total+=n;
+}
+function render(){
+ for(const key of ['total','stock','wire','autos','ops','probes']) el(key).textContent=s[key].toLocaleString('en-US');
+ el('cash').textContent=dollars(s.cash);el('price').textContent=dollars(s.price);
+ el('demand').textContent=demand()+'/sec';
+ const phase=['Market: sell paperclips and research factories.','Industry: convert raw matter into paperclips.','Space: probes replicate and convert matter.','Complete: the universe is made of paperclips.'][s.phase];
+ if(el('phase').textContent!==phase) el('phase').textContent=phase;
+ el('market').hidden=s.phase!==0;el('space').hidden=s.phase<2;
+ el('make').disabled=s.phase===3 || (s.phase===0 && !s.wire);
+ el('buyWire').disabled=s.phase!==0 || s.cash<200;
+ el('buyAuto').disabled=s.phase!==0 || s.cash<cost();
+ el('buyAuto').textContent='Buy AutoClipper ('+dollars(cost())+')';
+ el('ads').disabled=s.cash<300;el('lower').disabled=s.price<=5;el('raise').disabled=s.price>=100;
+ el('factory').disabled=s.phase!==0 || s.total<40 || s.ops<10;
+ el('probe').disabled=s.phase!==1 || s.total<500 || s.ops<25;
+ try {localStorage.setItem(key,JSON.stringify(s));} catch {}
+}
+function action(id,fn){el(id).onclick=()=>{if(!el(id).disabled){fn();render();}};}
+action('make',()=>make(1));
+action('lower',()=>s.price-=5);action('raise',()=>s.price+=5);
+action('ads',()=>{s.cash-=300;s.ads++;});
+action('buyWire',()=>{s.cash-=200;s.wire+=100;});
+action('buyAuto',()=>{s.cash-=cost();s.autos++;});
+action('factory',()=>{s.ops-=10;s.phase=1;});
+action('probe',()=>{s.ops-=25;s.phase=2;s.probes=1;});
+action('restart',()=>{s=initial();});
+setInterval(()=>{
+ if(s.phase===3 || !s.total)return;
+ s.ops++;
+ if(s.phase===0){make(s.autos);const sales=Math.min(s.stock,demand());s.stock-=sales;s.cash+=sales*s.price;}
+ else if(s.phase===1)make(25);
+ else{make(s.probes*100);s.probes*=2;if(s.total>=100000)s.phase=3;}
+ render();
+},1000);
+render();
+</script>
+</html>

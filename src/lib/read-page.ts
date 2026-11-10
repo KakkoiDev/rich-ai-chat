@@ -1,3 +1,5 @@
+import { Readability } from "@mozilla/readability";
+import { parseHTML } from "linkedom";
 import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 import { request } from "node:https";
@@ -42,7 +44,21 @@ export function extractPageText(html: string) {
   const text = plain(body);
   // Some public pages return a preview followed by an access screen. Never accept terms on the user's behalf.
   const gate = /(?:to (?:view|continue to|access) (?:this|the) (?:page|article)[^\n]{0,180}(?:agree|accept|sign in|check the box)|(?:sign in|subscribe) to (?:continue reading|read (?:the|this) (?:full )?article)|(?:この|全文の?)?(?:ページ|記事|全文)(?:を|の)?(?:見る|読む|閲覧する|表示する)には[^\n]{0,180}(?:ご利用|同意|チェック|ログイン|登録))/i.exec(text);
-  return { title: plain(title ?? "").slice(0, 200), text: (gate ? text.slice(0, gate.index).trim() : text).slice(0, 16000), partial: Boolean(gate) };
+  const fallback = { title: plain(title ?? "").slice(0, 200), text: (gate ? text.slice(0, gate.index).trim() : text).slice(0, 16000), partial: Boolean(gate) };
+  // Keep explicit access gates and short articles on the conservative extraction path.
+  if (gate || text.length < 500) return fallback;
+  try {
+    const { document } = parseHTML(clean);
+    for (const ruby of document.querySelectorAll("rt, rp")) ruby.remove();
+    const article = new Readability(document, { maxElemsToParse: 12000 }).parse();
+    const readable = article?.content && plain(article.content);
+    if (readable && readable.length >= 500) return {
+      title: (article.title || fallback.title).slice(0, 200), text: readable.slice(0, 16000), partial: false,
+    };
+  } catch {
+    // Malformed or unusually large HTML still gets the original bounded extraction.
+  }
+  return fallback;
 }
 
 /** Resolve and pin the public address for each hop. Never send cookies or follow redirects unchecked. */

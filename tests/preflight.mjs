@@ -216,6 +216,15 @@ assert.throws(() => publicPageUrl("https://example.com:3212/story"));
 assert.deepEqual(extractPageText("<main><p>Public preview</p><p>To view this article, accept our terms</p></main>"),
   { title: "", text: "Public preview", partial: true });
 assert.equal(extractPageText("<article><p><ruby>海<rt>うみ</rt></ruby> &amp; weather</p></article>").text, "海 & weather");
+const reportText = "The team documented the results carefully after the experiment, and the analysis explains why each result matters. ".repeat(15);
+const noisyReport = extractPageText(`<html><head><title>A report</title></head><body><div class="sidebar">SUPPORT LINKS</div><div class="article content"><p>${reportText}</p></div></body></html>`);
+assert.equal(noisyReport.title, "A report");
+assert.equal(noisyReport.text, reportText.trim());
+const { basicRecipe: recipeForGame } = await import("../src/lib/basic-recipes.ts");
+assert.equal(recipeForGame("Play Universal Paperclips")?.file, "universal-paperclips.html");
+assert.equal(recipeForGame("Make a Universal Paperclip clone")?.file, "universal-paperclips.html");
+assert.equal(recipeForGame("Play Paperclip Factory")?.file, "paperclip.html");
+assert.equal(recipeForGame("Play Universal Paperclips with multiplayer"), undefined);
 assert.match(diagnoseArtifactEdits("var enabled = false;", [{ find: "false", replace: "false" }]).problem, /makes no change/);
 assert.deepEqual(applyArtifactLineEdits("header\nold element\nkeep\nold handler", [
   { start: 2, end: 2, text: "new element\nnew control" }, { start: 4, end: 4, text: "new handler" },

@@ -1,6 +1,9 @@
 /** Match only requests the app's tested mechanics can fulfill as written. */
 export function basicRecipe(request: string) {
   const text = request.trim().replace(/\s+/g, " ");
+  if (/^(?:please )?(?:make|build|create|open|play) (?:me )?(?:a )?(?:simple )?(?:(?:universal paper[ -]?clips?|paperclip maximizer)(?: clone| game)?)[.!]?$/i.test(text)) {
+    return { title: "Paperclip Maximizer", file: "universal-paperclips.html" } as const;
+  }
   if (/^(?:please )?(?:make|build|create|open|play) (?:me )?(?:a )?(?:simple )?paper[ -]?clip (?:factory|clicker|game)(?: game)?[.!]?$/i.test(text)) {
     return { title: "Paperclip Factory", file: "paperclip.html" } as const;
   }
