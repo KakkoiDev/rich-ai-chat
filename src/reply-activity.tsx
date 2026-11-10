@@ -11,6 +11,7 @@ const pathWords: Record<string, string> = {
   page: "Read a linked page", job: "Background job run", map: "Looked up a map", forecast: "Looked up a temperature forecast",
 };
 const toolWords: Record<ActivityTool, [string, string]> = {
+  adjust_map: ["Adjusting the map", "Adjusted the map"],
   read_page: ["Opening the linked page", "Read the linked page"],
   web_search: ["Searching the web", "Searched the web"],
   image_search: ["Searching for pictures", "Searched for pictures"],
@@ -38,6 +39,7 @@ const recoveryWords = {
   "requested-search": "Searched the web because you asked; the model had answered without searching",
 };
 const toolNouns: Record<ActivityTool, [string, string]> = {
+  adjust_map: ["map adjustment", "map adjustments"],
   read_page: ["page read", "page reads"],
   web_search: ["search", "searches"], image_search: ["picture search", "picture searches"],
   video_search: ["video search", "video searches"], current_datetime: ["clock reading", "clock readings"],

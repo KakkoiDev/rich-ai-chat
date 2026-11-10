@@ -43,3 +43,34 @@ export async function findMapLocation(place: string, signal: AbortSignal): Promi
     return undefined;
   }
 }
+
+type Preview = Pick<Location, "label" | "bounds">;
+
+export function mapZoomRequest(text: string) {
+  const match = /^(?:(?:please\s+)?(?:show|display|open)(?: me)? (?:the |a )?map (?:with|of|for) ([^\r\n]{1,120}?)\s+and\s+|(?:please\s+)?)(?:zoom|pull)\s+(in|out)(?:\s+(?:a (?:little|bit)|slightly|more))?[?!. ]*$/i.exec(text);
+  return match && { place: match[1]?.trim(), direction: match[2].toLowerCase() as "in" | "out" };
+}
+
+export function zoomMap(preview: Preview, direction: "in" | "out"): Preview {
+  const scale = direction === "out" ? 1.6 : 1 / 1.6;
+  const resize = (a: number, b: number, limit: number) => {
+    const center = (a + b) / 2;
+    const half = Math.min(limit, Math.max(0.0005, (b - a) * scale / 2));
+    const lower = Math.min(limit - 2 * half, Math.max(-limit, center - half));
+    return [lower, lower + 2 * half].map(n => Number(n.toFixed(8)));
+  };
+  const [west, east] = resize(preview.bounds[0], preview.bounds[2], 180);
+  const [south, north] = resize(preview.bounds[1], preview.bounds[3], 85);
+  return { label: preview.label, bounds: [west, south, east, north] };
+}
+
+export function mapReply(place: string, preview?: Preview) {
+  const google = new URL("https://www.google.com/maps/search/");
+  google.search = new URLSearchParams({ api: "1", query: place }).toString();
+  const osm = new URL("https://www.openstreetmap.org/search");
+  osm.searchParams.set("query", place);
+  const component = preview ? `OpenStreetMap(${JSON.stringify(preview.label)}, ${preview.bounds.join(", ")}), ` : "";
+  const links = `[Open in OpenStreetMap](<${osm.href}>) · [Open in Google Maps](<${google.href}>)`;
+  const markdown = JSON.stringify(preview ? links : "No map preview found. Try a more specific location, or open the map search.\n\n" + links);
+  return `root = Card([TextContent(${JSON.stringify(preview?.label ?? place)}, "large-heavy"), ${component}MarkDownRenderer(${markdown})])`;
+}

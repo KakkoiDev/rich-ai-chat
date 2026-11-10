@@ -43,3 +43,42 @@ export function restoreVisibleReply(answer: string) {
   if (markup.test(answer) || /\]\]>openui:|^<content\b/.test(answer)) return answer;
   return visibleModelReply(answer).markup;
 }
+
+/** Search synthesis can return prose or one or more prose components despite the text-only prompt. */
+export function searchSummaryText(answer: string): string {
+  if (!hasText(answer)) return "";
+  if (!markup.test(answer)) return answer.trim();
+  const result = parser.parse(answer);
+  if (result.meta.incomplete || !result.root) return "";
+  const prose: string[] = [];
+  const visit = (node: ElementNode) => {
+    const value = node.typeName === "MarkDownRenderer" ? node.props.textMarkdown
+      : node.typeName === "TextContent" ? node.props.text : undefined;
+    if (typeof value === "string" && hasText(value)) prose.push(value.trim());
+    for (const child of Object.values(node.props).flat()) {
+      if (child && typeof child === "object" && "type" in child && child.type === "element") visit(child as ElementNode);
+    }
+  };
+  visit(result.root);
+  return prose.join("\n\n");
+}
+
+export function mapFromReply(answer: string) {
+  if (!answer.includes("OpenStreetMap(")) return;
+  let root;
+  try { root = parser.parse(answer).root; } catch { return; }
+  if (root?.typeName !== "Card" || !Array.isArray(root.props.children)) return;
+  const map = root.props.children.find((child): child is ElementNode =>
+    child && typeof child === "object" && child.type === "element" && child.typeName === "OpenStreetMap");
+  if (!map) return;
+  const { label, west, south, east, north } = map.props;
+  if (typeof label !== "string" || typeof west !== "number" || typeof south !== "number"
+    || typeof east !== "number" || typeof north !== "number"
+    || !(west >= -180 && east <= 180 && west < east && south >= -85 && north <= 85 && south < north)) return;
+  const links = root.props.children.find((child): child is ElementNode =>
+    child && typeof child === "object" && child.type === "element" && child.typeName === "MarkDownRenderer");
+  const osm = typeof links?.props.textMarkdown === "string"
+    ? /<https:\/\/www\.openstreetmap\.org\/search\?([^<>]+)>/.exec(links.props.textMarkdown) : null;
+  const place = osm ? new URLSearchParams(osm[1]).get("query") ?? undefined : undefined;
+  return { label, place, bounds: [west, south, east, north] as [number, number, number, number] };
+}

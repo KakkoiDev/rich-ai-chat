@@ -23,6 +23,15 @@ function chunk(delta, finish = null) {
 
 /** The stub model. The scenario is named in the user's prompt; the request count picks the step. */
 function stubModel(req, res) {
+  if (req.url.startsWith('/geo?')) {
+    res.setHeader('content-type', 'application/json');
+    return res.end(JSON.stringify({ features: [{ geometry: { type: 'Point', coordinates: [139.7, 35.6] },
+      properties: { name: '東京都', country: '日本', type: 'city' } }] }));
+  }
+  if (req.url.startsWith('/res/v1/web/search?')) {
+    res.setHeader('content-type', 'application/json');
+    return res.end(JSON.stringify({ web: { results: [{ title: 'Fixture study', url: 'https://example.org/study', description: 'The data did not support the claim.' }] } }));
+  }
   let body = '';
   req.on('data', data => { body += data; });
   req.on('end', () => {
@@ -30,6 +39,13 @@ function stubModel(req, res) {
     const user = [...(request.messages ?? [])].reverse().find(m => m.role === 'user');
     const prompt = typeof user?.content === 'string' ? user.content : JSON.stringify(user?.content ?? '');
     const scenario = /scenario ([a-z-]+)/.exec(prompt)?.[1] ?? 'plain';
+    if (!request.stream && scenario === 'search-summary') {
+      res.setHeader('content-type', 'application/json');
+      return res.end(JSON.stringify({ id: 'fixture', object: 'chat.completion', created: 0, model: 'stub-model',
+        choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant',
+          content: 'root = Card([MarkDownRenderer("The study did not support the specific claim.")])' } }],
+        usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 } }));
+    }
     const n = (calls.get(scenario) ?? 0) + 1;
     calls.set(scenario, n);
     const afterTool = (request.messages ?? []).some(m => m.role === 'tool');
@@ -61,6 +77,16 @@ function stubModel(req, res) {
     };
     const drop = () => { res.write(chunk({ role: 'assistant', content: 'root = Card([Tex' })); res.socket.destroy(); };
     if (scenario === 'clock-ok') return afterTool ? answer('It is noon.') : callClock();
+    if (scenario === 'map-adjust') {
+      if (afterTool) return plain('');
+      assert.ok(request.tools?.some(item => item.function.name === 'adjust_map'));
+      assert.match(request.messages[0].content, /already has a visible map/);
+      res.write(chunk({ role: 'assistant', tool_calls: [{ index: 0, id: 'map-adjust-1', type: 'function',
+        function: { name: 'adjust_map', arguments: '{"direction":"out"}' } }] }));
+      res.write(chunk({}, 'tool_calls'));
+      return res.end('data: [DONE]\n\n');
+    }
+    if (scenario === 'search-summary') return afterTool ? plain('') : callSearch();
     if (scenario === 'search-fails') return afterTool ? answer('It opened in 1998, as far as I know.') : callSearch();
     if (scenario === 'retry-no-tool') return n === 1 ? drop() : answer('Second try worked.');
     if (scenario === 'tool-then-drop') return afterTool ? drop() : callClock();
@@ -69,10 +95,10 @@ function stubModel(req, res) {
   });
 }
 
-async function startApp(port, modelPort, logDir) {
+async function startApp(port, modelPort, logDir, extraEnv = {}) {
   const app = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)], {
     env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1', MODEL_BASE_URL: `http://127.0.0.1:${modelPort}/v1`, MODEL_ID: 'stub-model',
-      MODEL_API_KEY: 'stub', RICH_CHAT_LOG_DIR: logDir, BRAVE_SEARCH_API_KEY: '' },
+      MODEL_API_KEY: 'stub', RICH_CHAT_LOG_DIR: logDir, BRAVE_SEARCH_API_KEY: '', ...extraEnv },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   for await (const data of app.stdout) if (String(data).includes('Ready')) break;
@@ -291,6 +317,52 @@ async function check(name, body) {
       await sendVisible('visible-empty', /finished without writing an answer/);
       assert.equal(calls.get('visible-empty'), 2);
     });
+    const fixturePort = port + 1;
+    const fixtureBase = `http://127.0.0.1:${model.address().port}`;
+    const fixtureApp = await startApp(fixturePort, model.address().port, logDir, {
+      BRAVE_SEARCH_API_KEY: 'fixture', RICH_CHAT_PAID_PROXY: fixtureBase, RICH_CHAT_GEOCODER_URL: fixtureBase + '/geo',
+    });
+    try {
+      const fixturePage = await browser.newPage();
+      await fixturePage.route('https://www.openstreetmap.org/**', route => route.fulfill({ body: 'Map fixture' }));
+      await fixturePage.goto(`http://127.0.0.1:${fixturePort}/`);
+      const send = async text => {
+        const box = fixturePage.getByRole('textbox', { name: 'Message' });
+        await box.fill(text);
+        await box.press('Enter');
+      };
+      await check('zoom follow-ups reuse the most recent map, including through the model tool', async () => {
+        const maps = fixturePage.locator('iframe[title^="Map of"]');
+        const width = async index => {
+          await maps.nth(index).waitFor();
+          const bounds = new URL(await maps.nth(index).getAttribute('src')).searchParams.get('bbox').split(',').map(Number);
+          return bounds[2] - bounds[0];
+        };
+        await send('Show me Tokyo on the map');
+        const initial = await width(0);
+        await send('zoom out');
+        const wider = await width(1);
+        await send('show the map with Tokyo and zoom out a little');
+        const named = await width(2);
+        await send('Give me a wider view of that same map, scenario map-adjust.');
+        const adjusted = await width(3);
+        assert.ok(initial < wider && wider < named && named < adjusted);
+        assert.equal(calls.get('map-adjust'), 2);
+      });
+      await check('search recovery displays a readable summary above its sources', async () => {
+        await send('Look into the claim for scenario search-summary.');
+        const summary = fixturePage.getByText('The study did not support the specific claim.', { exact: true });
+        const link = fixturePage.getByRole('link', { name: 'Source 1' }).last();
+        await summary.waitFor();
+        await link.waitFor();
+        assert.ok((await summary.boundingBox()).y < (await link.boundingBox()).y);
+        assert.equal(await fixturePage.getByText(/root = Card/).count(), 0);
+        assert.equal(calls.get('search-summary'), 2);
+      });
+      await fixturePage.close();
+    } finally {
+      fixtureApp.kill();
+    }
   } finally {
     await browser.close();
     app.kill();

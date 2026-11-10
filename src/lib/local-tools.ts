@@ -165,7 +165,7 @@ export async function findVideos(query: string, signal: AbortSignal) {
 
 /** "Look up the year X opened, and cite your source." -> "the year X opened". */
 export function explicitSearchQuery(request: string) {
-  const verb = /^\s*(?:(?:please|can you|could you)\s+)*(?:search(?: the web| online)?(?: for)?|look up)\s+/i;
+  const verb = /^\s*(?:(?:please|can you|could you)\s+)*(?:search(?: the web| online)?(?: for)?|look up|look into|research)\s+/i;
   if (!verb.test(request)) return undefined;
   const query = request.trim()
     .replace(verb, "")

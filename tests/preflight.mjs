@@ -1,3 +1,4 @@
+import { earlierAnswerContext } from "../src/lib/follow-up-context.ts";
 import { mapPreviewBounds } from "../src/lib/map-location.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -755,3 +756,12 @@ console.log("PASS: Laya component gate (slices, sidecar client, sidecar pin, act
 
 assert.deepEqual(mapPreviewBounds(139.76, 35.68, [135.85, 35.9, 154.2, 20.21], "city").map(n => Number(n.toFixed(2))), [139.52, 35.52, 140, 35.84]);
 assert.deepEqual(mapPreviewBounds(2.35, 48.86, [2.22, 48.91, 2.47, 48.81], "city"), [2.22, 48.81, 2.47, 48.91]);
+
+const priorResearch = [
+  { role: "user", content: "Investigate when the bridge opened." },
+  { role: "assistant", content: 'root = Card([MarkDownRenderer("The bridge opened in 1974. [Source 1](https://example.org/report)")])' },
+];
+const resumed = JSON.parse(earlierAnswerContext(priorResearch, [], "Summarize your earlier bridge findings."));
+assert.match(resumed[0].answer, /1974.*https:\/\/example.org\/report/);
+assert.equal(earlierAnswerContext(priorResearch, priorResearch, "Summarize your earlier bridge findings."), "");
+assert.equal(earlierAnswerContext(priorResearch, [], "Describe a cloud."), "");

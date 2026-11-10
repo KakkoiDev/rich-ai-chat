@@ -10,7 +10,7 @@ import type { GateDecision, GatePrompt, PromptSlice } from "@/lib/prompt-slices"
 export type ActivityPath = "chat" | "app-build" | "revision" | "image-search" | "video-search" | "clock" | "table" | "chart"
   | "starter" | "tested-layout" | "transform" | "job" | "map" | "forecast" | "page";
 export type TaskTool = "read_plan" | "propose_items" | "record_checkpoint" | "record_verification" | "queue_job";
-export type ActivityTool = "read_page" | "web_search" | "image_search" | "video_search" | "current_datetime" | TaskTool;
+export type ActivityTool = "adjust_map" | "read_page" | "web_search" | "image_search" | "video_search" | "current_datetime" | TaskTool;
 /** Background job progress (M10): status changes, committed steps (`checkpoint`) and reclaimed leases (`requeued`). */
 export type JobProgress = "queued" | "waiting" | "blocked" | "running" | "checkpoint" | "requeued" | "succeeded" | "failed" | "cancelled";
 
@@ -90,6 +90,7 @@ export function toolSummary(tool: ActivityTool, result: unknown): { status: "ok"
     images?: unknown[]; videos?: unknown[]; summary?: unknown; partial?: boolean };
   if (typeof value.error === "string") return { status: "error", summary: value.error };
   if (taskTools.has(tool)) return { status: "ok", summary: typeof value.summary === "string" ? value.summary : "Updated the plan" };
+  if (tool === "adjust_map") return { status: "ok", summary: "Updated the existing map view" };
   if (tool === "read_page") return { status: "ok", summary: value.partial ? "Only a preview was accessible" : "Retrieved readable page text" };
   if (tool === "web_search") {
     const sources = value.untrustedSources ?? [];
