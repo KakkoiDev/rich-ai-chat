@@ -1,3 +1,4 @@
+import { mapPreviewBounds } from "../src/lib/map-location.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { thoughtWatch } from "../src/lib/thought-watch.ts";
@@ -751,3 +752,6 @@ console.log("PASS: Laya component gate (slices, sidecar client, sidecar pin, act
   const exported = exportArtifact({ title: "Probe", head: [hostStyle], document: "<!doctype html><html><head><style>button{color:red}</style></head><body><button>Go</button></body></html>" });
   assert.ok(exported.indexOf(hostStyle) > 0 && exported.indexOf(hostStyle) < exported.indexOf("button{color:red}"), "The host's subset comes before the app's own styles");
 }
+
+assert.deepEqual(mapPreviewBounds(139.76, 35.68, [135.85, 35.9, 154.2, 20.21], "city").map(n => Number(n.toFixed(2))), [139.52, 35.52, 140, 35.84]);
+assert.deepEqual(mapPreviewBounds(2.35, 48.86, [2.22, 48.91, 2.47, 48.81], "city"), [2.22, 48.81, 2.47, 48.91]);

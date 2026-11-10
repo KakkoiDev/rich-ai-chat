@@ -8,6 +8,12 @@ Start with a closed set of actions: locate a control by role/name, click, type, 
 
 Start with synthetic revisions that change a visible control and preserve disabled automation, then add a randomized tool and a keyboard-driven game. Use the same checks across DeepSeek Flash, GPT-OSS 20B, Gemma 4 12B, E4B, and E2B. Include intentionally broken candidates to confirm the checks reject them.
 
+The first verification pass is implemented. Set `RICH_CHAT_VERIFICATION_CHROMIUM` to an absolute path to a trusted Chromium executable. The same plan is reused for all candidates in one request. Activity distinguishes a rejected candidate, a smoke check with no behavior assertions, and a skipped browser check. Bundled engine previews and trace capture are still out of scope for this pass. The elapsed-time action uses the real browser clock and is bounded. Test the runner with:
+
+```sh
+node tests/e2e/revision-browser.mjs
+```
+
 ## Resumable repair jobs
 
 Reuse the existing task worker in `src/lib/tasks/jobs.ts` and `src/lib/tasks/worker.ts`. Move revision work behind a job handler with a durable payload: source revision and hash, requested changes, fixed behavior checks, last candidate reference, completed checks, and the next repair strategy. Checkpoint after each completed attempt. Keep generated artifacts and traces outside the task summary. Publish a candidate only after verification and only if its original source revision still matches; otherwise offer it separately. Make cancel and resume available in Tasks. Model changes remain visible in Activity and follow the user's model settings.
