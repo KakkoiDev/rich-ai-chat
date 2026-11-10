@@ -101,8 +101,12 @@ async function startApp(port, modelPort, logDir, extraEnv = {}) {
       MODEL_API_KEY: 'stub', RICH_CHAT_LOG_DIR: logDir, BRAVE_SEARCH_API_KEY: '', ...extraEnv },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
-  for await (const data of app.stdout) if (String(data).includes('Ready')) break;
-  return app;
+  let startup = '';
+  for await (const data of app.stdout) {
+    startup += data;
+    if (startup.includes('Ready')) return app;
+  }
+  throw new Error(`Activity test app did not start on port ${port}: ${startup}`);
 }
 
 const checks = [];
@@ -317,7 +321,10 @@ async function check(name, body) {
       await sendVisible('visible-empty', /finished without writing an answer/);
       assert.equal(calls.get('visible-empty'), 2);
     });
-    const fixturePort = port + 1;
+    const reservation = http.createServer().listen(0, '127.0.0.1');
+    await once(reservation, 'listening');
+    const fixturePort = reservation.address().port;
+    await new Promise((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()));
     const fixtureBase = `http://127.0.0.1:${model.address().port}`;
     const fixtureApp = await startApp(fixturePort, model.address().port, logDir, {
       BRAVE_SEARCH_API_KEY: 'fixture', RICH_CHAT_PAID_PROXY: fixtureBase, RICH_CHAT_GEOCODER_URL: fixtureBase + '/geo',
