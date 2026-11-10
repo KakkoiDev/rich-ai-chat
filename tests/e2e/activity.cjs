@@ -78,6 +78,7 @@ function stubModel(req, res) {
     };
     const drop = () => { res.write(chunk({ role: 'assistant', content: 'root = Card([Tex' })); res.socket.destroy(); };
     if (scenario === 'clock-ok') return afterTool ? answer('It is noon.') : callClock();
+    if (scenario === 'printed-map-adjust') return plain('adjust_map(direction="in")');
     if (scenario === 'map-adjust') {
       if (afterTool) return plain('');
       assert.ok(request.tools?.some(item => item.function.name === 'adjust_map'));
@@ -357,6 +358,14 @@ async function check(name, body) {
         const adjusted = await width(3);
         assert.ok(initial < wider && wider < named && named < adjusted);
         assert.equal(calls.get('map-adjust'), 2);
+        await send('Zoom way in.');
+        const close = await width(4);
+        assert.ok(close < adjusted / 3);
+        await send('Give me a closer view, scenario printed-map-adjust.');
+        const printed = await width(5);
+        assert.ok(printed < close);
+        assert.equal(calls.get('printed-map-adjust'), 1);
+        assert.equal(await fixturePage.getByText(/adjust_map\(direction=/).count(), 0);
       });
       await check('search recovery displays a readable summary above its sources', async () => {
         await send('Look into the claim for scenario search-summary.');

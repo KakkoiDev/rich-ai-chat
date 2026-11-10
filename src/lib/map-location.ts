@@ -47,12 +47,14 @@ export async function findMapLocation(place: string, signal: AbortSignal): Promi
 type Preview = Pick<Location, "label" | "bounds">;
 
 export function mapZoomRequest(text: string) {
-  const match = /^(?:(?:please\s+)?(?:show|display|open)(?: me)? (?:the |a )?map (?:with|of|for) ([^\r\n]{1,120}?)\s+and\s+|(?:please\s+)?)(?:zoom|pull)\s+(in|out)(?:\s+(?:a (?:little|bit)|slightly|more))?[?!. ]*$/i.exec(text);
-  return match && { place: match[1]?.trim(), direction: match[2].toLowerCase() as "in" | "out" };
+  const match = /^(?:(?:please\s+)?(?:show|display|open)(?: me)? (?:the |a )?map (?:with|of|for) ([^\r\n]{1,120}?)\s+and\s+|(?:please\s+)?)(?:zoom|pull)\s+(?:(way|much|far)\s+)?(in|out)(?:\s+(a (?:little|bit|lot)|slightly|more|a great deal))?[?!. ]*$/i.exec(text);
+  return match && { place: match[1]?.trim(), direction: match[3].toLowerCase() as "in" | "out",
+    large: Boolean(match[2]) || /^(?:a lot|a great deal)$/i.test(match[4] ?? "") };
 }
 
-export function zoomMap(preview: Preview, direction: "in" | "out"): Preview {
-  const scale = direction === "out" ? 1.6 : 1 / 1.6;
+export function zoomMap(preview: Preview, direction: "in" | "out", large = false): Preview {
+  const factor = large ? 4 : 1.6;
+  const scale = direction === "out" ? factor : 1 / factor;
   const resize = (a: number, b: number, limit: number) => {
     const center = (a + b) / 2;
     const half = Math.min(limit, Math.max(0.0005, (b - a) * scale / 2));

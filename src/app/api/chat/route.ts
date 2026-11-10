@@ -202,7 +202,7 @@ export async function POST(req: Request) {
       const preview = zoom.place
         ? match ? mapContext : priorPlace ? await findMapLocation(zoom.place, req.signal) : undefined
         : mapContext;
-      if (preview) return mapReply(zoom.place ?? mapContext?.place ?? preview.label, zoomMap(preview, zoom.direction));
+      if (preview) return mapReply(zoom.place ?? mapContext?.place ?? preview.label, zoomMap(preview, zoom.direction, zoom.large));
       return zoom.place ? mapReply(zoom.place) : textCard("Which place should I show on the map?");
     })());
   }
@@ -1087,6 +1087,18 @@ export async function POST(req: Request) {
               if (!substantiveSearchAnswer(summary)) return answerFromSources(writer);
               writeReply(writer, searchReply(summary));
               return;
+            }
+            if (!mediaReply && !fileContext && !toolsDisabled && mapContext &&
+                /\b(?:zoom|closer view|wider view|farther out)\b/i.test(latest.content) &&
+                /adjust_map\s*\(/.test(result.answer)) {
+              const printed = /^adjust_map\s*\(\s*direction\s*=\s*"(in|out)"\s*\)$/u.exec(searchSummaryText(result.answer).trim());
+              if (printed) {
+                const direction = printed[1] === "in" ? "in" : "out";
+                await executed("adjust_map", "printed-map-adjust", async () => {
+                  mediaReply = mapReply(mapContext.place ?? mapContext.label, zoomMap(mapContext, direction));
+                  return { summary: "Updated the existing map view." };
+                }, { direction });
+              }
             }
             if (mediaReply?.includes("OpenStreetMap(")) {
               writeReply(writer, mediaReply);

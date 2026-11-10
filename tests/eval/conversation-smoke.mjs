@@ -25,6 +25,12 @@ const cases = {
       assert.ok(Math.abs(a[0] + a[2] - b[0] - b[2]) < 0.001 &&
         Math.abs(a[1] + a[3] - b[1] - b[3]) < 0.001, 'Expected the same map center');
     }],
+    ['Zoom way in.', (text, prior) => {
+      const a = map(prior[1]), b = map(text);
+      assert.ok((b[2] - b[0]) < (a[2] - a[0]) / 3, 'Expected a much closer view');
+      assert.ok(Math.abs(a[0] + a[2] - b[0] - b[2]) < 0.001 &&
+        Math.abs(a[1] + a[3] - b[1] - b[3]) < 0.001, 'Expected the same map center');
+    }],
   ],
   'forecast-followup': [
     ['Show me Paris on the map.', text => map(text)],
